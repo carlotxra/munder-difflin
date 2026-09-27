@@ -45,21 +45,22 @@ test('inferAgentProvider maps the copilot binary (with path/flags) to copilot', 
   assert.strictEqual(ap.inferAgentProvider('/usr/local/bin/copilot --model gpt-5.4'), 'copilot');
 });
 
-test('copilot preset builds the documented non-interactive print-mode shape', () => {
+test('copilot preset runs the interactive TUI seeded via -i', () => {
   const p = ap.providerPreset('copilot');
   assert.strictEqual(p.defaultCommand, 'copilot', 'default command binary');
-  assert.strictEqual(p.initialPromptFlag, '-p', 'prompt rides in via -p');
-  assert.strictEqual(ap.autoModeFlagForProvider('copilot'), '-s --allow-all-tools --no-ask-user');
-  assert.strictEqual(p.autoFlag, '-s --allow-all-tools --no-ask-user', 'autoFlag mirrors autoModeFlag');
+  assert.strictEqual(p.initialPromptFlag, '-i', 'seed rides in via -i, TUI stays alive');
+  assert.strictEqual(p.seedDelivery, undefined, 'no type-into-tui needed');
+  assert.strictEqual(ap.autoModeFlagForProvider('copilot'), '--allow-all-tools --no-ask-user');
+  assert.strictEqual(p.autoFlag, '--allow-all-tools --no-ask-user', 'autoFlag mirrors autoModeFlag');
 });
 
-test('copilot passes model + resume through, non-hiveAware, never auto-receives inbox', () => {
+test('copilot is a hook-bridged, inbox-capable hive citizen', () => {
   const p = ap.providerPreset('copilot');
   assert.ok(p.supportsModel && p.modelFlag === '--model', 'model picker + --model');
   assert.strictEqual(p.resumeFlag, '--resume', 'session resume flag');
   assert.strictEqual(p.hiveAware, false, 'no Claude-only identity injection');
-  assert.strictEqual(ap.canReceiveInbox('copilot'), false, 'print mode exits, no drain → bounces');
-  assert.strictEqual(ap.bridgeOf('copilot'), undefined, 'no hook/proxy bridge');
+  assert.strictEqual(ap.canReceiveInbox('copilot'), true, 'receives routed mail');
+  assert.deepStrictEqual(ap.bridgeOf('copilot'), { kind: 'hooks', shim: 'copilot' });
 });
 
 test('cursor is a recognized, selectable, god-eligible provider', () => {
