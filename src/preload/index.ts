@@ -12,6 +12,7 @@ import type { HeroPayload } from '../shared/heroPayload';
 export type { HeroPayload } from '../shared/heroPayload';
 import type { ModelCatalog } from '../shared/modelCatalogPayload';
 export type { ModelCatalog, CatalogModel } from '../shared/modelCatalogPayload';
+import type { OfficeLinesOverride } from '../shared/officeLinesPayload';
 import type { HookEvent } from '../shared/hookEvents';
 export type { HookEvent } from '../shared/hookEvents';
 import type { LocalSkill, CatalogSkill } from '../main/skills';
@@ -290,6 +291,9 @@ export interface HarnessConfig {
   strongKeepalive?: boolean;
   /** Auto-update from GitHub releases (default ON; Settings → General). */
   autoUpdate?: boolean;
+  /** Break-spot small talk (default ON) and its innuendo (default OFF). */
+  officeSmallTalk?: boolean;
+  officeInnuendo?: boolean;
   /** Anonymous product analytics (default ON, opt-out; see TELEMETRY.md).
    *  Mirrors main + renderer HarnessConfig. */
   telemetryEnabled?: boolean;
@@ -801,6 +805,9 @@ const api = {
   modelCatalog: (force?: boolean): Promise<{
     catalog: ModelCatalog | null; fetchedAt: number; stale: boolean;
   }> => ipcRenderer.invoke('models:catalog', force),
+  /** The validated `<userData>/office-lines.json` override for the break-spot
+   *  small talk, or null to keep the built-in lines. */
+  officeLines: (): Promise<OfficeLinesOverride | null> => ipcRenderer.invoke('office:lines'),
   /** Skills already installed for the coding agents on this machine. */
   skillsLocal: (cwd?: string): Promise<LocalSkill[]> => ipcRenderer.invoke('skills:local', cwd),
   /** The browsable skills catalog (cached; `force` re-fetches). */

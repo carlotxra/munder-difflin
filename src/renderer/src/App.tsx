@@ -4,6 +4,7 @@ import { startMockLoop, stopMockLoop } from '@/store/mockEvents';
 import type { HarnessConfig } from '@/store/config';
 import { DEFAULT_ORG_TRIGGER } from '@shared/triggers';
 import { OfficeFloor } from '@/scene/office/OfficeFloor';
+import { applyOfficeLinesSettings, applyOfficeLinesOverride } from '@/scene/office/officeLinesOverride';
 import { useHive } from '@/hooks/useHive';
 import { useResolvedGodName } from '@/hooks/useResolvedGodName';
 import { useGodNameSync } from '@/i18n/useGodNameSync';
@@ -111,6 +112,10 @@ export function App() {
       // Mirror the active office theme so OfficeFloor renders it (gated on the
       // tvShowOffices flag; off = always the office). Settings keeps this synced.
       useStore.getState().setOfficeTheme(c.tvShowOffices ? (c.officeTheme ?? 'office') : 'office');
+      // Break-spot small talk: the two General toggles, then the user's
+      // office-lines.json override (null = built-in lines). Settings re-applies both.
+      applyOfficeLinesSettings({ smallTalk: c.officeSmallTalk !== false, innuendo: c.officeInnuendo === true });
+      void window.cth.officeLines().then(applyOfficeLinesOverride).catch(() => { /* built-in lines */ });
       // Mirror the triggers so Settings → Connections and the Command Center's
       // Triggers tab read one list, not two copies that drift — whichever surface
       // saves calls these same setters and the other repaints. No extra IPC: main

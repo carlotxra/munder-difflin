@@ -10,6 +10,7 @@
 // shared GENERIC pool so the floor never feels empty.
 
 import type { OfficeCharacterName } from './cast';
+import { officeLines, type BuiltinOfficeLines } from './officeLinesOverride';
 
 /** Where an agent is lingering — picks a contextual line pool. */
 export type BreakSpot = 'coffee' | 'vending' | 'snack' | 'table';
@@ -82,9 +83,10 @@ const BY_CHARACTER: Partial<Record<OfficeCharacterName, readonly string[]>> = {
  *  fits the spot the agent is standing at. `seed` keeps it deterministic per
  *  call site (avoids Math.random, which Pixi/Electron CSP-safe code prefers). */
 export function pickSoloLine(character: OfficeCharacterName, spot: BreakSpot, seed: number): string {
-  const flavour = BY_CHARACTER[character];
+  const lines = officeLines(BUILTIN); // user file + innuendo filter (officeLinesOverride.ts)
+  const flavour = lines.characters[character];
   if (flavour && seed % 5 < 3) return pick(flavour, Math.floor(seed / 5));
-  return pick(SPOT_POOL[spot], seed);
+  return pick(lines.spots[spot], seed);
 }
 
 // ─── paired exchanges (two agents at one table) ──────────────────────────────
@@ -210,8 +212,8 @@ const TWSS_EXCHANGES: readonly Exchange[] = [
   ['impressive you held back today.', 'thank you.', 'I counted zero times.', 'that’s what she said.', 'still counts.'],
 ];
 
-// Everything any table-mate pair can draw from.
-const PAIR_POOL: readonly Exchange[] = [...EXCHANGES, ...TWSS_EXCHANGES];
+// Everything any table-mate pair can draw from: EXCHANGES plus TWSS_EXCHANGES,
+// the latter only when innuendo is allowed (see officeLinesOverride.ts).
 
 // Keyed off the SPEAKER so, when the right character sits down first, they get
 // to open with their signature bit.
@@ -231,7 +233,13 @@ const KEYED_EXCHANGES: Partial<Record<OfficeCharacterName, Exchange>> = {
 /** A multi-beat exchange for two agents sharing a table. Beats alternate:
  *  index 0 = `speaker`, 1 = the table-mate, 2 = speaker, … */
 export function pickExchange(speaker: OfficeCharacterName, seed: number): Exchange {
-  const keyed = KEYED_EXCHANGES[speaker];
-  if (keyed && seed % 4 === 0) return keyed;
-  return pick(PAIR_POOL, seed);
+  const lines = officeLines(BUILTIN); // user file + innuendo filter (officeLinesOverride.ts)
+  const keyed = lines.keyed[speaker];
+  if (keyed && seed % 4 === 0) return pick(keyed, Math.floor(seed / 4));
+  return pick(lines.pairs, seed);
 }
+
+// The built-in pools, handed to the override layer as-is.
+const BUILTIN: BuiltinOfficeLines = {
+  spots: SPOT_POOL, characters: BY_CHARACTER, exchanges: EXCHANGES, twss: TWSS_EXCHANGES, keyed: KEYED_EXCHANGES,
+};

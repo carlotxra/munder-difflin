@@ -298,6 +298,11 @@ export interface HarnessConfig {
    *  "restart to update" toast — installation is always user-initiated. OFF
    *  disables checking entirely. (Mirrored in preload + renderer config.) */
   autoUpdate?: boolean;
+  /** Break-spot small talk on the office floor (Settings → General). Default ON;
+   *  off = no coffee/vending/table bubbles. Lines: <userData>/office-lines.json. */
+  officeSmallTalk?: boolean;
+  /** Allow the "that's what she said" bits in that small talk. Default OFF. */
+  officeInnuendo?: boolean;
   /** Multi-window "floors": expose a New Floor action that opens additional
    *  windows, each an independent office with isolated renderer state (its own
    *  session partition) and per-window PTY routing. ON by default (v0.3.4: code
@@ -452,6 +457,8 @@ const DEFAULTS: HarnessConfig = {
   notifications: false,
   strongKeepalive: false,
   autoUpdate: true,
+  officeSmallTalk: true,
+  officeInnuendo: false,
   telemetryEnabled: true,
   multiWindow: true,
   tvShowOffices: false,

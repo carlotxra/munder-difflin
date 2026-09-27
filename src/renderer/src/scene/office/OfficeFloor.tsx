@@ -11,6 +11,7 @@ import { DeskScreen } from './DeskScreen';
 import { MessageEnvelope, type MessageAct } from './MessageEnvelope';
 import { hexToNumber, DEFAULT_CHARACTER } from './cast';
 import { pickSoloLine, pickExchange, type BreakSpot } from './cafeteriaLines';
+import { officeSmallTalkEnabled } from './officeLinesOverride';
 import { colors } from '@/design/tokens';
 import { loadTheme, resolveThemeMap, themeTilesetUrls } from './themeLoader';
 import {
@@ -609,6 +610,7 @@ export function OfficeFloor() {
       };
 
       const emitQuip = (id: string, rt: Runtime, spotIdx: number): void => {
+        if (!officeSmallTalkEnabled()) return; // Settings → General → Office small talk
         const spot = cafeSpots[spotIdx];
         const character = agentById(id)?.character ?? DEFAULT_CHARACTER;
         const seed = Math.floor(Math.random() * 1e6);
@@ -628,6 +630,7 @@ export function OfficeFloor() {
       // initiator and owns the script; the partner just gets marked engaged.
       // Returns true if a chat was started.
       const maybePairChat = (id: string, rt: Runtime, spotIdx: number): boolean => {
+        if (!officeSmallTalkEnabled()) return false;
         const spot = cafeSpots[spotIdx];
         if (spot.partner < 0 || !rt.brk) return false;
         const partnerId = cafeTaken[spot.partner];

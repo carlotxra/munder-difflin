@@ -92,6 +92,10 @@ export interface HarnessConfig {
   strongKeepalive?: boolean;
   /** Auto-update from GitHub releases (default ON; Settings → General). */
   autoUpdate?: boolean;
+  /** Break-spot small talk (default ON) and its innuendo (default OFF);
+   *  Settings → General. Mirrors the main-process fields. */
+  officeSmallTalk?: boolean;
+  officeInnuendo?: boolean;
   /** Anonymous product analytics (default ON, opt-out; see TELEMETRY.md).
    *  Mirrors the main-process field (src/main/config.ts). */
   telemetryEnabled?: boolean;

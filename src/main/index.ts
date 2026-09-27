@@ -85,6 +85,7 @@ import { toolCatalog, type ToolStatus } from '../shared/toolCatalog';
 import { listLocalSkills, loadCatalog, installSkill, uninstallSkill, type LocalSkill } from './skills';
 import { loadHero } from './hero';
 import { loadModelCatalogWithOverrides } from './modelCatalogOverride';
+import { loadOfficeLines } from './officeLinesOverride';
 import {
   CODEX_REMOTE_SOCKET_RELATIVE,
   codexRemoteAliasPath,
@@ -3556,6 +3557,11 @@ const MODEL_CATALOG_CTX = () => ({
 });
 ipcMain.handle('models:catalog', async (_evt, force: unknown) =>
   loadModelCatalogWithOverrides(MODEL_CATALOG_CACHE(), MODEL_CATALOG_CTX(), { force: force === true }));
+
+/** The office-floor small-talk override, <userData>/office-lines.json. Read on
+ *  every call so an edit shows up on the next Settings save or reload; checked
+ *  in shared/officeLinesPayload. Null = the built-in lines. */
+ipcMain.handle('office:lines', () => loadOfficeLines(app.getPath('userData')));
 
 // ─── IPC: skills (installed locally, and the browsable catalog) ─────────────
 /** Skills the CLIs on this machine can already use. Scans the registered repos

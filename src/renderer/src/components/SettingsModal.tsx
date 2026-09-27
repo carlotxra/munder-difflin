@@ -32,6 +32,7 @@ import {
 import { notifyArabicTerminalChangeAll } from '@/components/terminalPool';
 import { isComposingKey } from '@shared/imeGuard';
 import { LANGUAGES, setLanguage } from '@/i18n';
+import { applyOfficeLinesSettings, applyOfficeLinesOverride } from '@/scene/office/officeLinesOverride';
 
 export interface SettingsModalProps {
   config: HarnessConfig;
@@ -364,6 +365,13 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
         );
       }
       await window.cth.updateConfig(patch);
+      // The floor reads these live; re-read office-lines.json too, so an edit to
+      // the file lands on the next save without a restart.
+      applyOfficeLinesSettings({
+        ...(patch.officeSmallTalk !== undefined && { smallTalk: patch.officeSmallTalk !== false }),
+        ...(patch.officeInnuendo !== undefined && { innuendo: patch.officeInnuendo === true })
+      });
+      void window.cth.officeLines().then(applyOfficeLinesOverride).catch(() => { /* keep current */ });
       setPending({});
       setAutoCompactPending(null);
       setSaveNote(t('settings.saved'));
@@ -495,6 +503,12 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
     try { stage({ telemetryEnabled: next }); }
     catch { setTelemetryOn(!next); }
   };
+
+  // ─── Office small talk (default ON) and its innuendo (default OFF) ─────────
+  const [smallTalkOn, setSmallTalkOn] = useState<boolean>(config.officeSmallTalk !== false);
+  const [innuendoOn, setInnuendoOn] = useState<boolean>(config.officeInnuendo === true);
+  const toggleSmallTalk = () => { const next = !smallTalkOn; setSmallTalkOn(next); stage({ officeSmallTalk: next }); };
+  const toggleInnuendo = () => { const next = !innuendoOn; setInnuendoOn(next); stage({ officeInnuendo: next }); };
 
   // --- Free Flow (voice dictation → message queue) ---
   const setFreeflowEnabledStore = useStore((s) => s.setFreeflowEnabled);
@@ -1178,6 +1192,42 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                             onClick={toggleTelemetry}
                           >
                             {telemetryOn ? t('common.on') : t('common.off')}
+                          </PixelButton>
+                        </div>
+                        <div style={{ height: 10 }} />
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            <span style={{ fontSize: 13, lineHeight: '20px', color: 'var(--cth-ink-900)' }}>
+                              {t('settings.general.officeSmallTalk')}
+                            </span>
+                            <span style={{ fontSize: 12, lineHeight: '16px', color: 'var(--cth-ink-500)' }}>
+                              {t('settings.general.officeSmallTalkDesc')}
+                            </span>
+                          </div>
+                          <PixelButton
+                            variant={smallTalkOn ? 'primary' : 'secondary'}
+                            size="sm"
+                            onClick={toggleSmallTalk}
+                          >
+                            {smallTalkOn ? t('common.on') : t('common.off')}
+                          </PixelButton>
+                        </div>
+                        <div style={{ height: 10 }} />
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            <span style={{ fontSize: 13, lineHeight: '20px', color: 'var(--cth-ink-900)' }}>
+                              {t('settings.general.officeInnuendo')}
+                            </span>
+                            <span style={{ fontSize: 12, lineHeight: '16px', color: 'var(--cth-ink-500)' }}>
+                              {t('settings.general.officeInnuendoDesc')}
+                            </span>
+                          </div>
+                          <PixelButton
+                            variant={innuendoOn ? 'primary' : 'secondary'}
+                            size="sm"
+                            onClick={toggleInnuendo}
+                          >
+                            {innuendoOn ? t('common.on') : t('common.off')}
                           </PixelButton>
                         </div>
                       </div>
