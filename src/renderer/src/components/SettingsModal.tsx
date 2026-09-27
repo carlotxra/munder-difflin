@@ -296,6 +296,9 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
     setOrchSpawnOn(next);
     stage({ orchestratorMaySpawn: next } as Partial<HarnessConfig>);
   };
+  // Default ON, so an absent value reads as on (`!== false`).
+  const [askFirstOn, setAskFirstOn] = useState<boolean>(config.askFirst !== false);
+  const toggleAskFirst = () => { const next = !askFirstOn; setAskFirstOn(next); stage({ askFirst: next }); };
   const [defaultModelSel, setDefaultModelSel] = useState<string>(cfgX.defaultModel ?? 'claude-fable-5');
   const saveDefaultModel = (id: string): void => {
     setDefaultModelSel(id);
@@ -1334,6 +1337,20 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                           </div>
                           <PixelButton variant={orchSpawnOn ? 'primary' : 'secondary'} size="sm" onClick={toggleOrchSpawn}>
                             {orchSpawnOn ? `me and ${godName}` : 'only me'}
+                          </PixelButton>
+                        </div>
+                        <div style={{ height: 10 }} />
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            <span style={{ fontSize: 13, lineHeight: '20px', color: 'var(--cth-ink-900)' }}>
+                              {t('settings.autonomy.workersAskFirst')}
+                            </span>
+                            <span style={{ fontSize: 12, lineHeight: '16px', color: 'var(--cth-ink-500)' }}>
+                              {t('settings.autonomy.workersAskFirstDesc', { godName })}
+                            </span>
+                          </div>
+                          <PixelButton variant={askFirstOn ? 'primary' : 'secondary'} size="sm" onClick={toggleAskFirst}>
+                            {askFirstOn ? t('common.on') : t('common.off')}
                           </PixelButton>
                         </div>
                       </div>

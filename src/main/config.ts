@@ -200,6 +200,11 @@ export interface HarnessConfig {
    *  Off does not FAIL a queued spawn request, it declines to consume one. The
    *  request sits in HIVE_ROOT/spawn-requests until the toggle is turned on. */
   orchestratorMaySpawn: boolean;
+  /** "Workers ask before ambiguous decisions" (Settings → Autonomy & Budgets).
+   *  Default ON; undefined reads as ON. Adds the ask-first rule to the hive
+   *  prompts (src/main/askFirst.ts). Read when a prompt is built, so it reaches
+   *  agents spawned after a change. (Mirrored in preload + renderer config.) */
+  askFirst?: boolean;
   /** The command we run when spawning a new agent. */
   defaultCommand: string;
   /** Default model for newly spawned agents (e.g. 'claude-sonnet-4-6[1m]'); unset = CLI default. */
@@ -437,6 +442,7 @@ const DEFAULTS: HarnessConfig = {
   registeredRepos: [],
   autoMode: true,
   orchestratorMaySpawn: false,
+  askFirst: true,
   defaultCommand: 'claude',
   godProvider: 'claude',
   godModel: 'claude-opus-4-8',

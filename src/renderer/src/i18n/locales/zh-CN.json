@@ -273,6 +273,8 @@
       "autoDesc": "适用于新生成的智能体（每个智能体的命令仍可覆盖）。",
       "autonomous": "自主",
       "askFirst": "先询问",
+      "workersAskFirst": "遇到模糊决策时工作者先询问",
+      "workersAskFirstDesc": "工作者会向 {{godName}} 发送 DECISION NEEDED 消息，而不是自行在设计方案之间取舍或删除内容。适用于新生成的智能体。",
       "breaker": "断路器",
       "breakerDesc": "防范失控智能体和超支。断路器会对越界的智能体先引导、再约束、最后停止。",
       "floorBudget": "全楼层令牌预算",

@@ -294,6 +294,8 @@ export interface HarnessConfig {
   /** Break-spot small talk (default ON) and its innuendo (default OFF). */
   officeSmallTalk?: boolean;
   officeInnuendo?: boolean;
+  /** Workers ask god before ambiguous decisions (default ON; Settings → Autonomy & Budgets). */
+  askFirst?: boolean;
   /** Anonymous product analytics (default ON, opt-out; see TELEMETRY.md).
    *  Mirrors main + renderer HarnessConfig. */
   telemetryEnabled?: boolean;

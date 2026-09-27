@@ -273,6 +273,8 @@
       "autoDesc": "Applies to newly spawned agents (each agent's command can still override).",
       "autonomous": "autonomous",
       "askFirst": "ask-first",
+      "workersAskFirst": "Workers ask before ambiguous decisions",
+      "workersAskFirstDesc": "Workers send {{godName}} a DECISION NEEDED message instead of picking between designs or deleting on their own. Applies to newly spawned agents.",
       "breaker": "Circuit breaker",
       "breakerDesc": "Guard against runaway agents and spend. The breaker steers, then constrains, then stops an agent that crosses these.",
       "floorBudget": "floor token budget",
