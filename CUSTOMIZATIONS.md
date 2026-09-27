@@ -3,8 +3,8 @@
 A living record of what this fork, `carlotxra/munder-difflin`, changes compared with upstream
 `chaitanyagiri/munder-difflin`.
 
-**Intended version label:** `0.5.3-custom`. `package.json` still says `0.4.6`, the same value as
-upstream `main`.
+**Version:** `0.5.3-custom` (`package.json` and `package-lock.json`, set on branch
+`release-0.5.3-custom`). Upstream `main` still says `0.4.6` in `package.json`.
 
 ## Branch model
 
@@ -34,7 +34,7 @@ git diff --stat main..stable       # files touched
 | Custom model entry | A "Custom…" option in every model picker for typing any model id | picker option "Custom…" | `src/shared/customModel.ts`, `src/renderer/src/components/CustomModelEntry.tsx` | `cbdc6d90` | merged |
 | Office small talk | Override file for break-spot lines; small talk toggle; innuendo off by default | `<userData>/office-lines.json`; config `officeSmallTalk`, `officeInnuendo` | `src/shared/officeLinesPayload.ts`, `src/renderer/src/scene/office/officeLinesOverride.ts`, `cafeteriaLines.ts` | `123896da` | merged |
 | Auto-update off | Auto-update is opt-in; downloads only start automatically when it is on | config `autoUpdate` (default `false`) | `src/main/updater.ts`, `src/main/config.ts`, `UpdatesSection.tsx` | `c314a653`, `17672cce`, `04afd636` | merged |
-| Ask-first setting | Ask-first rule in hive prompts, behind a Settings toggle | Settings toggle (TBD) | TBD | none yet | **PENDING** |
+| Ask-first setting | Workers send god a `DECISION NEEDED` message instead of silently picking between designs, changing an interface or config format, or deleting | Settings → Autonomy & Budgets → "Workers ask before ambiguous decisions"; config `askFirst` (default on) | `src/main/askFirst.ts`, `src/main/hive.ts`, `src/main/config.ts`, `SettingsModal.tsx` | `8f685eee` (merge `4da86e2f`) | merged |
 
 ## Copilot CLI harness (T-002, T-003)
 
@@ -79,8 +79,9 @@ To turn off the remote fetch, set `"remote": false` in either override, or set
 `MUNDER_MODEL_CATALOG_REMOTE=0`.
 
 > **Caveat: the remote Copilot list wins over the bundled one.** Upstream `main`'s
-> `docs/model-catalog.json` has only 6 Copilot rows, and that list replaces our bundled 24. To
-> keep the 24, either repeat `copilot` in an override file or turn off the remote fetch.
+> `docs/model-catalog.json` has only 6 Copilot rows (checked at `e9793df3`), and that list
+> replaces our bundled 24. To keep the 24, either repeat `copilot` in an override file or turn
+> off the remote fetch.
 
 ## Custom model entry in pickers (T-007)
 
@@ -117,12 +118,24 @@ To turn off the remote fetch, set `"remote": false` in either override, or set
 - `04afd636`: when checks are off, the idle Updates text says so (`updatesSection.idleDetailOff`).
 - There is no migration: a saved config keeps whatever value it already has.
 
-## Ask-first setting (T-010) — PENDING
+## Ask-first setting (T-010)
 
-- **Not merged.** Work is on branch `ask-first-setting`, which has no commits beyond `stable`
-  yet.
-- Goal: build the ask-first rule into the hive prompts, behind a Settings toggle.
-- Fill in this section and the summary row once it merges.
+- `8f685eee` (merged in `4da86e2f`): `src/main/askFirst.ts` holds all the prompt text.
+  `hive.ts` adds one line to the prompt builder (`askFirstPromptLine`) and a `setAskFirst`
+  mirror, the same pattern as `setOrchestratorMaySpawn`.
+  - Workers get the ASK FIRST clause. For a real approach question (two valid designs, an
+    interface or config-format change, scope doubt, deleting anything) they send god ONE
+    `DECISION NEEDED: <topic>` message with the options and a recommendation, then wait on
+    that part.
+  - God must put the clause in every dispatch's BOUNDARIES. God either decides, or blocks the
+    card and asks the human through its `humanQA`.
+  - The prep assistant is excluded, because it only rewrites prompts.
+- Setting: Settings → Autonomy & Budgets → **Workers ask before ambiguous decisions**, config
+  `askFirst`, **default on** (an absent value reads as on). It is mirrored in the preload and
+  renderer config types, and the strings are in en, ar and zh-CN.
+- The setting is read when a prompt is built, so a change reaches agents spawned after it.
+- With it off, the prompts are byte-identical to `stable` before this change.
+- Test: `test/ask-first.test.cjs`.
 
 ## User-editable files (macOS)
 
@@ -135,7 +148,7 @@ To turn off the remote fetch, set `"remote": false` in either override, or set
 
 | File | Purpose |
 |---|---|
-| `config.json` | Settings, including `autoUpdate`, `officeSmallTalk`, `officeInnuendo` and `copilotRequestCap` |
+| `config.json` | Settings, including `autoUpdate`, `officeSmallTalk`, `officeInnuendo`, `askFirst` and `copilotRequestCap` |
 | `model-catalog.override.json` | Model catalog override |
 | `model-catalog.json` | Upstream remote-catalog cache. Do not edit it |
 | `office-lines.json` | Small-talk line override |
@@ -147,14 +160,14 @@ item.
 
 | File | Ours | Re-check |
 |---|---|---|
-| `src/main/hive.ts` | Copilot hook installer (writes the hive prompt into `copilot-instructions.md`), OTel env | `installCopilotHooks` still runs; Copilot agents still get inbox mail and telemetry; ask-first prompt text (once T-010 merges) |
-| `src/main/config.ts` | `DEFAULTS` (`autoUpdate: false`, `officeSmallTalk`, `officeInnuendo`), `copilotRequestCap` | `autoUpdate` is still `false`; no new upstream default silently re-enables updates |
+| `src/main/hive.ts` | Copilot hook installer (writes the hive prompt into `copilot-instructions.md`), OTel env | `installCopilotHooks` still runs; Copilot agents still get inbox mail and telemetry; `askFirstPromptLine` is still in the prompt builder |
+| `src/main/config.ts` | `DEFAULTS` (`autoUpdate: false`, `askFirst: true`, `officeSmallTalk`, `officeInnuendo`), `copilotRequestCap` | `autoUpdate` is still `false`; no new upstream default silently re-enables updates |
 | `src/main/updater.ts` | `=== true` gate, `autoDownload` follows the flag | Upstream has not reset `autoDownload = true` or changed the gate |
-| `src/main/index.ts` | Catalog override call sites, `office:lines` IPC, telemetry wiring | Override is still applied before the remote fetch |
-| `src/renderer/src/components/SettingsModal.tsx` | Small-talk and innuendo toggles, auto-update toggle default | Toggles still render; auto-update starts off |
+| `src/main/index.ts` | Catalog override call sites, `office:lines` IPC, telemetry wiring, `hive.setAskFirst` (bootstrap and `config:update`) | Override is still applied before the remote fetch |
+| `src/renderer/src/components/SettingsModal.tsx` | Small-talk and innuendo toggles, auto-update toggle default, ask-first toggle | Toggles still render; auto-update starts off; ask-first starts on |
 | `src/shared/modelCatalog.json` and `docs/model-catalog.json` | 24 Copilot rows; the mirror matches the bundled file | Keep our Copilot rows; re-sync the mirror (a test enforces it) |
 | `src/shared/agentProvider.ts`, `providerAutomation.ts` | Copilot preset (`-i`, hooks bridge, commands) | Upstream preset changes have not reverted to `-p` |
 | `src/main/telemetry.ts`, `breaker.ts`, `pricing.ts` | `/v1/traces` ingest, Copilot request cap | Copilot still shows n/a, not $0 |
 | `src/renderer/src/scene/office/cafeteriaLines.ts` | Two pickers routed through `officeLinesOverride.ts` | New upstream lines or pools still pass through the filter |
-| `src/renderer/src/i18n/locales/{en,ar,zh-CN}.json` | Custom-model, office and update strings | Keys are still present after a JSON merge |
+| `src/renderer/src/i18n/locales/{en,ar,zh-CN}.json` | Custom-model, office, update and ask-first strings | Keys are still present after a JSON merge |
 | `CHANGELOG.md` | Fork entries | Keep them separate from upstream entries |
