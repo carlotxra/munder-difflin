@@ -53,6 +53,11 @@ All notable changes to this project are documented here. The format is based on
   not mention keeps the built-in one, so a bad edit costs a list rather than a picker. The payload is
   data and never markup, and a model id is length-capped and stripped of control characters before it
   can reach a `--model` flag on a spawn command line. Same mechanism as the Settings hero card.
+- **Local model-catalog override.** Point `--model-catalog=<path|https-url>` or
+  `MUNDER_MODEL_CATALOG` at a catalog file, or drop one at `<userData>/model-catalog.override.json`.
+  Overrides may be partial and merge per provider: flag/env, then that file, then the remote copy,
+  then the bundled one. `"remote": false` in an override, or `MUNDER_MODEL_CATALOG_REMOTE=0`,
+  switches the remote fetch off. See [`docs/model-catalog-override.md`](docs/model-catalog-override.md).
 
 ## [0.4.6] — 2026-08-27
 

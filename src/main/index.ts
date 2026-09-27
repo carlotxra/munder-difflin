@@ -84,7 +84,7 @@ import { detectNodeVersion, nodeIsUsable, resolveNodeInstaller } from './nodeIns
 import { toolCatalog, type ToolStatus } from '../shared/toolCatalog';
 import { listLocalSkills, loadCatalog, installSkill, uninstallSkill, type LocalSkill } from './skills';
 import { loadHero } from './hero';
-import { loadModelCatalog } from './modelCatalog';
+import { loadModelCatalogWithOverrides } from './modelCatalogOverride';
 import {
   CODEX_REMOTE_SOCKET_RELATIVE,
   codexRemoteAliasPath,
@@ -3549,8 +3549,13 @@ ipcMain.handle('hero:payload', async (_evt, force: unknown) =>
  *  new model reaches installed copies without a release. Validated in
  *  shared/modelCatalogPayload; a null catalog means "keep the baked one". */
 const MODEL_CATALOG_CACHE = () => join(app.getPath('userData'), 'model-catalog.json');
+/** Local overrides (flag/env, then userData/model-catalog.override.json) sit on
+ *  top of the remote copy — see modelCatalogOverride.ts. */
+const MODEL_CATALOG_CTX = () => ({
+  argv: process.argv, env: process.env, userDataDir: app.getPath('userData')
+});
 ipcMain.handle('models:catalog', async (_evt, force: unknown) =>
-  loadModelCatalog(MODEL_CATALOG_CACHE(), { force: force === true }));
+  loadModelCatalogWithOverrides(MODEL_CATALOG_CACHE(), MODEL_CATALOG_CTX(), { force: force === true }));
 
 // ─── IPC: skills (installed locally, and the browsable catalog) ─────────────
 /** Skills the CLIs on this machine can already use. Scans the registered repos
@@ -5311,7 +5316,8 @@ app.whenReady().then(() => {
   // the same cache over IPC on load; doing the network hop here means the file
   // is already fresh on disk by the time a modal is opened, and a failure is
   // silent by construction (the baked catalog is the floor).
-  void loadModelCatalog(MODEL_CATALOG_CACHE()).catch(() => { /* never fatal */ });
+  void loadModelCatalogWithOverrides(MODEL_CATALOG_CACHE(), MODEL_CATALOG_CTX())
+    .catch(() => { /* never fatal */ });
 
   // A cold-start deep link (Windows/Linux) rides in on OUR argv.
   const startupHireLink = process.argv.find((a) => a.startsWith('munderdifflin://'));
