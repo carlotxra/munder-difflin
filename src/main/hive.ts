@@ -38,6 +38,7 @@ import {
   type AgentProvider
 } from '../shared/agentProvider';
 import { MCP_CATALOG } from '../shared/mcpCatalog';
+import { askFirstPromptLine } from './askFirst';
 import { selectBroadcastTargets } from '../shared/broadcast';
 import { preferredAgentRole } from '../shared/agentRole';
 import { mergeTaskLedger } from '../shared/taskLedger';
@@ -404,6 +405,11 @@ export class HiveManager {
   }
   orchestratorMaySpawn(): boolean {
     return this._maySpawn;
+  }
+  /** config.askFirst (default ON), mirrored the same way; see askFirst.ts. */
+  private _askFirst = true;
+  setAskFirst(on: boolean): void {
+    this._askFirst = on;
   }
 
   // — paths —
@@ -1517,6 +1523,7 @@ export class HiveManager {
       memoryLine,
       knowledgeLine,
       godLine,
+      askFirstPromptLine(meta, this._askFirst),
       spawnQueueLine,
       runtimeLine,
       slackLine,
