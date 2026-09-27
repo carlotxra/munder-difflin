@@ -298,7 +298,8 @@ export interface HarnessConfig {
    *  never contacts or downloads upstream releases on its own. When ON, packaged
    *  builds check on boot + every ~6h, download in the background, and show a
    *  "restart to update" toast — installation is always user-initiated. When OFF
-   *  there is no background check; the manual check (version badge) still works.
+   *  there is no background check and a manual check (version badge) only reports
+   *  what is available; nothing downloads until the user clicks it.
    *  (Mirrored in preload + renderer config.) */
   autoUpdate?: boolean;
   /** Break-spot small talk on the office floor (Settings → General). Default ON;

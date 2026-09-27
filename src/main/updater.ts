@@ -24,7 +24,9 @@ import { reduceStatus, clampPercent, isNewer, installerUrl, shouldShowReleaseDro
  * Everything automatic is gated on the `autoUpdate` HarnessConfig flag (default
  * OFF — only an explicit `true` enables it; Settings → General) and on
  * `app.isPackaged` — dev runs never poll. With the flag off there is no
- * background check; the manual check (version badge / Settings) still works.
+ * background check, and a manual check (version badge / Settings) only reports
+ * what is available: `autoDownload` follows the flag, so nothing is downloaded
+ * until the user clicks download.
  *
  * ─── v0.3.7: why native updating never actually ran ──────────────────────────
  * electron-updater is CommonJS and exposes `autoUpdater` through a lazy
@@ -300,7 +302,13 @@ async function runCheck(): Promise<{ ok: boolean; error?: string }> {
     // forever (see withTimeout above); a timeout falls through to the catch,
     // which logs it, shows an error state, and runs the notify-only fallback.
     const result = await withTimeout(
-      loadAutoUpdater().then((autoUpdater) => autoUpdater.checkForUpdates()),
+      loadAutoUpdater().then((autoUpdater) => {
+        // Re-read per check so a Settings toggle applies without a restart. With
+        // auto-update off, a manual check stops at 'available' and waits for the
+        // user's download click (update:download) instead of fetching the release.
+        autoUpdater.autoDownload = autoUpdateEnabled();
+        return autoUpdater.checkForUpdates();
+      }),
       CHECK_TIMEOUT_MS,
       'update check'
     );
@@ -515,7 +523,7 @@ export function initAutoUpdater(getWebContents: () => WebContents | null): void 
   void (async () => {
     try {
       const autoUpdater = await loadAutoUpdater();
-      autoUpdater.autoDownload = true;
+      autoUpdater.autoDownload = autoUpdateEnabled(); // re-applied per check in runCheck
       autoUpdater.autoInstallOnAppQuit = false; // install ONLY on explicit restart
       autoUpdater.on('update-available', (info) => {
         logLine(`update available: ${info.version}`);
