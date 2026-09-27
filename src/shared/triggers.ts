@@ -147,6 +147,27 @@ export const DEFAULT_CONTEXT_TRIGGER: ContextTriggerConfig = {
   }
 };
 
+/** Whether scheduled compaction is on. `contextTrigger.compact.enabled` is the
+ *  only persisted home for it since boot retired the `compact-maintenance`
+ *  mission into the trigger; a missing value reads as the default. */
+export function scheduledCompactEnabled(cfg: { contextTrigger?: Partial<ContextTriggerConfig> }): boolean {
+  return (cfg.contextTrigger?.compact?.enabled ?? DEFAULT_CONTEXT_TRIGGER.compact.enabled) === true;
+}
+
+/** The config patch that turns scheduled compaction on or off, built against
+ *  `cfg` (the config on disk) so the rest of the trigger is carried unchanged. */
+export function scheduledCompactPatch(
+  cfg: { contextTrigger?: Partial<ContextTriggerConfig> },
+  enabled: boolean
+): { contextTrigger: ContextTriggerConfig } {
+  return {
+    contextTrigger: {
+      compact: { ...DEFAULT_CONTEXT_TRIGGER.compact, ...cfg.contextTrigger?.compact, enabled },
+      clear: { ...DEFAULT_CONTEXT_TRIGGER.clear, ...cfg.contextTrigger?.clear }
+    }
+  };
+}
+
 /* ──────────────────────────── webhook triggers ───────────────────────────── */
 
 /**
