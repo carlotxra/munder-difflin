@@ -12,6 +12,11 @@
  * `transcript.ts` (cost bug #1 — Opus undercosted ~5×, Haiku overcosted). Prices
  * are now matched per model family. This is the ONE place per-model pricing
  * lives; both the transcript backend and the collector's fallback import it.
+ *
+ * GitHub Copilot is deliberately absent. It bills in premium requests / AI
+ * credits with no published per-token price, so the collector carries its own
+ * counters (telemetry.ts CopilotBilling) and shows cost as n/a. Never add a
+ * Copilot row here: it would put an invented dollar figure on real usage.
  */
 
 /** USD per million tokens for one model family. */

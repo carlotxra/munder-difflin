@@ -53,6 +53,19 @@ export interface AgentUsageSample {
   /** Normalized model id (`claude-opus-4-8`, no `[1m]` suffix). */
   model: string;
   usd: number;
+  /** Present only for GitHub Copilot, which bills in its own units rather than
+   *  per token. When set, `usd` is 0 and means "unknown", not "free": show n/a. */
+  copilot?: CopilotBilling;
+}
+
+/** Copilot's own billing counters, summed from its `chat` spans. Taken as given,
+ *  never converted to dollars (there is no published per-token price).
+ *  - `requests`: sum of `github.copilot.cost` (1 per model call on CLI 1.0.88).
+ *  - `aiCredits`: sum of `github.copilot.nano_aiu` / 1e9. Verified live: a run
+ *    whose footer read "AI Credits 0.15" exported nano_aiu 149055000. */
+export interface CopilotBilling {
+  requests: number;
+  aiCredits: number;
 }
 
 /** Breaker state, emitted by Lane A's policy on `control:breakerState` and
@@ -103,6 +116,8 @@ interface SessionAccum {
   cacheRead: number;
   cacheCreation: number;
   usd: number;
+  /** Copilot sessions only: running request count and nano-AIU total. */
+  copilot?: { requests: number; nanoAiu: number };
 }
 
 const MAX_BODY_BYTES = 8 * 1024 * 1024; // OTLP batches are small; cap unauth peers.
@@ -289,6 +304,7 @@ export class TelemetryCollector {
         const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
         if (url.includes('/v1/metrics')) this.ingestMetrics(body);
         else if (url.includes('/v1/logs')) this.ingestLogs(body);
+        else if (url.includes('/v1/traces')) this.ingestTraces(body);
       } catch { /* malformed batch — drop it, never throw into the socket */ }
       // OTLP success response is an empty JSON ExportServiceResponse.
       res.writeHead(200, { 'content-type': 'application/json' });
@@ -370,13 +386,83 @@ export class TelemetryCollector {
             const ring = this.spans.get(agentId);
             if (ring?.length) ring[ring.length - 1].decision = decision;
           } else if (name === 'api_error' || (name && name.includes('error'))) {
-            const error = str(attrs['error']) || str(attrs['message']) || name;
-            for (const cb of this.apiErrorSubs) { try { cb(agentId); } catch { /* subscriber threw */ } }
-            this.emit?.('telemetry:event', { kind: 'api_error', agentId, sessionId, ts: Date.now(), error } satisfies TelemetryEvent);
+            this.publishApiError(agentId, sessionId, str(attrs['error']) || str(attrs['message']) || name);
           }
         }
       }
     }
+  }
+
+  /**
+   * GitHub Copilot CLI exports usage as TRACES, not Claude-style metrics or
+   * logs. Its metrics are cumulative histograms with no session id, so they
+   * cannot be attributed to a session and are left alone. Each `chat <model>`
+   * span is ONE model call and carries that call's tokens and billing, keyed by
+   * `gen_ai.conversation.id` (the same id `--resume` takes), so summing chat
+   * spans is exact. The parent `invoke_agent` span repeats the same totals and
+   * is skipped, or every call would count twice. `execute_tool` spans feed the
+   * tool waterfall. Shapes observed live on CLI 1.0.88 (`copilot help
+   * monitoring` lists the span names).
+   */
+  private ingestTraces(body: unknown): void {
+    const root = body as { resourceSpans?: ResourceSpans[] };
+    if (!Array.isArray(root?.resourceSpans)) return;
+    const touched = new Set<string>();
+    for (const rs of root.resourceSpans) {
+      const resAttrs = flattenAttrs(rs.resource?.attributes);
+      const agentId = str(resAttrs['agent.id']);
+      if (!agentId) continue;
+      for (const ss of rs.scopeSpans ?? []) {
+        for (const span of ss.spans ?? []) {
+          const attrs = flattenAttrs(span.attributes);
+          if (str(attrs['gen_ai.provider.name']) !== 'github') continue; // Copilot only
+          const op = str(attrs['gen_ai.operation.name']);
+          const sessionId = str(attrs['gen_ai.conversation.id']);
+          const failed = span.status?.code === 2; // OTLP STATUS_CODE_ERROR
+          if (op === 'chat') {
+            if (failed) this.publishApiError(agentId, sessionId, str(attrs['error.type']) || 'copilot chat error');
+            if (!sessionId) continue;
+            const accum = this.session(agentId, sessionId);
+            const model = normalizeModel(str(attrs['gen_ai.response.model']) || str(attrs['gen_ai.request.model']));
+            if (model) accum.model = model;
+            accum.ts = Date.now();
+            // gen_ai.usage.input_tokens INCLUDES cached tokens (GenAI semconv, and
+            // live: 11905 input with 11902 cache-written). `input` here follows
+            // Claude's meaning — fresh input only — so the cached parts come out.
+            const cacheRead = numAttr(attrs['gen_ai.usage.cache_read.input_tokens']);
+            const cacheWrite = numAttr(attrs['gen_ai.usage.cache_write.input_tokens']);
+            accum.input += Math.max(0, numAttr(attrs['gen_ai.usage.input_tokens']) - cacheRead - cacheWrite);
+            accum.output += numAttr(attrs['gen_ai.usage.output_tokens']);
+            accum.cacheRead += cacheRead;
+            accum.cacheCreation += cacheWrite;
+            const bill = accum.copilot ?? (accum.copilot = { requests: 0, nanoAiu: 0 });
+            bill.requests += numAttr(attrs['github.copilot.cost']);
+            bill.nanoAiu += numAttr(attrs['github.copilot.nano_aiu']);
+            touched.add(agentId);
+          } else if (op === 'execute_tool') {
+            const start = Number(span.startTimeUnixNano ?? 0);
+            const end = Number(span.endTimeUnixNano ?? 0);
+            const toolSpan: ToolSpan = {
+              agentId,
+              sessionId,
+              ts: Date.now(),
+              tool: str(attrs['gen_ai.tool.name']) || 'tool',
+              success: !failed,
+              durationMs: end > start ? Math.round((end - start) / 1e6) : 0,
+              ...(failed ? { error: str(attrs['error.type']) || undefined } : {})
+            };
+            this.pushSpan(toolSpan);
+            this.emit?.('telemetry:event', { kind: 'tool_result', span: toolSpan } satisfies TelemetryEvent);
+          }
+        }
+      }
+    }
+    for (const agentId of touched) this.publishUsage(agentId);
+  }
+
+  private publishApiError(agentId: string, sessionId: string, error: string): void {
+    for (const cb of this.apiErrorSubs) { try { cb(agentId); } catch { /* subscriber threw */ } }
+    this.emit?.('telemetry:event', { kind: 'api_error', agentId, sessionId, ts: Date.now(), error } satisfies TelemetryEvent);
   }
 
   // ─── Accumulation helpers ──────────────────────────────────────────────────
@@ -408,6 +494,7 @@ export class TelemetryCollector {
     const out: AgentUsageSample = {
       agentId, sessionId: '', ts: 0, input: 0, output: 0, cacheRead: 0, cacheCreation: 0, model: '', usd: 0
     };
+    let requests = 0; let nanoAiu = 0; let copilot = false;
     for (const sid of set) {
       const a = this.sessions.get(sid);
       if (!a) continue;
@@ -416,8 +503,10 @@ export class TelemetryCollector {
       out.cacheRead += a.cacheRead;
       out.cacheCreation += a.cacheCreation;
       out.usd += a.usd;
+      if (a.copilot) { copilot = true; requests += a.copilot.requests; nanoAiu += a.copilot.nanoAiu; }
       if (a.ts >= out.ts) { out.ts = a.ts; out.sessionId = sid; out.model = a.model; }
     }
+    if (copilot) out.copilot = { requests, aiCredits: nanoAiu / 1e9 };
     return out;
   }
 
@@ -536,6 +625,14 @@ interface OtelAnyValue {
 interface OtelDataPoint { attributes?: OtelKV[]; asInt?: string | number; asDouble?: number; timeUnixNano?: string }
 interface OtelMetric { name?: string; sum?: { dataPoints?: OtelDataPoint[] }; gauge?: { dataPoints?: OtelDataPoint[] } }
 interface ResourceMetrics { resource?: { attributes?: OtelKV[] }; scopeMetrics?: { metrics?: OtelMetric[] }[] }
+interface OtelSpan {
+  name?: string;
+  attributes?: OtelKV[];
+  startTimeUnixNano?: string | number;
+  endTimeUnixNano?: string | number;
+  status?: { code?: number };
+}
+interface ResourceSpans { resource?: { attributes?: OtelKV[] }; scopeSpans?: { spans?: OtelSpan[] }[] }
 interface OtelLogRecord { attributes?: OtelKV[]; body?: { stringValue?: string } }
 interface ResourceLogs { resource?: { attributes?: OtelKV[] }; scopeLogs?: { logRecords?: OtelLogRecord[] }[] }
 
@@ -544,7 +641,14 @@ interface ResourceLogs { resource?: { attributes?: OtelKV[] }; scopeLogs?: { log
  *  nothing this module emits can carry identity. */
 const ATTR_ALLOWLIST = new Set([
   'agent.id', 'agent.name', 'session.id', 'model', 'type',
-  'tool_name', 'success', 'duration_ms', 'decision', 'event.name', 'error', 'message'
+  'tool_name', 'success', 'duration_ms', 'decision', 'event.name', 'error', 'message',
+  // GitHub Copilot trace spans. Deliberately NOT enduser.pseudo.id (a user hash)
+  // or gen_ai.response.id.
+  'gen_ai.provider.name', 'gen_ai.operation.name', 'gen_ai.conversation.id',
+  'gen_ai.request.model', 'gen_ai.response.model', 'gen_ai.tool.name',
+  'gen_ai.usage.input_tokens', 'gen_ai.usage.output_tokens',
+  'gen_ai.usage.cache_read.input_tokens', 'gen_ai.usage.cache_write.input_tokens',
+  'github.copilot.cost', 'github.copilot.nano_aiu', 'error.type'
 ]);
 
 /** Flatten an OTLP KeyValue[] to a plain object, keeping only allowlisted keys. */

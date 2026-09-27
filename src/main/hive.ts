@@ -819,6 +819,10 @@ export class HiveManager {
       // configuration is never mutated. Both share the HIVE_SOCK wiring below.
       const preArgs: string[] = [];
       let degraded: string | undefined;
+      // Copilot pushes OTel like Claude Code does, so it gets the same collector
+      // endpoint. Independent of the hook bridge: telemetry still flows if the
+      // socket or the hook install is unavailable.
+      if (meta.provider === 'copilot' && this._otelEndpoint) Object.assign(env, copilotOtelEnv(this._otelEndpoint, meta));
       // Dispatch on the structured bridge descriptor (the foundation's `bridgeOf`
       // derives {kind:'hooks'} from the legacy `hookBridge` for agy/codex, and
       // returns the explicit {kind:'proxy'} for qwen). Two ways a hookless CLI
@@ -2701,7 +2705,9 @@ export class HiveManager {
       cache_read: sample.cacheRead,
       cache_creation: sample.cacheCreation,
       model: sample.model,
-      usd: sample.usd
+      usd: sample.usd,
+      // Copilot bills in requests / AI credits, not dollars; its usd is 0 = unknown.
+      ...(sample.copilot ? { copilot_requests: sample.copilot.requests, ai_credits: sample.copilot.aiCredits } : {})
     };
     try { appendFileSync(join(root, 'cost-ledger.jsonl'), JSON.stringify(row) + '\n', 'utf8'); } catch { /* noop */ }
   }
@@ -3016,6 +3022,24 @@ write there become searchable by every agent. You don't run \`mine\` yourself.
  *  docs.github.com/en/copilot/reference/hooks-reference. */
 export const COPILOT_HOOK_EVENTS = ['SessionStart', 'SessionEnd', 'UserPromptSubmit', 'PreToolUse',
   'PostToolUse', 'Stop', 'SubagentStop', 'PreCompact', 'Notification'] as const;
+
+/** Env that points a Copilot agent's OpenTelemetry exporter at the embedded
+ *  collector (telemetry.ts). Names verified in `copilot help monitoring` on CLI
+ *  1.0.88: OTEL_EXPORTER_OTLP_ENDPOINT alone enables export; the rest pin the
+ *  OTLP/HTTP JSON transport the collector parses, so a user's own
+ *  COPILOT_OTEL_FILE_EXPORTER_PATH or protobuf setting cannot divert it. Copilot
+ *  exports traces + histogram metrics (no logs); the collector reads the traces.
+ *  Resource attribute values are percent-encoded, as Copilot requires for
+ *  special characters, so an agent name with a comma cannot split the list. */
+export function copilotOtelEnv(endpoint: string, agent: { id: string; name: string }): Record<string, string> {
+  return {
+    COPILOT_OTEL_ENABLED: 'true',
+    COPILOT_OTEL_EXPORTER_TYPE: 'otlp-http',
+    OTEL_EXPORTER_OTLP_PROTOCOL: 'http/json',
+    OTEL_EXPORTER_OTLP_ENDPOINT: endpoint,
+    OTEL_RESOURCE_ATTRIBUTES: `agent.id=${encodeURIComponent(agent.id)},agent.name=${encodeURIComponent(agent.name)}`
+  };
+}
 
 const HOOK_SHIM = `#!/usr/bin/env node
 'use strict';

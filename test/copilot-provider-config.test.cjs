@@ -62,6 +62,26 @@ test('copilot worker gets an isolated COPILOT_HOME with a complete hook file', a
   assert.equal(injection.args.includes('-i'), true, 'protocol seed rides in via -i');
 });
 
+test('no OTel env is injected while the collector is off', async (t) => {
+  const { injection } = await spawnCopilot(t);
+  for (const k of ['OTEL_EXPORTER_OTLP_ENDPOINT', 'COPILOT_OTEL_ENABLED', 'OTEL_RESOURCE_ATTRIBUTES']) {
+    assert.equal(injection.env[k], undefined, k);
+  }
+});
+
+test('with the collector up, Copilot exports OTLP/HTTP JSON to it, tagged with the agent', async (t) => {
+  const { hive, meta } = await spawnCopilot(t);
+  hive.setOtelEndpoint('http://127.0.0.1:43210');
+  const { env } = await hive.ensureAgent({ ...meta, name: 'Pam, Copilot' });
+  assert.equal(env.OTEL_EXPORTER_OTLP_ENDPOINT, 'http://127.0.0.1:43210');
+  assert.equal(env.COPILOT_OTEL_ENABLED, 'true');
+  assert.equal(env.COPILOT_OTEL_EXPORTER_TYPE, 'otlp-http');
+  assert.equal(env.OTEL_EXPORTER_OTLP_PROTOCOL, 'http/json');
+  // Percent-encoded so the comma in the name cannot split the attribute list.
+  assert.equal(env.OTEL_RESOURCE_ATTRIBUTES, 'agent.id=cop-1,agent.name=Pam%2C%20Copilot');
+  assert.ok(env.COPILOT_HOME, 'hook bridge still installed alongside telemetry');
+});
+
 test('respawn is idempotent and the user ~/.copilot is untouched', async (t) => {
   const { home, hive, meta, userCopilot, before } = await spawnCopilot(t);
   const agentHome = path.join(home, 'hive', 'agents', 'cop-1', '.copilot');

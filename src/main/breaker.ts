@@ -138,7 +138,7 @@ interface AgentBreakerState {
 export class CircuitBreaker {
   private agents = new Map<string, AgentBreakerState>();
 
-  constructor(private getConfig: () => CircuitBreakerConfig & { costCapUsd?: number; costCapTokens?: number; agentTokenCaps?: Record<string, number> }) {}
+  constructor(private getConfig: () => CircuitBreakerConfig & { costCapUsd?: number; costCapTokens?: number; agentTokenCaps?: Record<string, number>; copilotRequestCap?: number }) {}
 
   private cfg() {
     const c = this.getConfig() ?? {};
@@ -150,7 +150,8 @@ export class CircuitBreaker {
       tokenVelocityPerMin: c.tokenVelocityPerMin ?? DEFAULTS.tokenVelocityPerMin,
       costCapUsd: c.costCapUsd,
       costCapTokens: c.costCapTokens,
-      agentTokenCaps: c.agentTokenCaps
+      agentTokenCaps: c.agentTokenCaps,
+      copilotRequestCap: c.copilotRequestCap
     };
   }
 
@@ -274,6 +275,9 @@ export class CircuitBreaker {
     if (typeof cfg.costCapUsd === 'number' && cfg.costCapUsd > 0) {
       let total = 0; let max = -1;
       for (const i of inputs) {
+        // A Copilot sample's usd is "unknown", not a spend: it has no dollar
+        // figure, so it neither adds to the total nor can be blamed.
+        if (i.sample?.copilot) continue;
         const usd = i.sample?.usd ?? 0;
         total += usd;
         if (usd > max) { max = usd; topSpender = i.agentId; }
@@ -293,12 +297,29 @@ export class CircuitBreaker {
       if (total <= cfg.costCapTokens) topTokenSpender = null; // under cap
     }
 
+    // Copilot request cap: Copilot's own billing unit (github.copilot.cost summed
+    // from its chat spans), since it has no dollar figure for the $-cap. Same
+    // floor-wide, blame-the-biggest logic over Copilot agents only.
+    let topRequestSpender: string | null = null;
+    const requestCap = cfg.copilotRequestCap;
+    if (typeof requestCap === 'number' && requestCap > 0) {
+      let total = 0; let max = -1;
+      for (const i of inputs) {
+        const req = i.sample?.copilot?.requests;
+        if (typeof req !== 'number') continue;
+        total += req;
+        if (req > max) { max = req; topRequestSpender = i.agentId; }
+      }
+      if (total <= requestCap) topRequestSpender = null;
+    }
+
     for (const input of inputs) {
       const s = this.get(input.agentId);
       const trip = this.evaluate(
         input, s, cfg, nowMs,
         input.agentId === topSpender, cfg.costCapUsd,
-        input.agentId === topTokenSpender, cfg.costCapTokens
+        input.agentId === topTokenSpender, cfg.costCapTokens,
+        input.agentId === topRequestSpender
       );
       // remember the cumulative baseline for next beat's velocity diff
       if (input.sample) s.lastSample = input.sample;
@@ -333,7 +354,8 @@ export class CircuitBreaker {
     isTopSpender: boolean,
     costCapUsd: number | undefined,
     isTopTokenSpender: boolean,
-    costCapTokens: number | undefined
+    costCapTokens: number | undefined,
+    isTopRequestSpender = false
   ): { tripping: boolean; reason: string } {
     // (b) repeated identical tool calls
     if (s.repeatCount >= cfg.repeatedToolLimit) {
@@ -363,6 +385,10 @@ export class CircuitBreaker {
     // (a) token cap — floor total tokens over cap, this agent is the biggest spender
     if (isTopTokenSpender && typeof costCapTokens === 'number') {
       return { tripping: true, reason: `token cap: floor total over ${costCapTokens.toLocaleString()} tokens (top spender ${tokensOf(input.sample).toLocaleString()})` };
+    }
+    // (a) Copilot request cap — floor Copilot requests over cap, this agent is the biggest user
+    if (isTopRequestSpender && typeof cfg.copilotRequestCap === 'number') {
+      return { tripping: true, reason: `Copilot request cap: floor total over ${cfg.copilotRequestCap} requests (top user ${input.sample?.copilot?.requests ?? 0})` };
     }
     // (a) token-velocity spike — diff cumulative output across consecutive beats.
     // Skipped entirely while a compaction is in flight (+ trailing grace): a

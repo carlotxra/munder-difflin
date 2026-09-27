@@ -19,6 +19,15 @@ All notable changes to this project are documented here. The format is based on
   `config.json` is copied in once so the keychain login carries over, and `mcp-config.json` is
   linked. Hooks in your own `~/.copilot/hooks/` don't run for hive workers, since `COPILOT_HOME`
   replaces that directory.
+- **Copilot usage reaches the telemetry collector, and cost reads n/a.** Copilot workers now export
+  OpenTelemetry to the embedded collector (`OTEL_EXPORTER_OTLP_ENDPOINT` plus
+  `COPILOT_OTEL_EXPORTER_TYPE=otlp-http`, `http/json`). Copilot sends traces rather than Claude-style
+  metrics, so the collector now reads its `chat` spans for tokens, request count and AI credits, and
+  its `execute_tool` spans for the tool waterfall. Copilot bills in requests and AI credits with no
+  per-token price, so its cost shows as `n/a` next to those counters, never `$0.00`. It is left out of
+  the dollar cap, still counts toward the token budget, and a new config-only `copilotRequestCap`
+  caps Copilot requests across the floor. The Command Center also lists Copilot's slash commands,
+  taken from the CLI's own `/help`.
 - **Tasks show their id.** The one thing people actually refer to a card by — `bmt-12` — was not
   displayed anywhere: not on the kanban card, which printed only the title and the assignee, and not
   in the detail view behind it. It now leads the card above the title, and leads the detail view's

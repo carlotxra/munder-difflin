@@ -127,8 +127,11 @@ export interface AgentDirectoryEntry {
   inboxBacklog: number;
   breaker: string;
   tokens: number;
-  /** Aggregate spend; carried for completeness — the voice layer speaks tokens. */
-  usd: number;
+  /** Aggregate spend; carried for completeness — the voice layer speaks tokens.
+   *  null for a Copilot agent, which has no dollar figure (see copilotRequests). */
+  usd: number | null;
+  /** Copilot agents only: model requests so far (Copilot's own billing unit). */
+  copilotRequests?: number;
   lastTool: string | null;
   lastActiveSecAgo: number | null;
   contextTokens: number | null;
@@ -452,6 +455,8 @@ export interface AgentUsageSample {
   cacheCreation: number;
   model: string;
   usd: number;
+  /** Copilot only: its own billing counters. When set, `usd` is unknown (n/a). */
+  copilot?: { requests: number; aiCredits: number };
 }
 
 /** One tool invocation for the per-agent span waterfall (#7B.2). Ephemeral. */

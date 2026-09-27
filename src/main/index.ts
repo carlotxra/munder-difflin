@@ -271,7 +271,7 @@ const grokLedgerGate = new CumulativeSampleGate();
 // enforces its decisions. Config read live so a settings change applies next beat.
 const breaker = new CircuitBreaker(() => {
   const c = readConfig();
-  return { ...(c.circuitBreaker ?? {}), costCapUsd: c.costCapUsd, costCapTokens: c.costCapTokens, agentTokenCaps: c.agentTokenCaps };
+  return { ...(c.circuitBreaker ?? {}), costCapUsd: c.costCapUsd, costCapTokens: c.costCapTokens, agentTokenCaps: c.agentTokenCaps, copilotRequestCap: c.copilotRequestCap };
 });
 // Always-on beats (decoupled from the optional heartbeat): the live fleet snapshot
 // Michael reads + the breaker beat, so guardrails + monitoring work even when the
@@ -1304,6 +1304,9 @@ function writeFleetSnapshot(): void {
         // fall back to the session figure rather than publishing a cold $0.
         const lifetime = costTotals.usdFor(id);
         const sessionUsd = u ? Number(u.usd.toFixed(4)) : 0;
+        // Copilot has no dollar figure (its usd is 0 = unknown): publish null so
+        // Michael reads "n/a" rather than "free", plus Copilot's own counters.
+        const copilot = u?.copilot;
         return {
           id,
           name: a.name,
@@ -1312,8 +1315,9 @@ function writeFleetSnapshot(): void {
           isGod: !!a.isGod,
           breaker: breaker.levelFor(id),
           tokens,
-          usd: lifetime === null ? sessionUsd : Number(lifetime.toFixed(4)),
-          sessionUsd,
+          usd: copilot ? null : lifetime === null ? sessionUsd : Number(lifetime.toFixed(4)),
+          sessionUsd: copilot ? null : sessionUsd,
+          ...(copilot ? { copilotRequests: copilot.requests, aiCredits: Number(copilot.aiCredits.toFixed(4)) } : {}),
           lastTool: spans.length ? spans[spans.length - 1].tool : null,
           lastActiveSecAgo: u ? Math.round((now - u.ts) / 1000) : null,
           inboxBacklog: hive.inboxBacklog(id),
@@ -3917,7 +3921,8 @@ ipcMain.handle('hive:agentDirectory', () => {
       inboxBacklog: hive.inboxBacklog(id),
       breaker: breaker.levelFor(id),
       tokens,
-      usd: u ? Number(u.usd.toFixed(4)) : 0,
+      usd: u?.copilot ? null : u ? Number(u.usd.toFixed(4)) : 0,
+      ...(u?.copilot ? { copilotRequests: u.copilot.requests } : {}),
       lastTool: spans.length ? spans[spans.length - 1].tool : null,
       lastActiveSecAgo: u ? Math.round((now - u.ts) / 1000) : null,
       contextTokens: ctx?.tokens ?? null,

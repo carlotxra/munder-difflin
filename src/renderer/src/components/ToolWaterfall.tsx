@@ -28,7 +28,16 @@ export function ToolWaterfall({ agentId }: { agentId: string }) {
       }}>
         {sample ? (
           <>
-            <span><strong>${sample.usd.toFixed(2)}</strong></span>
+            {sample.copilot ? (
+              // Copilot bills in requests / AI credits, not per token: a dollar
+              // figure would be invented, and $0.00 would read as free.
+              <span title={t('toolWaterfall.costNaTitle')}>
+                <strong>{t('toolWaterfall.costNa')}</strong>{' '}
+                {t('toolWaterfall.copilotBilling', { requests: sample.copilot.requests, credits: sample.copilot.aiCredits.toFixed(2) })}
+              </span>
+            ) : (
+              <span><strong>${sample.usd.toFixed(2)}</strong></span>
+            )}
             <span style={{ color: 'var(--cth-ink-700)' }}>
               {t('toolWaterfall.fresh', { tokens: fmtTokens(sample.input + sample.cacheCreation) })}
             </span>

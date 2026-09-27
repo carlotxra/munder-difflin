@@ -248,6 +248,12 @@ export interface HarnessConfig {
    *  budget, which sums all kinds). Set from each agent's card in the Command
    *  Center. */
   agentTokenCaps?: Record<string, number>;
+  /** Hard ceiling on GitHub Copilot model requests (Copilot's own
+   *  `github.copilot.cost`, summed across Copilot agents on the floor) before
+   *  the breaker trips the biggest user. Copilot has no dollar figure, so it is
+   *  invisible to costCapUsd; its tokens still count toward costCapTokens and
+   *  agentTokenCaps. Config-file only, opt-in (unset = no cap). */
+  copilotRequestCap?: number;
   /** Agent ids whose automatic inbox/queue delivery is paused. Pending messages
    *  stay durable until the operator explicitly resumes delivery. */
   autoDeliveryPausedAgents?: string[];

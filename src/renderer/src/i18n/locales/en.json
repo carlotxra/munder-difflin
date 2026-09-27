@@ -138,7 +138,10 @@
     "noTelemetry": "no live telemetry yet — spawn / respawn this agent to instrument it",
     "empty": "No tool calls captured yet. Each tool the agent runs appears here with its real duration.",
     "barOk": "{{tool}} · {{ms}}ms · ok",
-    "barFailed": "{{tool}} · {{ms}}ms · failed"
+    "barFailed": "{{tool}} · {{ms}}ms · failed",
+    "costNa": "n/a",
+    "costNaTitle": "Copilot bills in premium requests and AI credits, not per token, so there is no dollar figure.",
+    "copilotBilling": "{{requests}} req · {{credits}} AI credits"
   },
   "agentDetail": {
     "open": "open",

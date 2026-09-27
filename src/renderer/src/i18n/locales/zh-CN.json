@@ -138,7 +138,10 @@
     "noTelemetry": "尚无实时遥测——生成/重新生成该智能体以接入",
     "empty": "尚未捕获到工具调用。智能体运行的每个工具都会以真实耗时显示在这里。",
     "barOk": "{{tool}} · {{ms}}ms · 成功",
-    "barFailed": "{{tool}} · {{ms}}ms · 失败"
+    "barFailed": "{{tool}} · {{ms}}ms · 失败",
+    "costNa": "不适用",
+    "costNaTitle": "Copilot 按高级请求和 AI 积分计费，而非按 token 计费，因此没有美元金额。",
+    "copilotBilling": "{{requests}} 次请求 · {{credits}} AI 积分"
   },
   "agentDetail": {
     "open": "打开",
