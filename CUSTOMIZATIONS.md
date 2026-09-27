@@ -118,6 +118,7 @@ To turn off the remote fetch, set `"remote": false` in either override, or set
   at "available" and nothing downloads until you click download.
 - `04afd636`: when checks are off, the idle Updates text says so (`updatesSection.idleDetailOff`).
 - There is no migration: a saved config keeps whatever value it already has.
+| Scheduled auto-compact persists | Settings → Maintenance toggle now survives a restart | config `contextTrigger.compact.enabled` | `src/shared/triggers.ts`, `SettingsModal.tsx` | `b6005270` | branch `fix-scheduled-compact-persist` |
 
 ## Ask-first setting (T-010)
 
@@ -137,6 +138,15 @@ To turn off the remote fetch, set `"remote": false` in either override, or set
 - The setting is read when a prompt is built, so a change reaches agents spawned after it.
 - With it off, the prompts are byte-identical to `stable` before this change.
 - Test: `test/ask-first.test.cjs`.
+
+## Scheduled auto-compact persistence (T-014)
+
+- `b6005270`: bug fix. The Settings → Maintenance "Scheduled auto-compact" toggle read and
+  wrote the `compact-maintenance` mission, but boot (`src/main/index.ts`) retires that mission
+  into `contextTrigger.compact`. Once retired, the toggle always read off and its save changed
+  nothing. It now reads and writes `contextTrigger.compact.enabled` through
+  `scheduledCompactEnabled` / `scheduledCompactPatch` in `src/shared/triggers.ts`.
+- Test: `test/scheduled-compact-persist.test.cjs` (save → reload round trip).
 
 ## User-editable files (macOS)
 

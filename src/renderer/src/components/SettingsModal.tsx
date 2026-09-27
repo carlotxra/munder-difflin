@@ -32,6 +32,7 @@ import {
 import { notifyArabicTerminalChangeAll } from '@/components/terminalPool';
 import { isComposingKey } from '@shared/imeGuard';
 import { splitArgString, joinArgs } from '@shared/godArgs';
+import { scheduledCompactEnabled, scheduledCompactPatch } from '@shared/triggers';
 import { LANGUAGES, setLanguage } from '@/i18n';
 import { applyOfficeLinesSettings, applyOfficeLinesOverride } from '@/scene/office/officeLinesOverride';
 
@@ -247,8 +248,8 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
    * disconnect live rather than storing a preference.
    */
   const [pending, setPending] = useState<Partial<HarnessConfig>>({});
-  /** Auto-compact lives inside the missions array, so it is resolved at save
-   *  time against the config on disk rather than staged as a whole array. */
+  /** Auto-compact lives inside contextTrigger, so it is resolved at save time
+   *  against the config on disk rather than staged as a whole object. */
   const [autoCompactPending, setAutoCompactPending] = useState<boolean | null>(null);
   const [saveBusy, setSaveBusy] = useState(false);
   const [saveNote, setSaveNote] = useState('');
@@ -365,11 +366,9 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
       };
       if (autoCompactPending !== null) {
         // Read-modify-write against disk, not against a stale copy: another
-        // window (or main) may have edited a different mission meanwhile.
+        // window (or the Triggers tab) may have edited the trigger meanwhile.
         const cfg = await window.cth.getConfig();
-        patch.missions = (cfg.missions ?? []).map((m) =>
-          m.id === 'compact-maintenance' ? { ...m, enabled: autoCompactPending } : m
-        );
+        Object.assign(patch, scheduledCompactPatch(cfg as Pick<HarnessConfig, 'contextTrigger'>, autoCompactPending));
       }
       await window.cth.updateConfig(patch);
       // The floor reads these live; re-read office-lines.json too, so an edit to
@@ -481,12 +480,11 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
     finally { setKgBusy(false); }
   };
 
-  // ─── Scheduled auto-compact — the compact-maintenance mission's enabled flag.
-  // The mission itself stays the single source of truth (the Triggers tab edits
-  // the same field); this is just a General-section shortcut. Default OFF (v0.3.4).
-  const [autoCompactOn, setAutoCompactOn] = useState<boolean>(
-    (config.missions ?? []).some((m) => m.id === 'compact-maintenance' && m.enabled)
-  );
+  // ─── Scheduled auto-compact — contextTrigger.compact.enabled. Boot retires the
+  // old `compact-maintenance` mission into the trigger, so the trigger is the
+  // single source of truth (the Triggers tab edits the same field); this is just
+  // a General-section shortcut.
+  const [autoCompactOn, setAutoCompactOn] = useState<boolean>(scheduledCompactEnabled(config));
   const toggleAutoCompact = async () => {
     const next = !autoCompactOn;
     setAutoCompactOn(next);
@@ -1143,7 +1141,7 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
 
                       <div style={{ height: 1, background: 'var(--cth-ink-300)' }} />
 
-                      {/* Scheduled auto-compact (compact-maintenance mission) */}
+                      {/* Scheduled auto-compact (contextTrigger.compact.enabled) */}
                       <div>
                         <div style={sectionHead}>
                           {t('settings.general.maintenance')}
