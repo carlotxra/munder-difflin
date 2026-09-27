@@ -164,10 +164,12 @@ export interface ModelOption {
   label: string;
 }
 
-/** The catalog row + catalog types live in shared/. `minAppVersion` /
- *  `maxAppVersion` are INCLUSIVE app-version
+/** The catalog row + catalog types now live in shared/, because the MAIN
+ *  process validates the remote copy against the same shape before it crosses
+ *  the bridge. `minAppVersion` / `maxAppVersion` are INCLUSIVE app-version
  *  bounds: the model is offered while the running build sits inside them, and
- *  null (or an absent key) means unbounded in that direction.
+ *  null (or an absent key) means unbounded in that direction. That is what lets
+ *  a release introduce or retire a model without a code change.
  *
  *  PRERELEASES COUNT AS THEIR RELEASE. The comparison is major.minor.patch only
  *  (`isNewer` discards a `-rc.N` suffix), so `minAppVersion: '0.4.6'` IS offered
@@ -182,8 +184,9 @@ export type { CatalogModel, ModelCatalog } from '@shared/modelCatalogPayload';
  *  These were a dozen hardcoded `ModelOption[]` arrays in this file, so shipping
  *  a model — one string — meant editing, type-checking and rebuilding renderer
  *  source. They now live in src/shared/modelCatalog.json, imported at BUILD time
- *  (no fs, no network, offline-safe) and filtered per running version. Adding a
- *  model means updating this JSON and shipping a build.
+ *  (no fs, no network, offline-safe) and filtered per running version, so adding
+ *  a model is a one-line JSON edit and a model can name the releases it belongs
+ *  to instead of appearing in builds whose CLI never shipped it.
  *
  *  What the arrays used to say — kept, because it explains why the entries look
  *  the way they do:
@@ -231,7 +234,65 @@ export type { CatalogModel, ModelCatalog } from '@shared/modelCatalogPayload';
  *  - kimi: managed Kimi Code aliases accepted by `kimi --model <alias>`.
  *  - custom: no presets at all; the command field is the whole interface.
  */
-const CATALOG: ModelCatalog = modelCatalog;
+const BAKED: ModelCatalog = modelCatalog;
+
+/** The catalog the pickers actually read. Starts as the baked copy and is
+ *  replaced, per provider, when the remote copy arrives from main. `let`, not
+ *  `const`, is the whole mechanism: everything below reads it through a
+ *  function call, so a refresh reaches the next render with no plumbing. */
+let CATALOG: ModelCatalog = BAKED;
+
+/** Merge a validated remote catalog over the baked one.
+ *
+ *  Per PROVIDER, not per model: a provider present in the remote copy replaces
+ *  that provider's list outright, and a provider the remote copy does not
+ *  mention keeps the list this build shipped with. That means docs/model-catalog
+ *  .json can carry only the providers being changed, and a provider dropped from
+ *  it degrades to the built-in list rather than to an empty picker.
+ *
+ *  Returns whether anything actually changed, so the caller can skip a pointless
+ *  event on the overwhelmingly common "nothing new" path. */
+export function applyRemoteModelCatalog(remote: ModelCatalog | null): boolean {
+  const next: ModelCatalog = remote
+    ? { version: BAKED.version, providers: { ...BAKED.providers, ...remote.providers } }
+    : BAKED;
+  if (JSON.stringify(next) === JSON.stringify(CATALOG)) return false;
+  CATALOG = next;
+  return true;
+}
+
+/** Fired on `window` after the catalog changes, so a surface holding a rendered
+ *  list can re-read it. Pickers that call `modelsForProvider()` during render
+ *  pick the change up on their next render either way. */
+export const MODEL_CATALOG_EVENT = 'cth:model-catalog';
+
+/** Ask main for the remote catalog and apply it. Safe to call repeatedly; the
+ *  network hop is main's problem and it is cached there behind a TTL.
+ *
+ *  Called once when this module loads inside the app (below). Kept exported so a
+ *  Settings action can force a refresh, and so the tests can drive it. */
+export async function refreshModelCatalog(force = false): Promise<boolean> {
+  try {
+    const bridge = (globalThis as { cth?: { modelCatalog?: (force?: boolean) => Promise<{ catalog: ModelCatalog | null }> } }).cth;
+    if (!bridge?.modelCatalog) return false;
+    const { catalog } = await bridge.modelCatalog(force);
+    const changed = applyRemoteModelCatalog(catalog);
+    if (changed && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent(MODEL_CATALOG_EVENT));
+    }
+    return changed;
+  } catch {
+    // The baked catalog is already rendering. A failed refresh is not an error
+    // the user has any action for, so it is not one they get told about.
+    return false;
+  }
+}
+
+// Fire once on load. The pickers all call modelsForProvider() during render, so
+// the usual case — main pre-warmed the cache at startup, this resolves in a few
+// ms, no modal is open yet — needs no subscription at all. A catalog that lands
+// while a picker is already open reaches it on that picker's next render.
+if (typeof window !== 'undefined') void refreshModelCatalog();
 
 declare const __APP_VERSION__: string | undefined;
 
@@ -283,7 +344,9 @@ export function modelsForProvider(provider: AgentProvider): ModelOption[] {
   return modelsForProviderAtVersion(provider, runningAppVersion());
 }
 
-/** The Claude presets, for the surfaces that only ever offer Claude models. */
+/** The Claude presets, for the surfaces that only ever offer Claude models.
+ *  A FUNCTION, not a const array: a const would be captured at module load and
+ *  would still be showing the baked list after a remote refresh landed. */
 export function agentModels(): ModelOption[] {
   return modelsForProvider('claude');
 }

@@ -42,12 +42,17 @@ All notable changes to this project are documented here. The format is based on
   `codex` on your machine will reject it when the agent spawns; update Codex first. The catalog's
   version bounds cover the app, not the CLI it launches, so this is a prerequisite rather than
   something the picker can hide for you.
-- **Model catalogs are bundled and offline-safe.** All model pickers read
-  [`src/shared/modelCatalog.json`](src/shared/modelCatalog.json), compiled into development and
-  packaged builds. Updating the list requires shipping a new build; model selection no longer
-  fetches or caches remote data.
-  The bundled catalog is available immediately and offline; model-version bounds are checked
-  against the running build before entries are displayed in a picker.
+- **A new model no longer needs a release.** The pickers now read
+  [`docs/model-catalog.json`](docs/model-catalog.json) on `main`, fetched at runtime and cached for
+  six hours, so adding a model is one line in one file on GitHub rather than a build. The check runs
+  at startup, not on a timer: an installed copy picks a new model up the next time it launches with
+  a cached copy older than six hours, and an app left open does not change under you.
+  The catalog compiled into the build stays the floor: it is what renders offline, on first
+  launch, and whenever the remote copy is missing, unreadable, or announces a schema this build does
+  not know. A provider present in the remote copy replaces that provider's list; a provider it does
+  not mention keeps the built-in one, so a bad edit costs a list rather than a picker. The payload is
+  data and never markup, and a model id is length-capped and stripped of control characters before it
+  can reach a `--model` flag on a spawn command line. Same mechanism as the Settings hero card.
 
 ## [0.4.6] — 2026-08-27
 

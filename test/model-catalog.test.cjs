@@ -21,7 +21,8 @@ const {
  *  exact `--model` values the CLIs are invoked with, so a typo in the catalog is
  *  a model that silently fails to spawn. Adding a model means adding it here
  *  too, ON PURPOSE — that is the point of the list, not friction to route
- *  around. It pins the bundled catalog. */
+ *  around. It pins the BAKED catalog; the remote overlay is tested separately in
+ *  model-catalog-remote.test.cjs. */
 const SHIPPED = {
   claude: [
     ["claude-fable-5-1", "Fable 5.1"],
@@ -149,16 +150,6 @@ test('the pickers offer exactly the models the catalog names', () => {
     assert.deepEqual(
       modelsForProvider(provider).map((model) => [model.id, model.label]),
       expected,
-      provider
-    );
-  }
-});
-
-test('every provider picker reads its models from the bundled catalog', () => {
-  for (const [provider, models] of Object.entries(catalog.providers)) {
-    assert.deepEqual(
-      modelsForProvider(provider).map(({ id, label }) => [id, label]),
-      models.map(({ id, label }) => [id, label]),
       provider
     );
   }
