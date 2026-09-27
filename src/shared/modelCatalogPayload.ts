@@ -49,10 +49,13 @@ export interface ModelCatalog {
  *  shape change later without breaking every shipped build in the field. */
 export const CATALOG_SCHEMA_VERSION = 1;
 
+/** A model id is a slug or a display name agy echoes back; nothing legitimate
+ *  is anywhere near this long, and it ends up on a command line. Exported so a
+ *  model id the user types (src/shared/customModel.ts) is held to the same cap. */
+export const MODEL_ID_MAX = 120;
+
 const MAX = {
-  /** A model id is a slug or a display name agy echoes back; nothing legitimate
-   *  is anywhere near this long, and it ends up on a command line. */
-  id: 120,
+  id: MODEL_ID_MAX,
   label: 60,
   /** Provider keys are the ids in AGENT_PROVIDER_PRESETS. */
   key: 40,
@@ -65,7 +68,7 @@ const MAX = {
  *  Control characters are neutralised rather than escaped: an id carrying a
  *  newline or a NUL would be a command-line splice, and a label carrying one
  *  would break the option row. Neither has a legitimate reason to contain one. */
-function str(value: unknown, cap: number): string | null {
+export function str(value: unknown, cap: number): string | null {
   if (typeof value !== 'string') return null;
   // Control characters are replaced, not stripped, so two words never fuse.
   const clean = value.replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim();

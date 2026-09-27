@@ -1,8 +1,10 @@
 import { useEffect, useState, type CSSProperties } from 'react';
+import { useTranslation } from 'react-i18next';
 import { PixelPanel } from './PixelPanel';
 import { PixelButton } from './PixelButton';
 import { SpritePortrait } from './SpritePortrait';
 import { ProviderLogo } from './ProviderLogo';
+import { CustomModelInput, customModelLabel, customModelOptionLabel, isCustomModel } from './CustomModelEntry';
 import { useStore, type Agent } from '@/store/store';
 import { OFFICE_CAST, type OfficeCharacterName } from '@/scene/office/cast';
 import { type AccentColorName } from '@/design/tokens';
@@ -40,6 +42,8 @@ export function EditAgentModal({ agent, onClose }: EditAgentModalProps) {
     inferAgentProvider(agent.command, agent.provider)
   );
   const [model, setModel] = useState<string | undefined>(agent.model);
+  const [customModelOpen, setCustomModelOpen] = useState(false);
+  const { t } = useTranslation();
   const [description, setDescription] = useState(agent.description);
   const [goal, setGoal] = useState(agent.goal ?? '');
 
@@ -54,12 +58,14 @@ export function EditAgentModal({ agent, onClose }: EditAgentModalProps) {
     setAccent(agent.accent);
     setProvider(inferAgentProvider(agent.command, agent.provider));
     setModel(agent.model);
+    setCustomModelOpen(false);
     setDescription(agent.description);
     setGoal(agent.goal ?? '');
   }, [agent.id]);
 
   const pickProvider = (id: AgentProvider) => {
     setProvider(id);
+    setCustomModelOpen(false);
     if (!config) {
       setModel(undefined);
       return;
@@ -220,9 +226,11 @@ export function EditAgentModal({ agent, onClose }: EditAgentModalProps) {
                 <Row label="Model">
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     {(() => {
+                      // An unknown current model is a custom id — typed here earlier,
+                      // or carried in from a hire — so it stays a selectable card.
                       const known = modelsForProvider(provider);
-                      return model && !known.some((m) => m.id === model)
-                        ? [...known, { id: model, label: `${model} (current)` }]
+                      return isCustomModel(known, model)
+                        ? [...known, { id: model, label: customModelLabel(t, model) }]
                         : known;
                     })().map((m) => {
                       const active = (model ?? '') === (m.id ?? '');
@@ -246,6 +254,30 @@ export function EditAgentModal({ agent, onClose }: EditAgentModalProps) {
                         </button>
                       );
                     })}
+                    <button
+                      key="custom"
+                      type="button"
+                      onClick={() => setCustomModelOpen(true)}
+                      style={{
+                        padding: '3px 8px 1px',
+                        background: 'var(--cth-cream-100)',
+                        boxShadow: customModelOpen
+                          ? 'inset 0 0 0 1.5px var(--cth-ink-500)'
+                          : 'inset 0 0 0 1px var(--cth-ink-100)',
+                        fontFamily: 'var(--cth-font-ui)', fontSize: 12,
+                        color: 'var(--cth-ink-900)', cursor: 'pointer', border: 'none'
+                      }}
+                    >
+                      {customModelOptionLabel(t)}
+                    </button>
+                    {customModelOpen && (
+                      <CustomModelInput
+                        provider={provider}
+                        initial={isCustomModel(modelsForProvider(provider), model) ? model : ''}
+                        onSubmit={(id) => { setModel(id); setCustomModelOpen(false); }}
+                        onCancel={() => setCustomModelOpen(false)}
+                      />
+                    )}
                   </div>
                 </Row>
               )}

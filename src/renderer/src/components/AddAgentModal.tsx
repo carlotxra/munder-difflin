@@ -5,6 +5,7 @@ import { PixelButton } from './PixelButton';
 import { SpritePortrait } from './SpritePortrait';
 import { Icon } from './Icon';
 import { ProviderLogo } from './ProviderLogo';
+import { CustomModelInput, customModelLabel, customModelOptionLabel, isCustomModel } from './CustomModelEntry';
 import { useStore, type Agent } from '@/store/store';
 import { OFFICE_CAST, DEFAULT_CHARACTER, type OfficeCharacterName } from '@/scene/office/cast';
 import { type AccentColorName } from '@/design/tokens';
@@ -207,6 +208,7 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
 
   // Picking a model rebuilds the command; the command field stays editable for
   // power users (it's the source of truth for the actual spawn).
+  const [customModelOpen, setCustomModelOpen] = useState(false);
   const pickModel = (id?: string) => {
     setModel(id);
     setCommand(buildSpawnCommand(config, id, provider));
@@ -217,6 +219,7 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
   // user's typed command rather than blanking it.
   const pickProvider = (id: AgentProvider) => {
     setProvider(id);
+    setCustomModelOpen(false);
     // Seed the model: Claude from the global defaultModel; other engines from the
     // per-engine default set in Settings → AI Engines (providerDefaultModels), else
     // the CLI default. This is what makes that Settings field live (Dwight NIT-1).
@@ -264,11 +267,14 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
       if (e.key !== 'Escape') return;
       e.preventDefault();
       e.stopImmediatePropagation();
+      // An open custom-model field takes the first Esc, as a native <select>
+      // popup would; this capture handler runs before the field sees the key.
+      if (customModelOpen) { setCustomModelOpen(false); return; }
       onClose();
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [onClose]);
+  }, [onClose, customModelOpen]);
 
   // Zero-step resume: when a session id is entered, look up the cwd it originally
   // ran in (from the transcript) and pre-fill the Folder so the user doesn't have
@@ -917,9 +923,12 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
                           // selected card instead of leaving the picker looking unset —
                           // the command field already carries it either way.
                           const known = modelsForProvider(provider);
-                          return model && !known.some((m) => m.id === model)
-                            ? [...known, { id: model, label: tr('addAgent.fromHire', { model }) }]
-                            : known;
+                          if (!isCustomModel(known, model)) return known;
+                          const fromHire = hireMeta?.model === model;
+                          return [...known, {
+                            id: model,
+                            label: fromHire ? tr('addAgent.fromHire', { model }) : customModelLabel(tr, model)
+                          }];
                         })().map((m) => {
                           const active = (model ?? '') === (m.id ?? '');
                           return (
@@ -941,6 +950,29 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
                             </button>
                           );
                         })}
+                        <button
+                          key="custom"
+                          onClick={() => setCustomModelOpen(true)}
+                          style={{
+                            padding: '3px 8px 1px',
+                            background: 'var(--cth-cream-100)',
+                            boxShadow: customModelOpen
+                              ? 'inset 0 0 0 1.5px var(--cth-ink-500)'
+                              : 'inset 0 0 0 1px var(--cth-ink-100)',
+                            fontFamily: 'var(--cth-font-ui)', fontSize: 12,
+                            color: 'var(--cth-ink-900)', cursor: 'pointer', border: 'none'
+                          }}
+                        >
+                          {customModelOptionLabel(tr)}
+                        </button>
+                        {customModelOpen && (
+                          <CustomModelInput
+                            provider={provider}
+                            initial={isCustomModel(modelsForProvider(provider), model) ? model : ''}
+                            onSubmit={(id) => { pickModel(id); setCustomModelOpen(false); }}
+                            onCancel={() => setCustomModelOpen(false)}
+                          />
+                        )}
                       </div>
                     </Row>}
 

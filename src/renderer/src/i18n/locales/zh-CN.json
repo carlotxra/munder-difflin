@@ -1408,5 +1408,24 @@
     "viewSource": "查看源码",
     "loading": "正在加载图片…",
     "decodeFailed": "无法解码此图片——文件可能已损坏或扩展名有误"
+  },
+  "customModel": {
+    "option": "自定义…",
+    "label": "{{id}}（自定义）",
+    "placeholder": "模型 ID",
+    "use": "使用",
+    "hint": {
+      "label": "请按 {{provider}} 显示的名称原样输入模型标签，例如 Gemini 3.1 Pro (High)。",
+      "slug": "请输入 provider/model 形式的标识，例如 anthropic/claude-sonnet-4-5。",
+      "cliId": "请输入 {{provider}} CLI 的 --model 可接受的模型 ID。"
+    },
+    "error": {
+      "empty": "请输入模型 ID。",
+      "control": "模型 ID 不能包含控制字符或换行。",
+      "whitespace": "此处的模型 ID 不能包含空格。",
+      "quote": "模型 ID 不能包含引号。",
+      "dash": "模型 ID 不能以 \"-\" 开头。",
+      "tooLong": "模型 ID 过长（最多 {{max}} 个字符）。"
+    }
   }
 }

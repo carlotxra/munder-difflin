@@ -6,6 +6,9 @@ import { Icon, type IconName } from './Icon';
 import { SpritePortrait } from './SpritePortrait';
 import { ProviderLogo } from './ProviderLogo';
 import { modelsForProvider, onboardingEngineChoices, type AgentProvider, type HarnessConfig } from '@/store/config';
+import {
+  CUSTOM_MODEL_SENTINEL, CustomModelInput, customModelLabel, customModelOptionLabel, isCustomModel
+} from './CustomModelEntry';
 import { providerPreset } from '@shared/agentProvider';
 import {
   classifyEngineAvailability, engineAvailabilityBadge, engineAvailabilityMessage, engineBlocksOnboarding
@@ -107,6 +110,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
   const [godModel, setGodModel] = useState<string | undefined>(
     providerPreset('claude').recommendedOrchestratorModel
   );
+  const [godModelCustomOpen, setGodModelCustomOpen] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
 
@@ -445,6 +449,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                             // Reset the model to the new provider's recommended pick so the
                             // dropdown below always shows a valid model for the chosen engine.
                             setGodModel(p.recommendedOrchestratorModel);
+                            setGodModelCustomOpen(false);
                           }}
                           style={{ width: 16, height: 16, flexShrink: 0 }}
                         />
@@ -549,13 +554,29 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
                   <div style={{ fontSize: 12, color: 'var(--cth-ink-500)' }}>{t('onboarding.orchestrator.model')}</div>
                   <select
                     value={godModel ?? ''}
-                    onChange={(e) => setGodModel(e.target.value || undefined)}
+                    onChange={(e) => {
+                      if (e.target.value === CUSTOM_MODEL_SENTINEL) { setGodModelCustomOpen(true); return; }
+                      setGodModel(e.target.value || undefined);
+                    }}
                     style={inputStyle}
                   >
                     {modelsForProvider(godProvider).map((m) => (
                       <option key={m.label} value={m.id ?? ''}>{m.label}</option>
                     ))}
+                    {isCustomModel(modelsForProvider(godProvider), godModel) && (
+                      <option value={godModel}>{customModelLabel(t, godModel)}</option>
+                    )}
+                    <option value={CUSTOM_MODEL_SENTINEL}>{customModelOptionLabel(t)}</option>
                   </select>
+                  {godModelCustomOpen && (
+                    <CustomModelInput
+                      provider={godProvider}
+                      initial={isCustomModel(modelsForProvider(godProvider), godModel) ? godModel : ''}
+                      onCancel={() => setGodModelCustomOpen(false)}
+                      onSubmit={(id) => { setGodModel(id); setGodModelCustomOpen(false); }}
+                      inputStyle={{ padding: '6px 8px 4px', fontFamily: 'var(--cth-font-mono)', fontSize: 13 }}
+                    />
+                  )}
                   <div style={{ fontSize: 12, color: 'var(--cth-ink-500)' }}>
                     {t('onboarding.orchestrator.modelNote')}
                   </div>

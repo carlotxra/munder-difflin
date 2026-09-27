@@ -16,6 +16,9 @@ import { acquireTerminal, disposeTerminal, resetTerminal } from './terminalPool'
 import { terminalInstanceKey } from './terminalRecovery';
 import { Icon } from './Icon';
 import { MemoryGraphPanel } from './MemoryGraphPanel';
+import {
+  CUSTOM_MODEL_SENTINEL, CustomModelInput, customModelLabel, customModelOptionLabel, isCustomModel
+} from './CustomModelEntry';
 import { useFleetTelemetry } from '@/hooks/useTelemetry';
 import { COMMAND_GROUPS } from '@shared/claudeCommands';
 import { roleForHiveSpawn } from '@shared/agentRole';
@@ -363,6 +366,10 @@ function FloorTab({ seed }: { seed: { text: string; seq: number } }) {
   const [restarting, setRestarting] = useState<string | null>(null);
   const [engineProvider, setEngineProvider] = useState<AgentProvider>('claude');
   const [engineModel, setEngineModel] = useState<string | undefined>(undefined);
+  // The "Custom…" model field: which agent's switch has it open (and for which
+  // provider's group), and whether the engine row's is open.
+  const [customModelFor, setCustomModelFor] = useState<{ agentId: string; provider: AgentProvider } | null>(null);
+  const [engineCustomOpen, setEngineCustomOpen] = useState(false);
   const [restartErrors, setRestartErrors] = useState<Record<string, string>>({});
   // The harness's own default model (Settings → default model). Michael and every
   // new agent spawn on this, so the picker marks it — otherwise the only entry
@@ -808,6 +815,10 @@ function FloorTab({ seed }: { seed: { text: string; seq: number } }) {
                 onChange={(value) => {
                   const choice = decodeProviderModel(value);
                   if (!choice) return;
+                  if (choice.model === CUSTOM_MODEL_SENTINEL) {
+                    setCustomModelFor({ agentId: a.id, provider: choice.provider });
+                    return;
+                  }
                   // Switching model within the SAME provider continues the
                   // conversation — that's the whole point of switching mid-task
                   // ("this got hard, go up a tier"), and starting fresh threw
@@ -824,7 +835,7 @@ function FloorTab({ seed }: { seed: { text: string; seq: number } }) {
               >
                 {(!agentPreset.supportsModel || !currentModelKnown) && (
                   <option value={encodeProviderModel(agentProvider, a.model)}>
-                    {agentPreset.label} · {a.model ?? 'current'}
+                    {agentPreset.label} · {a.model ? customModelLabel(t, a.model) : 'current'}
                   </option>
                 )}
                 {modelProvidersForAgent(a.isGod).map((preset) => (
@@ -843,6 +854,9 @@ function FloorTab({ seed }: { seed: { text: string; seq: number } }) {
                         </option>
                       );
                     })}
+                    <option value={encodeProviderModel(preset.id, CUSTOM_MODEL_SENTINEL)}>
+                      {customModelOptionLabel(t)}
+                    </option>
                   </optgroup>
                 ))}
               </Select>
@@ -870,6 +884,22 @@ function FloorTab({ seed }: { seed: { text: string; seq: number } }) {
               </>}
             </div>
             )}
+            {!a.isGod && customModelFor?.agentId === a.id && (
+              <CustomModelInput
+                provider={customModelFor.provider}
+                initial={customModelFor.provider === agentProvider && !currentModelKnown ? a.model : ''}
+                onCancel={() => setCustomModelFor(null)}
+                onSubmit={(id) => {
+                  const provider = customModelFor.provider;
+                  setCustomModelFor(null);
+                  void restartWithModel(a, id, {
+                    provider,
+                    resume: provider === agentProvider,
+                    resumeOptional: true
+                  });
+                }}
+              />
+            )}
             {restartErrors[a.id] && (
               <div style={{ fontSize: 11, color: 'var(--cth-coral)' }}>
                 {restartErrors[a.id]}
@@ -884,6 +914,7 @@ function FloorTab({ seed }: { seed: { text: string; seq: number } }) {
                   onChange={(v) => {
                     const p = v as AgentProvider;
                     setEngineProvider(p);
+                    setEngineCustomOpen(false);
                     const preset = AGENT_PROVIDER_PRESETS.find((x) => x.id === p);
                     setEngineModel(preset?.recommendedOrchestratorModel);
                   }}
@@ -897,11 +928,18 @@ function FloorTab({ seed }: { seed: { text: string; seq: number } }) {
                 <Select
                   value={engineModel ?? ''}
                   disabled={restarting === a.id}
-                  onChange={(v) => setEngineModel(v || undefined)}
+                  onChange={(v) => {
+                    if (v === CUSTOM_MODEL_SENTINEL) { setEngineCustomOpen(true); return; }
+                    setEngineModel(v || undefined);
+                  }}
                 >
                   {modelsForProvider(engineProvider).map((m) => (
                     <option key={m.label} value={m.id ?? ''}>{m.label}</option>
                   ))}
+                  {isCustomModel(modelsForProvider(engineProvider), engineModel) && (
+                    <option value={engineModel}>{customModelLabel(t, engineModel)}</option>
+                  )}
+                  <option value={CUSTOM_MODEL_SENTINEL}>{customModelOptionLabel(t)}</option>
                 </Select>
                 <PixelButton
                   variant="secondary"
@@ -931,6 +969,14 @@ function FloorTab({ seed }: { seed: { text: string; seq: number } }) {
                   </span>
                 </PixelButton>
               </div>
+            )}
+            {a.isGod && engineCustomOpen && (
+              <CustomModelInput
+                provider={engineProvider}
+                initial={isCustomModel(modelsForProvider(engineProvider), engineModel) ? engineModel : ''}
+                onCancel={() => setEngineCustomOpen(false)}
+                onSubmit={(id) => { setEngineModel(id); setEngineCustomOpen(false); }}
+              />
             )}
           </div>
           );
