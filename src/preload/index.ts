@@ -289,7 +289,7 @@ export interface HarnessConfig {
   /** Opt-in strong keep-alive (prevent-display-sleep). Mirrors main + renderer
    *  HarnessConfig so updateConfig({ strongKeepalive }) is typed across the bridge. */
   strongKeepalive?: boolean;
-  /** Auto-update from GitHub releases (default ON; Settings → General). */
+  /** Auto-update from GitHub releases (default OFF, opt-in; Settings → General). */
   autoUpdate?: boolean;
   /** Break-spot small talk (default ON) and its innuendo (default OFF). */
   officeSmallTalk?: boolean;

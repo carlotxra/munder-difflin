@@ -90,7 +90,7 @@ export interface HarnessConfig {
    *  while away (battery cost; best on AC). Default off = survive + catch up on
    *  resume. Mirrors the main-process field (src/main/config.ts). */
   strongKeepalive?: boolean;
-  /** Auto-update from GitHub releases (default ON; Settings → General). */
+  /** Auto-update from GitHub releases (default OFF, opt-in; Settings → General). */
   autoUpdate?: boolean;
   /** Break-spot small talk (default ON) and its innuendo (default OFF);
    *  Settings → General. Mirrors the main-process fields. */

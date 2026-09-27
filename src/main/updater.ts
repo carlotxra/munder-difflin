@@ -21,8 +21,10 @@ import { reduceStatus, clampPercent, isNewer, installerUrl, shouldShowReleaseDro
  * `releases/latest` poll — semver-compare against the running version and show a
  * notify-only state linking the release page.
  *
- * Everything is gated on the `autoUpdate` HarnessConfig flag (default ON,
- * Settings → General) and on `app.isPackaged` — dev runs never poll.
+ * Everything automatic is gated on the `autoUpdate` HarnessConfig flag (default
+ * OFF — only an explicit `true` enables it; Settings → General) and on
+ * `app.isPackaged` — dev runs never poll. With the flag off there is no
+ * background check; the manual check (version badge / Settings) still works.
  *
  * ─── v0.3.7: why native updating never actually ran ──────────────────────────
  * electron-updater is CommonJS and exposes `autoUpdater` through a lazy
@@ -122,11 +124,13 @@ function emit(status: UpdateStatus): void {
   try { sendTo?.()?.send('update:status', lastStatus); } catch { /* window tore down */ }
 }
 
+/** Opt-in: undefined/missing means OFF; only an explicit `true` enables it. An
+ *  unreadable config also means OFF — never fetch upstream on a guess. */
 function autoUpdateEnabled(): boolean {
   try {
-    return readConfig().autoUpdate !== false; // default ON
+    return readConfig().autoUpdate === true;
   } catch {
-    return true;
+    return false;
   }
 }
 

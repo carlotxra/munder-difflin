@@ -293,10 +293,13 @@ export interface HarnessConfig {
    *  AC). Default OFF: the honest default is "survive sleep + catch up once on
    *  resume" (see the powerMonitor 'resume' handler), not "stay awake". */
   strongKeepalive?: boolean;
-  /** Auto-update from GitHub releases (v0.3.4). Default ON. Packaged builds
-   *  check on boot + every ~6h, download in the background, and show a
-   *  "restart to update" toast — installation is always user-initiated. OFF
-   *  disables checking entirely. (Mirrored in preload + renderer config.) */
+  /** Auto-update from GitHub releases (v0.3.4). Default OFF (opt-in): only an
+   *  explicit `true` enables it — missing/undefined means off, so a fresh install
+   *  never contacts or downloads upstream releases on its own. When ON, packaged
+   *  builds check on boot + every ~6h, download in the background, and show a
+   *  "restart to update" toast — installation is always user-initiated. When OFF
+   *  there is no background check; the manual check (version badge) still works.
+   *  (Mirrored in preload + renderer config.) */
   autoUpdate?: boolean;
   /** Break-spot small talk on the office floor (Settings → General). Default ON;
    *  off = no coffee/vending/table bubbles. Lines: <userData>/office-lines.json. */
@@ -317,7 +320,7 @@ export interface HarnessConfig {
    *  harness agents only; the user's global Claude theme is never touched. */
   terminalTheme?: 'light' | 'dark';
   /** Anonymous product analytics (PostHog) — the exact events/properties are
-   *  documented in TELEMETRY.md. Default ON (opt-out, like autoUpdate); builds
+   *  documented in TELEMETRY.md. Default ON (opt-out); builds
    *  without an injected key and environments with DO_NOT_TRACK set never send
    *  regardless of this flag. (Mirrored in preload + renderer config.) */
   telemetryEnabled?: boolean;
@@ -456,7 +459,7 @@ const DEFAULTS: HarnessConfig = {
   missions: [OPS_STANDUP_MISSION],
   notifications: false,
   strongKeepalive: false,
-  autoUpdate: true,
+  autoUpdate: false, // opt-in: only an explicit true enables background updates
   officeSmallTalk: true,
   officeInnuendo: false,
   telemetryEnabled: true,

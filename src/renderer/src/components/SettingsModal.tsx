@@ -486,8 +486,8 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
     setAutoCompactPending(next);
   };
 
-  // ─── Auto-update (default ON; gates main's updater checks entirely) ────────
-  const [autoUpdateOn, setAutoUpdateOn] = useState<boolean>(config.autoUpdate !== false);
+  // ─── Auto-update (default OFF, opt-in; gates main's background checks) ─────
+  const [autoUpdateOn, setAutoUpdateOn] = useState<boolean>(config.autoUpdate === true);
   const toggleAutoUpdate = async () => {
     const next = !autoUpdateOn;
     setAutoUpdateOn(next);

@@ -5339,7 +5339,8 @@ app.whenReady().then(() => {
   // never block app startup.
   try { persist.open(); } catch (e) { console.error('[db] open failed:', e); }
   // Auto-update from GitHub releases (packaged builds only; gated on the
-  // `autoUpdate` config flag). Download-in-background + restart-to-apply toast;
+  // `autoUpdate` config flag, default OFF — only an explicit true opts in).
+  // When on: download-in-background + restart-to-apply toast;
   // never restarts on its own. Falls back to a notify-only releases/latest
   // check where native updating isn't possible (win-portable, dev-ish builds).
   initAutoUpdater(() => liveWebContents());
