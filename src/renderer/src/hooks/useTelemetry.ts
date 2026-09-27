@@ -23,6 +23,8 @@ export interface AgentUsageSample {
   cacheCreation: number;
   model: string;
   usd: number;
+  /** Copilot only: its own billing counters. When set, `usd` is unknown (n/a). */
+  copilot?: { requests: number; aiCredits: number };
 }
 
 export interface ToolSpan {

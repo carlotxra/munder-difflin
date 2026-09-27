@@ -50,6 +50,9 @@ export interface AgentUsageSample {
   /** Claude-precomputed cost (live path) / transcript-fallback estimate (interim).
    *  Never recomputed by a consumer. */
   usd: number;
+  /** GitHub Copilot only (telemetry.ts CopilotBilling): its own request count and
+   *  AI credits. When present, `usd` is 0 meaning UNKNOWN, not free. */
+  copilot?: { requests: number; aiCredits: number };
 }
 
 /** The seam both backends implement. */
