@@ -15,6 +15,7 @@
 import type { CmdGroup } from './claudeCommands';
 import { COMMAND_GROUPS as CLAUDE_COMMAND_GROUPS } from './claudeCommands';
 import { CODEX_COMMAND_GROUPS } from './codexCommands';
+import { COPILOT_COMMAND_GROUPS } from './copilotCommands';
 import { GROK_COMMAND_GROUPS } from './grokCommands';
 
 // NOTE: 'claw' (claw-code) was removed as a selectable provider — its upstream is
@@ -504,7 +505,7 @@ export const AGENT_PROVIDER_PRESETS: AgentProviderPreset[] = [
     id: 'copilot',
     label: 'Copilot',
     defaultCommand: 'copilot',
-    commandGroups: [],
+    commandGroups: COPILOT_COMMAND_GROUPS,
     // Interactive TUI (no `-p`): print mode exits per turn, which is why this
     // preset used to be inbox-less. --allow-all-tools never blocks on a permission
     // prompt, --no-ask-user disables the ask_user tool so it never stops to ask.

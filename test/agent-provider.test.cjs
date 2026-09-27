@@ -18,7 +18,7 @@ const ts = require('typescript');
 
 const SHARED = path.join(__dirname, '..', 'src', 'shared');
 const out = fs.mkdtempSync(path.join(os.tmpdir(), 'agentprov-'));
-for (const name of ['claudeCommands', 'codexCommands', 'grokCommands', 'agentProvider']) {
+for (const name of ['claudeCommands', 'codexCommands', 'copilotCommands', 'grokCommands', 'agentProvider']) {
   const src = fs.readFileSync(path.join(SHARED, `${name}.ts`), 'utf8');
   const js = ts.transpileModule(src, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 }
@@ -61,6 +61,25 @@ test('copilot is a hook-bridged, inbox-capable hive citizen', () => {
   assert.strictEqual(p.hiveAware, false, 'no Claude-only identity injection');
   assert.strictEqual(ap.canReceiveInbox('copilot'), true, 'receives routed mail');
   assert.deepStrictEqual(ap.bridgeOf('copilot'), { kind: 'hooks', shim: 'copilot' });
+});
+
+test('copilot exposes its verified slash-command catalogue', () => {
+  const groups = ap.commandGroupsForProvider('copilot');
+  assert.ok(groups.length > 0, 'command groups registered on the preset');
+  const cmds = groups.flatMap((g) => g.items);
+  // Slash commands confirmed in `copilot help commands` on CLI 1.0.88 (the /help
+  // table). A new entry must be verified there and added here too.
+  const verified = new Set(['/compact', '/clear', '/new', '/resume', '/rename', '/fork', '/context',
+    '/usage', '/session', '/rewind', '/copy', '/share', '/exit', '/model', '/agent', '/subagents',
+    '/tasks', '/fleet', '/plan', '/ask', '/permissions', '/allow-all', '/add-dir', '/list-dirs',
+    '/reset-allowed-tools', '/diff', '/review', '/security-review', '/pr', '/env', '/instructions',
+    '/mcp', '/skills', '/limits', '/help']);
+  for (const c of cmds.filter((i) => i.kind === 'slash')) {
+    assert.ok(verified.has(c.cmd), `${c.cmd} is not in the verified /help list`);
+  }
+  for (const c of cmds.filter((i) => i.kind === 'cli')) assert.match(c.cmd, /^copilot /);
+  // The context commands providerAutomation types must be in the catalogue.
+  assert.ok(cmds.some((c) => c.cmd === '/compact') && cmds.some((c) => c.cmd === '/clear'));
 });
 
 test('cursor is a recognized, selectable, god-eligible provider', () => {
