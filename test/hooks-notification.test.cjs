@@ -112,3 +112,15 @@ test('notifications setting off suppresses the OS toast but the hook still resol
   assert.equal(notifications.length, 0, 'notifications:false must suppress the OS toast');
   assert.deepEqual(res, {}, 'the hook itself still resolves normally');
 });
+test('copilot /clear (SessionEnd user_exit) leaves the agent alive and records the next session', async (t) => {
+  const home = tmpHome();
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+  const hive = new HiveManager(() => home);
+  await hive.ensureAgent({ id: 'cop-1', name: 'Cop', provider: 'copilot', cwd: home });
+  const server = new HookServer(hive, () => null, () => CONFIG, undefined, undefined);
+  hive.recordSession('cop-1', 'old');
+  assert.deepEqual(server.handle({ agent_id: 'cop-1', hook_event_name: 'SessionEnd', reason: 'user_exit', session_id: 'old', timestamp: new Date().toISOString() }), {});
+  server.handle({ agent_id: 'cop-1', hook_event_name: 'SessionStart', session_id: 'new', timestamp: new Date().toISOString() });
+  assert.equal(hive.lastSession('cop-1'), 'new');
+  assert.notEqual(hive.readRegistry?.().agents?.['cop-1']?.status, 'exited');
+});

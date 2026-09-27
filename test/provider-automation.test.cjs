@@ -56,9 +56,11 @@ test('each provider receives only its supported compaction syntax', () => {
   assert.equal(compactionCommandForProvider('qwen', ''), '/compress');
   assert.equal(compactionCommandForProvider('opencode', ''), '/compact');
   assert.equal(compactionCommandForProvider('pi', ''), '/compact');
+  assert.equal(compactionCommandForProvider('copilot', ''), '/compact');
+  assert.equal(compactionCommandForProvider('copilot', 'keep auth'), '/compact keep auth');
 
   // No command we can trust → no keystrokes at all.
-  for (const p of ['antigravity', 'crush', 'copilot', 'cursor', 'custom']) {
+  for (const p of ['antigravity', 'crush', 'cursor', 'custom']) {
     assert.equal(compactionCommandForProvider(p), null, p);
   }
 });
@@ -95,8 +97,9 @@ test('clearing uses each CLI own verb, not a hardcoded /clear', () => {
   assert.equal(clearCommandForProvider('grok'), '/new');
   assert.equal(clearCommandForProvider('opencode'), '/new');
   assert.equal(clearCommandForProvider('pi'), '/new');
-  // Palette-only TUI, print-mode CLI, Cursor (unverified slash surface), unknown binary.
-  for (const p of ['crush', 'copilot', 'cursor', 'custom']) {
+  assert.equal(clearCommandForProvider('copilot'), '/clear');
+  // Palette-only TUI, Cursor (unverified slash surface), unknown binary.
+  for (const p of ['crush', 'cursor', 'custom']) {
     assert.equal(clearCommandForProvider(p), null, p);
   }
 });

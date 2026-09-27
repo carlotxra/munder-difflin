@@ -83,10 +83,10 @@ test('a provider whose preset declares no auto flag gets nothing appended', () =
 });
 
 test('a multi-token auto flag appends whole, and the stance check is by token', () => {
-  // copilot's flag starts with `-s`; a substring check would read the `-s` inside
-  // --summarize as an explicit stance and skip the append.
-  const l = launch({ requestCommand: 'copilot --summarize', autoMode: true });
-  assert.deepEqual(l.args, ['--summarize', '-s', '--allow-all-tools', '--no-ask-user']);
+  // copilot's flag is `--allow-all-tools --no-ask-user`; a substring check would
+  // read `--allow-all` (a different token) as an explicit stance and skip the append.
+  const l = launch({ requestCommand: 'copilot --allow-all', autoMode: true });
+  assert.deepEqual(l.args, ['--allow-all', '--allow-all-tools', '--no-ask-user']);
 });
 
 test("an explicit request provider picks that provider's flag for a custom binary", () => {

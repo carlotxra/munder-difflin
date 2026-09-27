@@ -8,6 +8,17 @@ All notable changes to this project are documented here. The format is based on
 
 ### Added
 
+- **GitHub Copilot CLI is a full hive engine.** Copilot used to spawn in print mode (`-p`), which
+  exits after every turn and had no hook bridge, so it could not receive hive mail or run as Michael.
+  It now runs as the interactive TUI, seeded with `copilot -i "<protocol>"`, and each worker gets its own
+  `COPILOT_HOME` (`agents/<id>/.copilot/`) holding a `hooks/munder-hive.json` wired to the shared
+  `cth-hook` shim. Copilot's PascalCase hook events send Claude-shaped payloads, so that gives live
+  status, operator deny/steer/halt, breaker input, `--resume <id>` from the recorded `session_id`, and
+  `/compact` / `/clear` context commands. Copilot is also selectable as Michael's engine. The shim runs
+  with `--flat` for Copilot, which reads decisions at the top level. Your `~/.copilot` is never written:
+  `config.json` is copied in once so the keychain login carries over, and `mcp-config.json` is
+  linked. Hooks in your own `~/.copilot/hooks/` don't run for hive workers, since `COPILOT_HOME`
+  replaces that directory.
 - **Tasks show their id.** The one thing people actually refer to a card by — `bmt-12` — was not
   displayed anywhere: not on the kanban card, which printed only the title and the assignee, and not
   in the detail view behind it. It now leads the card above the title, and leads the detail view's

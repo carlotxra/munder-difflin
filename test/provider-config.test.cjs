@@ -135,17 +135,18 @@ test('onboarding lists every engine — orchestrator-capable first, workers-only
     modelProvidersForAgent(true).map((preset) => preset.id),
     'selectable rows are exactly the god-eligible engines, same order'
   );
-  assert.deepEqual(workersOnly.map((preset) => preset.id), ['kimi', 'copilot']);
+  assert.deepEqual(workersOnly.map((preset) => preset.id), ['kimi']);
   assert.ok(!eligible.concat(workersOnly).some((preset) => preset.id === 'custom'));
 });
 
 test('God only sees providers that can drain hive inbox messages', () => {
-  // God-eligible = supportsModel && canReceiveInbox: kimi and copilot are
-  // excluded (no inbox drain path), custom is excluded (no model picker).
+  // God-eligible = supportsModel && canReceiveInbox: kimi is excluded (no inbox
+  // drain path), custom is excluded (no model picker). Copilot runs interactive
+  // with a hook bridge, so it IS god-eligible.
   // Cursor is interactive (no -p) so it IS god-eligible.
   assert.deepEqual(
     modelProvidersForAgent(true).map((preset) => preset.id),
-    ['claude', 'codex', 'grok', 'gemini', 'antigravity', 'qwen', 'opencode', 'crush', 'pi', 'cursor']
+    ['claude', 'codex', 'grok', 'gemini', 'antigravity', 'qwen', 'opencode', 'crush', 'pi', 'copilot', 'cursor']
   );
   assert.deepEqual(
     modelProvidersForAgent(false).map((preset) => preset.id),

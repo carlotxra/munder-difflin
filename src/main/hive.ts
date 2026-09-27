@@ -875,6 +875,13 @@ export class HiveManager {
               // the bridge is trusted and ~/.gemini/settings.json stays untouched.
               env.GEMINI_CLI_SYSTEM_SETTINGS_PATH = this.installGeminiHooks(dir);
             }
+            else if (desc.shim === 'copilot') {
+              // Per-agent COPILOT_HOME (replaces ~/.copilot wholesale) carrying our
+              // hooks/munder-hive.json + instructions; the user's ~/.copilot is
+              // never written. On failure the path is still returned and the
+              // worker spawns hookless (renderer idle delivery still works).
+              env.COPILOT_HOME = this.installCopilotHooks(dir, meta.id, prompt);
+            }
             else if (desc.shim === 'grok') this.installGrokHooks();
           } else if (desc.kind === 'proxy') {
             // Stable per-spawn session id, stamped on every synthesized payload so
@@ -2038,6 +2045,58 @@ export class HiveManager {
     return settingsPath;
   }
 
+  /** GitHub Copilot CLI lifecycle-hook bridge. Copilot's PascalCase hook events
+   *  (SessionStart, PreToolUse, Stop, …) deliver Claude-shaped snake_case payloads
+   *  (hook_event_name/session_id/tool_name/tool_input), so the Claude `cth-hook`
+   *  shim is reused, run with `--flat` because Copilot reads decisions at the TOP
+   *  level (`permissionDecision`, `additionalContext`) rather than Claude's nested
+   *  `hookSpecificOutput`.
+   *
+   *  ISOLATION: COPILOT_HOME replaces the entire ~/.copilot, so this worker gets
+   *  `<dir>/.copilot`. config.json (JSONC: logged-in users, trusted folders) is
+   *  COPIED once, never symlinked, because Copilot writes back to it; the token
+   *  itself stays in the OS credential store. mcp-config.json is symlinked
+   *  (read-only use). Nothing under ~/.copilot is modified. Regenerated each
+   *  spawn (idempotent). Returns the COPILOT_HOME path. */
+  private installCopilotHooks(dir: string, agentId: string, prompt?: string): string {
+    const home = join(dir, '.copilot');
+    try {
+      mkdirSync(join(home, 'hooks'), { recursive: true });
+      const userHome = join(homedir(), '.copilot');
+      const cfgSrc = join(userHome, 'config.json');
+      const cfgDest = join(home, 'config.json');
+      if (existsSync(cfgSrc) && !existsSync(cfgDest)) {
+        try { copyFileSync(cfgSrc, cfgDest); } catch { /* best-effort */ }
+      }
+      const mcpSrc = join(userHome, 'mcp-config.json');
+      const mcpDest = join(home, 'mcp-config.json');
+      if (existsSync(mcpSrc) && !existsSync(mcpDest)) {
+        try { symlinkSync(mcpSrc, mcpDest); }
+        catch { try { copyFileSync(mcpSrc, mcpDest); } catch { /* best-effort */ } }
+      }
+      const shim = this.shimPath();
+      if (shim) {
+        // Same quoting split as installCodexHooks (#350): Windows gets the
+        // unquoted form through `powershell`, POSIX the quoted form through `bash`.
+        // timeoutSec 30: a cold hive-node start under concurrent spawns takes
+        // ~0.7s; timeouts are fail-OPEN in Copilot so a wedged shim never blocks.
+        const entry = process.platform === 'win32'
+          ? { type: 'command', powershell: this.nodeRunUnquoted(shim, '--flat'), timeoutSec: 30 }
+          : { type: 'command', bash: this.nodeRun(shim, '--flat'), timeoutSec: 30 };
+        const hooks: Record<string, unknown[]> = {};
+        for (const ev of COPILOT_HOOK_EVENTS) hooks[ev] = [entry];
+        writeFileSync(join(home, 'hooks', 'munder-hive.json'),
+          JSON.stringify({ version: 1, hooks }, null, 2) + '\n', 'utf8');
+      }
+      const userInstr = join(userHome, 'copilot-instructions.md');
+      const own = existsSync(userInstr) ? readFileSync(userInstr, 'utf8').trimEnd() + '\n\n' : '';
+      writeFileSync(join(home, 'copilot-instructions.md'),
+        `${own}<!-- munder-hive (auto-generated; do not edit) -->\n` +
+        `You are hive agent "${agentId}". Follow the HIVE PROTOCOL below.\n\n${prompt ?? ''}\n`, 'utf8');
+    } catch (e) { console.error('[hive] installCopilotHooks failed:', e); }
+    return home;
+  }
+
   /** Codex lifecycle-hook bridge → full hive parity for a `codex` worker (live
    *  status + Stop→inbox-drain), the codex counterpart of installAgyHooks().
    *
@@ -2953,6 +3012,11 @@ write there become searchable by every agent. You don't run \`mine\` yourself.
 // A minimal pipe: read the hook payload on stdin, tag it with this agent's id,
 // forward it to the hive's UDS, and relay the response back to `claude`. All the
 // real logic lives in the main process (HookServer). Never blocks a stop on error.
+/** Copilot CLI PascalCase hook events (Claude-compatible payloads), per
+ *  docs.github.com/en/copilot/reference/hooks-reference. */
+export const COPILOT_HOOK_EVENTS = ['SessionStart', 'SessionEnd', 'UserPromptSubmit', 'PreToolUse',
+  'PostToolUse', 'Stop', 'SubagentStop', 'PreCompact', 'Notification'] as const;
+
 const HOOK_SHIM = `#!/usr/bin/env node
 'use strict';
 const net = require('net');
@@ -2992,7 +3056,22 @@ process.stdin.on('end', () => {
   }
   if (!sock) { process.exit(0); }
   let resp = '';
-  const done = (code) => { if (resp) process.stdout.write(resp); process.exit(code); };
+  // --flat (Copilot CLI): lift Claude's nested hookSpecificOutput decision to the
+  // top level Copilot reads, and turn a HALT (continue:false, no Copilot
+  // equivalent) into a PreToolUse deny. Still exactly one JSON object.
+  const flat = (r) => {
+    try {
+      const o = JSON.parse(r);
+      const h = o.hookSpecificOutput || {};
+      if (h.permissionDecision) { o.permissionDecision = h.permissionDecision; o.permissionDecisionReason = h.permissionDecisionReason; }
+      if (h.additionalContext) o.additionalContext = h.additionalContext;
+      if (o.continue === false && payload.hook_event_name === 'PreToolUse') {
+        o.permissionDecision = 'deny'; o.permissionDecisionReason = o.stopReason || 'Halted by the operator.';
+      }
+      return JSON.stringify(o);
+    } catch (_) { return r; }
+  };
+  const done = (code) => { if (resp) process.stdout.write(process.argv.includes('--flat') ? flat(resp.trim()) : resp); process.exit(code); };
   const c = net.createConnection(sock, () => c.write(JSON.stringify(payload) + '\\n'));
   c.setEncoding('utf8');
   c.on('data', (d) => { resp += d; });

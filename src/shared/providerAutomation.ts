@@ -131,12 +131,11 @@ const CONTEXT_COMMANDS: Record<AgentProvider, ProviderContextCommands> = {
   // where optional instructions focus the summary". There is no `/clear`.
   pi: { compact: '/compact', clear: '/new', compactTakesFocus: true },
 
-  // Copilot's INTERACTIVE mode does have `/compact [FOCUS-INSTRUCTIONS]` and
-  // `/clear` — but this app never runs it interactively. The preset spawns it in
-  // print mode (`initialPromptFlag: '-p'`, `canReceiveInbox: false`), which runs
-  // one prompt and EXITS. There is no prompt left alive to type a slash command
-  // into, so both are null by construction rather than by ignorance.
-  copilot: NO_CONTEXT_COMMANDS,
+  // Copilot runs as an interactive TUI (`-i` seed, agentProvider.ts). `copilot
+  // help commands` (CLI 1.0.88) lists `/compact` — "Optionally provide focus
+  // instructions" — and `/clear` ("Abandon this session and start fresh"; fires
+  // SessionEnd reason:"user_exit" while the CLI keeps running).
+  copilot: { compact: '/compact', clear: '/clear', compactTakesFocus: true },
 
   // Cursor Agent CLI (`agent`) is interactive in this preset, but its slash /
   // command surface is not yet verified against a frozen binary catalog in-repo.

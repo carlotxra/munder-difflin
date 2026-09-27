@@ -51,7 +51,7 @@ export type AgentProvider =
  *               and `inboxDelivery` is how mail reaches it ('terminal' work-order
  *               handoff today; 'serve' reserved for a future HTTP push path). */
 export type BridgeDescriptor =
-  | { kind: 'hooks'; shim: 'agy' | 'codex' | 'pi' | 'opencode' | 'grok' | 'gemini' }
+  | { kind: 'hooks'; shim: 'agy' | 'codex' | 'pi' | 'opencode' | 'grok' | 'gemini' | 'copilot' }
   | {
       kind: 'proxy';
       api: 'openai' | 'anthropic';
@@ -505,23 +505,31 @@ export const AGENT_PROVIDER_PRESETS: AgentProviderPreset[] = [
     label: 'Copilot',
     defaultCommand: 'copilot',
     commandGroups: [],
-    // Non-interactive autonomy: -s prints only the agent's final response (clean
-    // stdout), --allow-all-tools never blocks on a permission prompt (env:
-    // COPILOT_ALLOW_ALL), --no-ask-user disables the ask_user tool so it never
-    // stops to ask. Gated by the floor `config.autoMode` toggle like the rest.
-    autoModeFlag: '-s --allow-all-tools --no-ask-user',
-    autoFlag: '-s --allow-all-tools --no-ask-user',
+    // Interactive TUI (no `-p`): print mode exits per turn, which is why this
+    // preset used to be inbox-less. --allow-all-tools never blocks on a permission
+    // prompt, --no-ask-user disables the ask_user tool so it never stops to ask.
+    // `-s` is dropped (it only cleans print-mode stdout). Gated by the floor
+    // `config.autoMode` toggle like the rest.
+    autoModeFlag: '--allow-all-tools --no-ask-user',
+    autoFlag: '--allow-all-tools --no-ask-user',
     supportsModel: true,
     modelFlag: '--model', // e.g. claude-sonnet-4.5 (default), gpt-5.4, or 'auto'
-    hiveAware: false, // no --append-system-prompt/--settings; protocol rides in via -p
-    initialPromptFlag: '-p', // copilot -p "<orchestrator/worker brief>" runs it non-interactively
+    hiveAware: false, // no --append-system-prompt/--settings; protocol rides in via -i
+    // `copilot -i "<prompt>"` = "start interactive mode and automatically execute
+    // this prompt" (verified on CLI 1.0.88 `--help`), so the seed goes on argv like
+    // Gemini's `-i` rather than seedDelivery:'type-into-tui'.
+    initialPromptFlag: '-i',
     recommendedOrchestratorModel: 'claude-sonnet-4.5', // Copilot's default; user may pick gpt-5.4
-    // Copilot supports session resume by id (`--resume=<id>`); attached only when a
-    // prior session id was recorded (no hook bridge captures it yet → best-effort).
+    // Lifecycle hooks via a per-agent COPILOT_HOME/hooks/munder-hive.json (PascalCase
+    // events → Claude-shaped snake_case payloads) wired to the cth-hook shim — see
+    // hive.installCopilotHooks. SessionStart records session_id for resume.
+    bridge: { kind: 'hooks', shim: 'copilot' },
+    // `-r, --resume [<value>]`: the generic path's two-argv `--resume <id>` was
+    // verified live on CLI 1.0.88 (resumed the recorded session_id).
     resumeFlag: '--resume',
-    // Print mode exits per turn and there is no hook bridge to drain on idle, so a
-    // copilot worker can't receive routed inbox mail (it bounces to the god).
-    canReceiveInbox: false,
+    // Inbox mail is delivered by the renderer's guarded idle path, which the hook
+    // bridge's live status makes safe (same class as Gemini/Codex).
+    canReceiveInbox: true,
     installCommand: 'npm install -g @github/copilot', // trusted, hardcoded
     docsUrl: 'https://docs.github.com/copilot/concepts/agents/about-copilot-cli'
   },
