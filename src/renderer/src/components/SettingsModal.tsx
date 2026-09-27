@@ -1000,7 +1000,7 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                           on the latest?" is the question people open Settings to
                           answer, and the toolbar chip says nothing at all when
                           the answer is yes. */}
-                      <UpdatesSection />
+                      <UpdatesSection autoUpdateOn={autoUpdateOn} />
 
                       <div style={{ height: 1, background: 'var(--cth-ink-300)' }} />
 

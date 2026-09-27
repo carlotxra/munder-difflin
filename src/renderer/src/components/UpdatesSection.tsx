@@ -19,7 +19,9 @@ import { PixelButton } from './PixelButton';
 
 declare const __APP_VERSION__: string;
 
-export function UpdatesSection() {
+/** `autoUpdateOn` is the Settings toggle's current value: with it off there are
+ *  no background checks, so the idle prose must not promise them. */
+export function UpdatesSection({ autoUpdateOn = false }: { autoUpdateOn?: boolean } = {}) {
   const { t } = useTranslation();
   const [status, setStatus] = useState<UpdateStatus | null>(null);
   const [busy, setBusy] = useState(false);
@@ -98,7 +100,7 @@ export function UpdatesSection() {
       default:
         return {
           headline: t('updatesSection.onVersion', { v }),
-          detail: t('updatesSection.idleDetail'),
+          detail: t(autoUpdateOn ? 'updatesSection.idleDetail' : 'updatesSection.idleDetailOff'),
           button: t('updatesSection.checkBtn')
         };
     }

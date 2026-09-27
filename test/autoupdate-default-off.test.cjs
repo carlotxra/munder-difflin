@@ -37,6 +37,18 @@ test('the background tick is gated on the flag', () => {
   assert.match(src, /const tick = \(\): void => \{ if \(autoUpdateEnabled\(\)\) void runCheck\(\); \};/);
 });
 
+test('autoDownload follows the flag, so a manual check with it off does not download', () => {
+  const src = read('src/main/updater.ts');
+  assert.doesNotMatch(src, /autoUpdater\.autoDownload = true/,
+    'autoDownload must not be hard-wired on');
+  const start = src.indexOf('async function runCheck');
+  const runCheck = src.slice(start, src.indexOf('\n}\n', start));
+  assert.match(runCheck, /autoUpdater\.autoDownload = autoUpdateEnabled\(\);/,
+    'runCheck must re-apply autoDownload from the flag before each check');
+  assert.ok(runCheck.indexOf('autoDownload') < runCheck.indexOf('checkForUpdates'),
+    'autoDownload has to be set before checkForUpdates, or the first check still downloads');
+});
+
 test('the Settings toggle starts OFF unless the flag is explicitly true', () => {
   const src = read('src/renderer/src/components/SettingsModal.tsx');
   assert.match(src, /useState<boolean>\(config\.autoUpdate === true\)/);
@@ -54,4 +66,18 @@ test('no source reads autoUpdate with a default-on `!== false`', () => {
     assert.doesNotMatch(read(f), /autoUpdate\s*!==\s*false/, `${f} treats a missing autoUpdate as ON`);
     assert.doesNotMatch(read(f), /autoUpdate\s*\?\?\s*true/, `${f} treats a missing autoUpdate as ON`);
   }
+});
+
+test('with auto-update off, the idle Updates text does not promise automatic checks', () => {
+  const section = read('src/renderer/src/components/UpdatesSection.tsx');
+  assert.match(section, /autoUpdateOn \? 'updatesSection\.idleDetail' : 'updatesSection\.idleDetailOff'/);
+  assert.match(section, /autoUpdateOn = false/, 'a missing prop must mean off');
+  assert.match(read('src/renderer/src/components/SettingsModal.tsx'), /<UpdatesSection autoUpdateOn=\{autoUpdateOn\} \/>/);
+  for (const loc of ['en', 'ar', 'zh-CN']) {
+    const strings = JSON.parse(read(`src/renderer/src/i18n/locales/${loc}.json`)).updatesSection;
+    assert.ok(strings.idleDetailOff, `${loc} needs updatesSection.idleDetailOff`);
+    assert.ok(strings.idleDetail, `${loc} keeps the upstream idleDetail`);
+  }
+  assert.doesNotMatch(JSON.parse(read('src/renderer/src/i18n/locales/en.json')).updatesSection.idleDetailOff,
+    /every 6 hours/);
 });

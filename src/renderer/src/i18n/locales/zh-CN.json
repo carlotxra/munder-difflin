@@ -900,6 +900,7 @@
     "latestDetail": "你已经是最新版本——无需安装。",
     "checkAgainBtn": "再次检查",
     "idleDetail": "更新每 6 小时自动检查一次。想确认的话可以现在检查。",
+    "idleDetailOff": "自动检查更新已关闭。可使用“检查更新”手动检查。",
     "checkBtn": "检查更新",
     "downloadManually": "手动下载",
     "downloadManuallyTitle": "下载 v{{version}} 安装程序并自行替换应用",

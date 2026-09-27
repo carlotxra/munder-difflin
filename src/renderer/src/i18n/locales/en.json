@@ -900,6 +900,7 @@
     "latestDetail": "You're already up to date — nothing to install.",
     "checkAgainBtn": "Check again",
     "idleDetail": "Updates are checked automatically every 6 hours. Check now if you want to be sure.",
+    "idleDetailOff": "Automatic update checks are off. Use Check for updates to look manually.",
     "checkBtn": "Check for updates",
     "downloadManually": "download manually",
     "downloadManuallyTitle": "Download the v{{version}} installer and replace the app yourself",
