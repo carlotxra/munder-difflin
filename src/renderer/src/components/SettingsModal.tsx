@@ -31,6 +31,7 @@ import {
 } from '@/terminal/arabicSetting';
 import { notifyArabicTerminalChangeAll } from '@/components/terminalPool';
 import { isComposingKey } from '@shared/imeGuard';
+import { splitArgString, joinArgs } from '@shared/godArgs';
 import { LANGUAGES, setLanguage } from '@/i18n';
 import { applyOfficeLinesSettings, applyOfficeLinesOverride } from '@/scene/office/officeLinesOverride';
 
@@ -298,6 +299,9 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
   };
   // Default ON, so an absent value reads as on (`!== false`).
   const [askFirstOn, setAskFirstOn] = useState<boolean>(config.askFirst !== false);
+  // Extra launch flags for GOD only (config godArgs); edited as a shell-style string.
+  const [godArgsVal, setGodArgsVal] = useState<string>(joinArgs(config.godArgs ?? []));
+  const changeGodArgs = (v: string) => { setGodArgsVal(v); stage({ godArgs: splitArgString(v) }); };
   const toggleAskFirst = () => { const next = !askFirstOn; setAskFirstOn(next); stage({ askFirst: next }); };
   const [defaultModelSel, setDefaultModelSel] = useState<string>(cfgX.defaultModel ?? 'claude-fable-5');
   const saveDefaultModel = (id: string): void => {
@@ -1294,6 +1298,17 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                             style={{ ...slackInputStyle, width: 120 }}
                           />
                           <span style={{ fontSize: 12, color: 'var(--cth-ink-500)' }}>{t('settings.agentsModels.blankUnlimited')}</span>
+                        </div>
+                        <div style={{ height: 10 }} />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <span style={{ fontSize: 13, color: 'var(--cth-ink-900)' }}>{t('settings.agentsModels.godArgs', { godName })}</span>
+                          <input
+                            type="text" value={godArgsVal} spellCheck={false}
+                            onChange={(e) => changeGodArgs(e.target.value)}
+                            placeholder="--effort high"
+                            style={{ ...slackInputStyle, width: '100%', fontFamily: 'monospace' }}
+                          />
+                          <span style={{ fontSize: 12, color: 'var(--cth-ink-500)' }}>{t('settings.agentsModels.godArgsDesc', { godName })}</span>
                         </div>
                       </div>
                     </>

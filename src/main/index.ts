@@ -19,6 +19,7 @@ import {
 } from './config';
 import { listDir, readFileText, readFileBinary, writeFileText, statAbs, expandTilde } from './fs';
 import { normalizeWeekly, weeklyDelayMs } from '../shared/weeklySchedule';
+import { withGodArgs } from '../shared/godArgs';
 import {
   getBranch, getStatus, getLog, getBranches, getAheadBehind, isRepo, getDiff, mainRepoRoot,
   addWorktree, removeWorktree, worktreeHasUnintegratedWork, worktreeIsGcSafe,
@@ -2812,6 +2813,9 @@ async function spawnAgentCore(opts: AgentSpawnOptions, owner: Electron.WebConten
   let resumeNotFound = false;
   // Set when `--resume` was actually attached (explicit id or restore-on-restart),
   // so the renderer can skip re-orienting a god/assistant that resumed its thread.
+  // Extra launch flags for the GOD only (config `godArgs`, any provider). Added
+  // before the Claude block so a `--model` in godArgs suppresses the default one.
+  if (opts.hive?.isGod) opts.args = withGodArgs(opts.args ?? [], true, readConfig().godArgs);
   let didResume = false;
   // Claude-only — these are Claude Code flags; other CLIs carry their own flags
   // in the command string the renderer already built.

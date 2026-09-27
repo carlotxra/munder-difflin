@@ -277,6 +277,8 @@ export interface HarnessConfig {
    *  'claude' / 'claude-opus-4-8'. Mirrors src/main/config.ts. */
   godProvider?: AgentProvider;
   godModel?: string;
+  /** Extra CLI flags for GOD only. Mirrors src/main/config.ts. */
+  godArgs?: string[];
   /** Per-server consent for the default MCP bundle, keyed by catalog id. Mirrors
    *  src/main/config.ts. */
   mcpDefaults?: { [id: string]: { enabled: boolean } };

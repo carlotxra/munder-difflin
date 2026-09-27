@@ -35,6 +35,7 @@ git diff --stat main..stable       # files touched
 | Office small talk | Override file for break-spot lines; small talk toggle; innuendo off by default | `<userData>/office-lines.json`; config `officeSmallTalk`, `officeInnuendo` | `src/shared/officeLinesPayload.ts`, `src/renderer/src/scene/office/officeLinesOverride.ts`, `cafeteriaLines.ts` | `123896da` | merged |
 | Auto-update off | Auto-update is opt-in; downloads only start automatically when it is on | config `autoUpdate` (default `false`) | `src/main/updater.ts`, `src/main/config.ts`, `UpdatesSection.tsx` | `c314a653`, `17672cce`, `04afd636` | merged |
 | Ask-first setting | Workers send god a `DECISION NEEDED` message instead of silently picking between designs, changing an interface or config format, or deleting | Settings → Autonomy & Budgets → "Workers ask before ambiguous decisions"; config `askFirst` (default on) | `src/main/askFirst.ts`, `src/main/hive.ts`, `src/main/config.ts`, `SettingsModal.tsx` | `8f685eee` (merge `4da86e2f`) | merged |
+| Orchestrator launch flags | Extra CLI flags (e.g. a reasoning-effort flag) appended to god's launch argv only, for any provider; other agents never get them | Settings → Agents & Models → Advanced → "Extra launch flags for <god>" (shell-style string); config `godArgs` (string[], default `[]`) | `src/shared/godArgs.ts`, `src/main/index.ts`, `src/main/config.ts`, `SettingsModal.tsx`, locales; test `test/god-launch-args.test.cjs` | branch `god-launch-args` | pending merge |
 
 ## Copilot CLI harness (T-002, T-003)
 

@@ -264,7 +264,9 @@
       "advanced": "Advanced",
       "maxTurns": "Max turns per run",
       "unlimited": "unlimited",
-      "blankUnlimited": "blank = unlimited"
+      "blankUnlimited": "blank = unlimited",
+      "godArgs": "Extra launch flags for {{godName}}",
+      "godArgsDesc": "Appended to {{godName}}'s command line only, for any engine (shell-style, quotes allowed). Other agents never get them. Takes effect when {{godName}} restarts."
     },
     "autonomy": {
       "autonomy": "Autonomy",

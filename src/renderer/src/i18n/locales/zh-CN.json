@@ -264,7 +264,9 @@
       "advanced": "高级",
       "maxTurns": "每次运行最大轮数",
       "unlimited": "无限制",
-      "blankUnlimited": "留空 = 无限制"
+      "blankUnlimited": "留空 = 无限制",
+      "godArgs": "{{godName}} 的额外启动参数",
+      "godArgsDesc": "仅追加到 {{godName}} 的命令行，适用于任何引擎（shell 风格，可用引号）。其他智能体不会获得这些参数。{{godName}} 重启后生效。"
     },
     "autonomy": {
       "autonomy": "自主权",
