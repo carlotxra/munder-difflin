@@ -125,3 +125,24 @@ test('a custom id reaches the spawn command line as one --model argument', () =>
   const claude = tokenizeCommand(buildSpawnCommand(cfg, 'claude-opus-9', 'claude'));
   assert.equal(claude[claude.indexOf('--model') + 1], 'claude-opus-9');
 });
+
+test('copilot: a custom id builds `copilot --model <id>` (T-016)', () => {
+  const cfg = { defaultCommand: 'claude', autoMode: false };
+  assert.equal(buildSpawnCommand(cfg, 'gpt-9-mini', 'copilot'), 'copilot --model gpt-9-mini');
+});
+
+// T-016: the Add/Edit Agent model rows are <label>s. Clicking "use" unmounts the
+// field mid-click, so without preventDefault the label forwards the click to its
+// first chip ("CLI default") and wipes the custom model from the command.
+test('CustomModelInput cancels click default so a wrapping <label> cannot re-pick the default chip', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const src = fs.readFileSync(path.join(__dirname, '../src/renderer/src/components/CustomModelEntry.tsx'), 'utf8');
+  const body = src.slice(src.indexOf('export function CustomModelInput'));
+  const root = body.slice(body.indexOf('return ('), body.indexOf('<input'));
+  assert.match(root, /<div onClick=\{\(e\) => e\.preventDefault\(\)\}/);
+  for (const f of ['AddAgentModal.tsx', 'EditAgentModal.tsx']) {
+    const m = fs.readFileSync(path.join(__dirname, '../src/renderer/src/components', f), 'utf8');
+    assert.match(m, /function Row[\s\S]*?<label/, `${f} Row is still a <label>; revisit if changed`);
+  }
+});
