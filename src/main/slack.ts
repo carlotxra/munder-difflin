@@ -191,6 +191,8 @@ export class SlackWebhookServer {
   private async openTunnel(): Promise<string> {
     // TODO: optional persistent domain — pass `domain` here when config carries one.
     // Dynamic import keeps the ESM-only `tunnelmole` out of the CJS require graph.
+    // tunnelmole posts runtime telemetry to its own service unless this is '0'.
+    process.env.TUNNELMOLE_TELEMETRY = '0';
     const { tunnelmole } = await import('tunnelmole');
     return new Promise<string>((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error('timed out')), TUNNEL_START_TIMEOUT_MS);

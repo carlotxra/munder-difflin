@@ -54,7 +54,8 @@ much cheaper than finding out in review.
 ```bash
 git clone <your-fork-url> munder-difflin
 cd munder-difflin
-npm install        # postinstall rebuilds node-pty against Electron's ABI
+TUNNELMOLE_TELEMETRY=0 npm install   # postinstall rebuilds node-pty against Electron's ABI;
+                                     # the env var stops tunnelmole's install telemetry
 npm run dev        # live-reloading Electron build
 ```
 

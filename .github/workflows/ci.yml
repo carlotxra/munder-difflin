@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main, 'release/**']
 
+# tunnelmole's postinstall (and runtime) posts telemetry unless this is 0.
+env:
+  TUNNELMOLE_TELEMETRY: '0'
+
 jobs:
   typecheck:
     name: Typecheck

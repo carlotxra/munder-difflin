@@ -411,7 +411,8 @@ Everything below is for contributors and for people who want to run an unrelease
 ```bash
 git clone https://github.com/chaitanyagiri/munder-difflin.git
 cd munder-difflin
-npm install        # postinstall rebuilds node-pty against Electron's ABI
+TUNNELMOLE_TELEMETRY=0 npm install   # postinstall rebuilds node-pty against Electron's ABI;
+                                     # the env var stops tunnelmole's install telemetry
 npm run dev        # launches the Electron app with hot reload
 ```
 

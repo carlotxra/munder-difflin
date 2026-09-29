@@ -12,6 +12,10 @@ on:
 permissions:
   contents: write
 
+# tunnelmole's postinstall (and runtime) posts telemetry unless this is 0.
+env:
+  TUNNELMOLE_TELEMETRY: '0'
+
 jobs:
   build:
     name: Build (${{ matrix.os }})
