@@ -148,6 +148,18 @@ To turn off the remote fetch, set `"remote": false` in either override, or set
   `scheduledCompactEnabled` / `scheduledCompactPatch` in `src/shared/triggers.ts`.
 - Test: `test/scheduled-compact-persist.test.cjs` (save → reload round trip).
 
+## Upstream sync (T-015)
+
+- Branch `sync-upstream` merges upstream `main` at `0dd161ce` into stable `46db67ab` (a real
+  merge, 45 upstream commits). No conflicts. Upstream changed only `docs/` and `blog/`, so no
+  source file, no `package.json` and no version string moved. Every customization above is intact.
+- Overlap: upstream added `claude-sonnet-5-5`, `gpt-6-sol`, `gpt-6-terra` and `gpt-6-luna` to
+  `docs/model-catalog.json` without adding them to the bundled catalog. That breaks the
+  mirror test, which upstream `main` presumably fails as well. Following the T-006 rule, the
+  same rows went into `src/shared/modelCatalog.json`, and the pinned lists in
+  `test/model-catalog.test.cjs` and `test/provider-config.test.cjs` were updated. Our 24 Copilot
+  rows are unchanged.
+
 ## User-editable files (macOS)
 
 `<userData>` is Electron's `app.getPath('userData')`, the folder that holds `config.json`.
