@@ -21,6 +21,7 @@
  *     auto-enabled (consistent with "import only pre-fills; human clicks spawn").
  */
 
+import { AGENT_PROVIDER_PRESETS, type AgentProvider } from './agentProvider';
 import { mcpCatalogEntry } from './mcpCatalog';
 import { MAX_AGENT_TOKEN_CAP } from './tokenCaps';
 
@@ -35,10 +36,10 @@ export const BUNDLED_SKILL_IDS: ReadonlySet<string> = new Set([
   'md-audit'
 ]);
 
-/** Providers a manifest may request ('agy' is accepted as an alias for
- *  'antigravity'). 'custom' is deliberately NOT allowed — it would let a
- *  manifest choose an arbitrary local binary. */
-export type HireProvider = 'claude' | 'antigravity' | 'codex' | 'cursor';
+/** Providers a manifest may request: every provider preset the app supports
+ *  ('agy' is accepted as an alias for 'antigravity'). 'custom' is deliberately
+ *  NOT allowed — it would let a manifest choose an arbitrary local binary. */
+export type HireProvider = Exclude<AgentProvider, 'custom'>;
 
 export interface HireManifest {
   /** Spec tag; exactly `munder-difflin/hire@1` for this version. */
@@ -91,7 +92,7 @@ export interface HireValidation {
   consentRequired?: string[];
 }
 
-const PROVIDERS: readonly string[] = ['claude', 'antigravity', 'codex', 'cursor'];
+const PROVIDERS: readonly string[] = AGENT_PROVIDER_PRESETS.map(p => p.id).filter(id => id !== 'custom');
 const MAX_BYTES = 64 * 1024;
 
 /** A flag ("-x", "--flag", "--flag=value") or a bare value token that may follow
@@ -143,13 +144,25 @@ const SAFE_FLAG_NAMES: ReadonlySet<string> = new Set([
   '--verbose'
 ]);
 
+/** Providers the curated SAFE_FLAG_NAMES set was reviewed against. Every other
+ *  provider (copilot, grok, kimi, qwen, opencode, crush, pi, gemini, …) has NO
+ *  curated safe set, so a manifest for it may carry NO commandFlags at all —
+ *  only `provider` + `model` (the model reaches the command through the local
+ *  preset's modelFlag, never through a manifest flag). A manifest with no
+ *  provider falls back to the reviewed set, as before. */
+const FLAG_REVIEWED_PROVIDERS: ReadonlySet<string> = new Set(['claude', 'antigravity', 'codex', 'cursor']);
+
+function safeFlagsFor(provider: HireProvider | undefined): ReadonlySet<string> {
+  return provider === undefined || FLAG_REVIEWED_PROVIDERS.has(provider) ? SAFE_FLAG_NAMES : new Set();
+}
+
 /** True if a commandFlags token is an allowed flag. Handles `--x` and `--x=value`
  *  (matches the NAME before `=`, case-insensitive); short `-x` forms are not in
  *  the allowlist and so are rejected by default. */
-function isSafeFlag(token: string): boolean {
+function isSafeFlag(token: string, safe: ReadonlySet<string>): boolean {
   if (!token.startsWith('-')) return false;
   const name = token.split('=', 1)[0].toLowerCase();
-  return SAFE_FLAG_NAMES.has(name);
+  return safe.has(name);
 }
 
 function str(v: unknown): v is string { return typeof v === 'string'; }
@@ -203,6 +216,7 @@ export function validateHireManifest(raw: unknown): HireValidation {
       errors.push('"commandFlags" must be an array of at most 16 items');
     } else {
       commandFlags = [];
+      const safe = safeFlagsFor(provider);
       // DEFAULT-DENY: every flag-shaped token must name an allowlisted safe flag;
       // a bare token is allowed only as the value immediately following an allowed
       // `--flag` (so a value can never smuggle in a second, unknown flag).
@@ -221,8 +235,10 @@ export function validateHireManifest(raw: unknown): HireValidation {
           continue;
         }
         if (f.startsWith('-')) {
-          if (!isSafeFlag(f)) {
-            errors.push(`commandFlags entry ${JSON.stringify(f)} is not in the shared-hire safe-flag list — for safety a shared hire may only embed known-harmless flags (${[...SAFE_FLAG_NAMES].join(', ')}). If you need this flag, add it by hand in the command field after importing.`);
+          if (!isSafeFlag(f, safe)) {
+            errors.push(safe.size
+              ? `commandFlags entry ${JSON.stringify(f)} is not in the shared-hire safe-flag list — for safety a shared hire may only embed known-harmless flags (${[...safe].join(', ')}). If you need this flag, add it by hand in the command field after importing.`
+              : `commandFlags entry ${JSON.stringify(f)} is not allowed — a shared hire for provider "${provider}" may not embed any flags (use the "model" field for the model). If you need this flag, add it by hand in the command field after importing.`);
             valueAllowed = false;
             continue;
           }

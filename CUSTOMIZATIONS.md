@@ -148,6 +148,18 @@ To turn off the remote fetch, set `"remote": false` in either override, or set
   `scheduledCompactEnabled` / `scheduledCompactPatch` in `src/shared/triggers.ts`.
 - Test: `test/scheduled-compact-persist.test.cjs` (save → reload round trip).
 
+## Hire manifests accept any provider (T-017)
+
+- Feature. `src/shared/hire.ts` derives `HireProvider` / the provider allowlist from
+  `AGENT_PROVIDER_PRESETS` (every preset except `custom`), so a manifest can name copilot, grok,
+  kimi, qwen, opencode, crush, pi, gemini, etc. The model still goes through the local preset's
+  `modelFlag`.
+- Security unchanged for the original four (claude/antigravity/codex/cursor keep the curated
+  `SAFE_FLAG_NAMES`). Every other provider has no curated safe set, so any `commandFlags` entry
+  rejects the manifest: only `provider` + `model` pass.
+- `AddAgentModal.tsx` hire-prompt text lists the full provider set.
+- Test: `test/hire-any-provider.test.cjs`.
+
 ## User-editable files (macOS)
 
 `<userData>` is Electron's `app.getPath('userData')`, the folder that holds `config.json`.
