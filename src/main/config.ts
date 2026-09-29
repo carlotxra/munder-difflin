@@ -1,5 +1,5 @@
 import { app } from 'electron';
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 import {
@@ -12,6 +12,7 @@ import {
 import { defaultMcpDefaults } from '../shared/mcpCatalog';
 import { MAX_AGENT_TOKEN_CAP } from '../shared/tokenCaps';
 import { expandTilde, normalizeHiveHome } from './fs';
+import { deleteSecret, getSecret, secretStoreAvailable, setSecret } from './secretStore';
 import type { IntegrationRecord } from '../shared/integrations';
 import {
   DEFAULT_CONTEXT_TRIGGER,
@@ -518,6 +519,62 @@ function configPath(): string {
   return join(app.getPath('userData'), 'config.json');
 }
 
+/** Config fields that are credentials. They are never stored in config.json:
+ *  persistConfig moves them into the encrypted secret store and readConfig
+ *  fills them back in, so callers still see them on HarnessConfig. */
+export const CONFIG_SECRET_KEYS = ['slackBotToken', 'slackSigningSecret', 'groqApiKey', 'webhookSecret'] as const;
+type ConfigSecretKey = typeof CONFIG_SECRET_KEYS[number];
+const secretRef = (key: ConfigSecretKey): string => `config:${key}`;
+
+/** Move the secrets out of `cfg` into the store. Returns the object to write to
+ *  disk. A key that is present but empty clears its stored secret; an absent
+ *  key leaves the store alone. If OS encryption is unavailable the values stay
+ *  inline (the pre-store behaviour) rather than being lost; config.json is
+ *  still written 0600. */
+function stashSecrets(cfg: HarnessConfig): HarnessConfig {
+  if (!secretStoreAvailable()) return cfg;
+  const onDisk: HarnessConfig = { ...cfg };
+  for (const key of CONFIG_SECRET_KEYS) {
+    if (!(key in cfg)) continue;
+    const value = cfg[key];
+    if (typeof value === 'string' && value !== '') {
+      if (getSecret(secretRef(key)) !== value) {
+        const res = setSecret(secretRef(key), value);
+        if (!res.ok) throw new Error(`could not store ${key}: ${res.error}`);
+      }
+    } else {
+      deleteSecret(secretRef(key));
+    }
+    delete onDisk[key];
+  }
+  return onDisk;
+}
+
+/** Fill the secrets back in from the store. A plaintext value still in the file
+ *  (not migrated yet, or no OS encryption) wins, so nothing goes missing. */
+function loadSecrets(cfg: HarnessConfig): HarnessConfig {
+  const next: HarnessConfig = { ...cfg };
+  for (const key of CONFIG_SECRET_KEYS) {
+    if (typeof next[key] === 'string' && next[key] !== '') continue;
+    const value = getSecret(secretRef(key));
+    if (value) next[key] = value;
+  }
+  return next;
+}
+
+/** One-time move of plaintext secrets from an older config.json into the store.
+ *  Runs whenever the file still holds one, so a launch without OS encryption
+ *  just retries on the next launch. */
+function migratePlaintextSecrets(parsed: HarnessConfig): void {
+  if (!CONFIG_SECRET_KEYS.some((k) => k in parsed)) return;
+  if (!secretStoreAvailable()) return;
+  try {
+    persistConfig(parsed, { notify: false });
+  } catch {
+    // Leave the file as it is; the values are still read from it.
+  }
+}
+
 /**
  * Deep-fill the trigger sub-objects, and hand back copies of them.
  *
@@ -612,6 +669,8 @@ function migrateTriggersV1(cfg: HarnessConfig): HarnessConfig {
   }
 }
 
+let configModeFixed = false;
+
 export function readConfig(): HarnessConfig {
   const p = configPath();
   // No file yet = a first run with nothing to migrate; the defaults ARE the
@@ -621,7 +680,13 @@ export function readConfig(): HarnessConfig {
   try {
     const raw = readFileSync(p, 'utf8');
     const parsed = JSON.parse(raw);
-    return normalizeStoredHomes(migrateTriggersV1(withTriggerDefaults({ ...DEFAULTS, ...parsed })));
+    if (!configModeFixed) {
+      // A file written by an older build is 0644 until the next save; tighten it now.
+      configModeFixed = true;
+      try { chmodSync(p, 0o600); } catch { /* best-effort */ }
+    }
+    migratePlaintextSecrets(parsed);
+    return normalizeStoredHomes(migrateTriggersV1(withTriggerDefaults({ ...DEFAULTS, ...loadSecrets(parsed) })));
   } catch {
     return withTriggerDefaults({ ...DEFAULTS });
   }
@@ -663,9 +728,10 @@ export function onConfigWritten(listener: ConfigWriteListener): () => void {
   return () => { configWriteListeners.delete(listener); };
 }
 
-function persistConfig(next: HarnessConfig): HarnessConfig {
+function persistConfig(next: HarnessConfig, opts: { notify?: boolean } = {}): HarnessConfig {
   const p = configPath();
   mkdirSync(dirname(p), { recursive: true });
+  const onDisk = stashSecrets(next);
   // Temp + rename: `rename` is atomic within a filesystem, so a crash mid-write
   // leaves either the old config.json or the new one, never half of either. A
   // bare writeFileSync truncates the live file first, and readConfig maps any
@@ -674,7 +740,10 @@ function persistConfig(next: HarnessConfig): HarnessConfig {
   // discipline as roster.ts and hive.ts atomicWriteJson.
   const tmp = `${p}.tmp-${Math.random().toString(36).slice(2, 10)}`;
   try {
-    writeFileSync(tmp, JSON.stringify(next, null, 2), 'utf8');
+    // 0600: the file may still carry secrets when OS encryption is unavailable,
+    // and the rest (hive paths, integrations) is nobody else's business either.
+    writeFileSync(tmp, JSON.stringify(onDisk, null, 2), { encoding: 'utf8', mode: 0o600 });
+    chmodSync(tmp, 0o600); // mode above is masked by the umask
     renameSync(tmp, p);
   } catch (e) {
     try { rmSync(tmp, { force: true }); } catch { /* the tmp file is disposable */ }
@@ -684,6 +753,7 @@ function persistConfig(next: HarnessConfig): HarnessConfig {
   // subscribers must see the same complete config a read gives them, never a
   // half-filled one. Skip the migration — it saves in its own right, and has
   // already run against what this change was built on.
+  if (opts.notify === false) return next;
   const view = normalizeStoredHomes(withTriggerDefaults({ ...DEFAULTS, ...next }));
   // The change is already saved, so one failed subscriber must not fail the save
   // for its caller, nor stop the subscribers after it.
