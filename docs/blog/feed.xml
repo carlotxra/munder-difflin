@@ -108,8 +108,8 @@
     <link href="https://munderdiffl.in/blog/claude-code-vs-cursor/" />
     <id>https://munderdiffl.in/blog/claude-code-vs-cursor/</id>
     <published>2026-09-14T00:00:00.000Z</published>
-    <updated>2026-09-14T00:00:00.000Z</updated><category term="Comparisons" />
-    <summary>Claude Code vs Cursor, checked 14 Sep 2026: where each runs, models, plans, the new Claude Code weekly limits, parallel agents and using both.</summary>
+    <updated>2026-09-29T00:00:00.000Z</updated><category term="Comparisons" />
+    <summary>Claude Code vs Cursor, checked 29 Sep 2026: a dated table of models, plans, background agents, MCP and licences, then when to pick each or run both.</summary>
   </entry>
   <entry>
     <title>How to Make the Most of Your Codex Max Plan</title>
@@ -152,20 +152,20 @@
     <summary>Point Claude Code at Ollama with ollama launch claude or three environment variables, give the model 64K of context, and know what stops working.</summary>
   </entry>
   <entry>
-    <title>How to Install Codex CLI on Mac, Windows and Linux</title>
+    <title>Codex CLI: What It Is and How to Install It on Mac, Windows and Linux</title>
     <link href="https://munderdiffl.in/blog/how-to-install-codex-cli/" />
     <id>https://munderdiffl.in/blog/how-to-install-codex-cli/</id>
     <published>2026-09-14T00:00:00.000Z</published>
-    <updated>2026-09-14T00:00:00.000Z</updated><category term="Guides" />
-    <summary>Install OpenAI&#39;s Codex CLI with the official script, npm or Homebrew, sign in with ChatGPT or an API key, then update it and check your version.</summary>
+    <updated>2026-09-29T00:00:00.000Z</updated><category term="Guides" />
+    <summary>Codex CLI is OpenAI&#39;s open source coding agent for the terminal. Install it on Mac, Windows or Linux, sign in, update it, check the version or remove it.</summary>
   </entry>
   <entry>
-    <title>Is It Worth Paying for Claude Code Max?</title>
+    <title>Claude Max Plan: Is It Worth It? Max 5x vs 20x vs Pro</title>
     <link href="https://munderdiffl.in/blog/is-claude-code-max-worth-it/" />
     <id>https://munderdiffl.in/blog/is-claude-code-max-worth-it/</id>
     <published>2026-09-14T00:00:00.000Z</published>
-    <updated>2026-09-14T00:00:00.000Z</updated><category term="Concepts" />
-    <summary>Who should pay for Claude Max 5x or 20x, who should stay on Pro or an API key, and the break even math to run on your own Claude Code usage.</summary>
+    <updated>2026-09-29T00:00:00.000Z</updated><category term="Concepts" />
+    <summary>Is the Claude Max plan worth it? Max 5x and 20x against Pro, checked 29 Sep 2026: price, five hour and weekly limits, Fable, and the API break even.</summary>
   </entry>
   <entry>
     <title>Is Claude Code Open Source?</title>
@@ -200,12 +200,12 @@
     <summary>Claude Code asks because Manual mode gates edits, shell commands and web requests. The fixes, safest first: modes, allow rules, sandboxing, then bypass.</summary>
   </entry>
   <entry>
-    <title>How to Use Claude Code Plan Mode</title>
+    <title>Claude Code Planning Mode: How to Use Claude Plan Mode</title>
     <link href="https://munderdiffl.in/blog/how-to-use-claude-code-plan-mode/" />
     <id>https://munderdiffl.in/blog/how-to-use-claude-code-plan-mode/</id>
     <published>2026-09-11T00:00:00.000Z</published>
-    <updated>2026-09-11T00:00:00.000Z</updated><category term="Guides" />
-    <summary>How Claude Code&#39;s plan mode works: turning it on, what it blocks, what a real headless plan mode run prints, and how to leave it.</summary>
+    <updated>2026-09-29T00:00:00.000Z</updated><category term="Guides" />
+    <summary>Claude Code plan mode, checked 29 Sep 2026: the Shift+Tab shortcut, --permission-mode plan, defaultMode, what it blocks, the approval options and opusplan.</summary>
   </entry>
   <entry>
     <title>What Is an MCP Server?</title>
@@ -216,28 +216,28 @@
     <summary>An MCP server gives an AI agent tools, data and prompts over one open protocol. What it is, the host, client and server roles, and where Claude Code plugs in.</summary>
   </entry>
   <entry>
-    <title>Codex CLI vs Claude Code</title>
+    <title>Codex vs Claude Code: Plans, Limits and Computer Use (Sep 2026)</title>
     <link href="https://munderdiffl.in/blog/codex-cli-vs-claude-code/" />
     <id>https://munderdiffl.in/blog/codex-cli-vs-claude-code/</id>
     <published>2026-09-10T00:00:00.000Z</published>
-    <updated>2026-09-10T00:00:00.000Z</updated><category term="Comparisons" />
-    <summary>Codex CLI and Claude Code compared firsthand: sandbox and approval flags, AGENTS.md vs CLAUDE.md, real pricing, and where each terminal agent wins.</summary>
+    <updated>2026-09-29T00:00:00.000Z</updated><category term="Comparisons" />
+    <summary>Codex vs Claude Code, checked 29 Sep 2026: models, plans, usage limits, sandboxing, computer use, MCP and subagents in one dated table, then which to pick.</summary>
   </entry>
   <entry>
-    <title>How Much Does Claude Code Cost?</title>
+    <title>Claude Code Pricing (Sep 2026): Every Plan, and Is It Free?</title>
     <link href="https://munderdiffl.in/blog/how-much-does-claude-code-cost/" />
     <id>https://munderdiffl.in/blog/how-much-does-claude-code-cost/</id>
     <published>2026-09-10T00:00:00.000Z</published>
-    <updated>2026-09-10T00:00:00.000Z</updated><category term="Concepts" />
-    <summary>What Claude Code actually costs: free plan access, Claude Pro and Max pricing, per token API rates, and what running several agents does to the bill.</summary>
+    <updated>2026-09-29T00:00:00.000Z</updated><category term="Concepts" />
+    <summary>Claude Code pricing checked 29 Sep 2026: Pro, Max, Team, Enterprise and API rates, usage limits, what changed this year, and whether Claude Code is free.</summary>
   </entry>
   <entry>
-    <title>How to Add an MCP Server to Claude Code</title>
+    <title>Claude Code MCP Servers: How to Add One, Scopes and .mcp.json</title>
     <link href="https://munderdiffl.in/blog/how-to-add-an-mcp-server-to-claude-code/" />
     <id>https://munderdiffl.in/blog/how-to-add-an-mcp-server-to-claude-code/</id>
     <published>2026-09-10T00:00:00.000Z</published>
-    <updated>2026-09-10T00:00:00.000Z</updated><category term="Guides" />
-    <summary>The claude mcp add command, its scope flag, editing .mcp.json by hand, and how Munder Difflin&#39;s Capabilities screen grants an MCP server to one agent at a time.</summary>
+    <updated>2026-09-29T00:00:00.000Z</updated><category term="Guides" />
+    <summary>Add Claude Code MCP servers with claude mcp add: transports, scopes, --env and --header, .mcp.json, OAuth sign in and output limits. Checked 29 Sep 2026.</summary>
   </entry>
   <entry>
     <title>Munder Difflin 0.5.2: Pro, the Stapler and Everything Since 0.4.6</title>
