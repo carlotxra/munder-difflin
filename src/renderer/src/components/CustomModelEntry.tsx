@@ -59,8 +59,12 @@ export function CustomModelInput({ provider, initial, onSubmit, onCancel, inputS
     onSubmit(result.id);
   };
 
+  // The pickers sit inside a <label> Row. Clicking "use" unmounts this field
+  // mid-click, so the label no longer sees the click as its own content and
+  // forwards it to its first control (the "CLI default" chip), resetting the
+  // model and command. Cancelling the default action stops that forwarding.
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, width: '100%' }}>
+    <div onClick={(e) => e.preventDefault()} style={{ display: 'flex', flexDirection: 'column', gap: 4, width: '100%' }}>
       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
         <input
           autoFocus

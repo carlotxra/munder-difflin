@@ -148,6 +148,16 @@ To turn off the remote fetch, set `"remote": false` in either override, or set
   `scheduledCompactEnabled` / `scheduledCompactPatch` in `src/shared/triggers.ts`.
 - Test: `test/scheduled-compact-persist.test.cjs` (save → reload round trip).
 
+## Custom model "use" keeps the model (T-016)
+
+- Bug fix for T-007. The Add Agent and Edit Agent model rows are `<label>` Rows. Clicking
+  "use" unmounts `CustomModelInput` during the click, so the label treated the click as
+  outside its content and forwarded it to its first control, the "CLI default" chip. That
+  reset the model and left the command as bare `copilot`. `CustomModelInput` now calls
+  `preventDefault()` on clicks inside it. Command Center and onboarding had no wrapping
+  label and were not affected.
+- Test: `test/custom-model.test.cjs` (copilot `--model` command; label guard).
+
 ## User-editable files (macOS)
 
 `<userData>` is Electron's `app.getPath('userData')`, the folder that holds `config.json`.
