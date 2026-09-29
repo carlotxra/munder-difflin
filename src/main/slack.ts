@@ -108,6 +108,8 @@ const MAX_BODY_BYTES = 1024 * 1024; // 1 MB
 const REPLAY_WINDOW_SECONDS = 60 * 5;
 /** Cap how long we wait for the public tunnel before giving up (server stays up). */
 const TUNNEL_START_TIMEOUT_MS = 10_000;
+/** Listener address. The tunnel client dials it locally. */
+export const LISTEN_HOST = '127.0.0.1';
 
 export class SlackWebhookServer {
   private server: Server | null = null;
@@ -176,7 +178,9 @@ export class SlackWebhookServer {
       const server = createServer((req, res) => this.handleRequest(req, res));
       const onError = (e: Error): void => reject(e);
       server.once('error', onError);
-      server.listen(this.port, () => {
+      // Loopback only: the tunnel client connects locally, and nothing on the LAN
+      // should reach the listener directly.
+      server.listen(this.port, LISTEN_HOST, () => {
         server.off('error', onError);
         this.server = server;
         resolve();

@@ -123,6 +123,8 @@ export interface WebhookServerOptions {
 const MAX_BODY_BYTES = 1024 * 1024; // 1 MB
 /** Cap how long we wait for the public tunnel before giving up (server stays up). */
 const TUNNEL_START_TIMEOUT_MS = 10_000;
+/** Listener address. The tunnel client dials it locally. */
+export const LISTEN_HOST = '127.0.0.1';
 /** Basic abuse guard: at most this many requests per fixed window, globally. */
 const RATE_LIMIT = 120;
 /** …and this many per endpoint, so one noisy caller burns its own budget first
@@ -241,7 +243,9 @@ export class WebhookServer {
       const server = createServer((req, res) => this.handleRequest(req, res));
       const onError = (e: Error): void => reject(e);
       server.once('error', onError);
-      server.listen(this.port, () => {
+      // Loopback only: the tunnel client connects locally, and nothing on the LAN
+      // should reach the listener directly.
+      server.listen(this.port, LISTEN_HOST, () => {
         server.off('error', onError);
         this.server = server;
         resolve();
