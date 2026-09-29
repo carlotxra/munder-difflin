@@ -390,64 +390,6 @@ test('via: the log read is bounded and still finds a recent pair', () => {
   assert.equal(updateVia(tail, '0.4.5'), 'auto');
 });
 
-// ── the literals this depends on must stay in updater.ts ────────────────────
-
-test('updater.ts still emits the exact lines via reads', () => {
-  // via parses updater.log rather than adding a marker, which is what lets the
-  // 0.4.4 -> 0.4.5 hop be measured at all. The cost of that choice is this
-  // coupling, so it fails here rather than silently degrading the metric.
-  const src = fs.readFileSync(path.join(__dirname, '..', 'src/main/updater.ts'), 'utf8');
-  assert.ok(
-    src.includes('logLine(`update downloaded: ${info.version}'),
-    'updater.ts no longer logs "update downloaded: <version>" — update analytics.ts LOG_DOWNLOADED'
-  );
-  assert.ok(
-    src.includes("logLine('quitAndInstall requested by the user')"),
-    'updater.ts no longer logs the restart request — update analytics.ts LOG_QUIT_REQUESTED'
-  );
-  assert.ok(
-    src.includes('logLine(`quitAndInstall failed:'),
-    'updater.ts no longer logs the failed attempt — update analytics.ts LOG_QUIT_FAILED'
-  );
-  assert.ok(
-    src.includes('logLine(`native updater ready (current v${app.getVersion()})`)'),
-    'updater.ts no longer names the launching version — update analytics.ts LOG_READY'
-  );
-  assert.ok(
-    src.includes("logLine('quitAndInstall cancelled by the user at the quit warning')"),
-    'updater.ts no longer logs the refused quit — update analytics.ts LOG_QUIT_CANCELLED'
-  );
-});
-
-test('the manual-download breadcrumb matches the URL the badge actually opens', () => {
-  // Nothing reads this line yet — analytics.ts picks it up in 0.4.6, because a
-  // trace of the manual path has to be written by the build being REPLACED. So
-  // this is the only thing standing between it and a silent reword, and the
-  // only place the two halves are checked against each other: the pattern in
-  // updater.ts must match what installerUrl() hands the badge, or the one
-  // release we spend waiting for it buys nothing.
-  const { installerUrl, REPO } = loadTs('src/shared/updateState.ts');
-  const src = fs.readFileSync(path.join(__dirname, '..', 'src/main/updater.ts'), 'utf8');
-  assert.ok(
-    src.includes('logLine(`manual download opened: ${asset[1]}`)'),
-    'updater.ts no longer logs the manual download — 0.4.6 via loses the manual path'
-  );
-  const pattern = /const asset = (\/.+\/)\.exec\(href\);/.exec(src);
-  assert.ok(pattern, 'the breadcrumb no longer derives the version from the href');
-  const re = new RegExp(pattern[1].slice(1, -1));
-
-  for (const [platform, arch] of [['darwin', 'arm64'], ['darwin', 'x64'], ['win32', 'x64'], ['linux', 'x64']]) {
-    const hit = re.exec(installerUrl('0.4.6', platform, arch));
-    assert.ok(hit, `${platform}/${arch} installer URL does not match the breadcrumb pattern`);
-    assert.equal(hit[1], '0.4.6');
-  }
-  assert.equal(re.exec(installerUrl('0.5.0-beta.1', 'darwin', 'arm64'))[1], '0.5.0-beta.1');
-  // and the notes link is NOT a download — reading the release page is not
-  // choosing the manual path, and counting it as one would inflate manual.
-  assert.equal(re.test(`https://github.com/${REPO}/releases/tag/v0.4.6`), false);
-  assert.equal(re.test(`https://github.com/${REPO}/releases/latest`), false);
-});
-
 // ── via, end to end ─────────────────────────────────────────────────────────
 
 test('e2e: a real 0.4.4 install that auto-updated reports via auto', () => {

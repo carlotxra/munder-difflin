@@ -302,15 +302,6 @@ export interface HarnessConfig {
    *  AC). Default OFF: the honest default is "survive sleep + catch up once on
    *  resume" (see the powerMonitor 'resume' handler), not "stay awake". */
   strongKeepalive?: boolean;
-  /** Auto-update from GitHub releases (v0.3.4). Default OFF (opt-in): only an
-   *  explicit `true` enables it — missing/undefined means off, so a fresh install
-   *  never contacts or downloads upstream releases on its own. When ON, packaged
-   *  builds check on boot + every ~6h, download in the background, and show a
-   *  "restart to update" toast — installation is always user-initiated. When OFF
-   *  there is no background check and a manual check (version badge) only reports
-   *  what is available; nothing downloads until the user clicks it.
-   *  (Mirrored in preload + renderer config.) */
-  autoUpdate?: boolean;
   /** Break-spot small talk on the office floor (Settings → General). Default ON;
    *  off = no coffee/vending/table bubbles. Lines: <userData>/office-lines.json. */
   officeSmallTalk?: boolean;
@@ -471,7 +462,6 @@ const DEFAULTS: HarnessConfig = {
   missions: [OPS_STANDUP_MISSION],
   notifications: false,
   strongKeepalive: false,
-  autoUpdate: false, // opt-in: only an explicit true enables background updates
   officeSmallTalk: true,
   officeInnuendo: false,
   telemetryEnabled: true,

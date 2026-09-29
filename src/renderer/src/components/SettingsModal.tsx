@@ -13,7 +13,6 @@ import {
 } from '@shared/triggers';
 import { PixelPanel } from './PixelPanel';
 import { PixelButton } from './PixelButton';
-import { UpdatesSection } from './UpdatesSection';
 import { SettingsHeroCard } from './SettingsHeroCard';
 import { SetupPanel } from './SetupPanel';
 import { Icon } from './Icon';
@@ -489,15 +488,6 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
     const next = !autoCompactOn;
     setAutoCompactOn(next);
     setAutoCompactPending(next);
-  };
-
-  // ─── Auto-update (default OFF, opt-in; gates main's background checks) ─────
-  const [autoUpdateOn, setAutoUpdateOn] = useState<boolean>(config.autoUpdate === true);
-  const toggleAutoUpdate = async () => {
-    const next = !autoUpdateOn;
-    setAutoUpdateOn(next);
-    try { stage({ autoUpdate: next }); }
-    catch { setAutoUpdateOn(!next); }
   };
 
   // ─── Anonymous usage stats (default ON = opt-out; contract in TELEMETRY.md) ─
@@ -1001,14 +991,6 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
 
                       <div style={{ height: 1, background: 'var(--cth-ink-300)' }} />
 
-                      {/* Updates — first among the settings proper, because "am I
-                          on the latest?" is the question people open Settings to
-                          answer, and the toolbar chip says nothing at all when
-                          the answer is yes. */}
-                      <UpdatesSection autoUpdateOn={autoUpdateOn} />
-
-                      <div style={{ height: 1, background: 'var(--cth-ink-300)' }} />
-
                       {/* Home folder */}
                       <div>
                         <div style={sectionHead}>
@@ -1161,24 +1143,6 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                             onClick={toggleAutoCompact}
                           >
                             {autoCompactOn ? t('common.on') : t('common.off')}
-                          </PixelButton>
-                        </div>
-                        <div style={{ height: 10 }} />
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                            <span style={{ fontSize: 13, lineHeight: '20px', color: 'var(--cth-ink-900)' }}>
-                              {t('settings.general.autoUpdate')}
-                            </span>
-                            <span style={{ fontSize: 12, lineHeight: '16px', color: 'var(--cth-ink-500)' }}>
-                              {t('settings.general.autoUpdateDesc')}
-                            </span>
-                          </div>
-                          <PixelButton
-                            variant={autoUpdateOn ? 'primary' : 'secondary'}
-                            size="sm"
-                            onClick={toggleAutoUpdate}
-                          >
-                            {autoUpdateOn ? t('common.on') : t('common.off')}
                           </PixelButton>
                         </div>
                         <div style={{ height: 10 }} />

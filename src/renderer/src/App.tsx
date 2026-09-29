@@ -19,8 +19,6 @@ import { OnboardingWizard } from '@/components/OnboardingWizard';
 import { HivePicker } from '@/components/HivePicker';
 import { QuitWarningModal, type ClosingTimeState } from '@/components/QuitWarningModal';
 import { CompletionToast } from '@/realtime/CompletionToast';
-import { UpdateToast } from '@/components/UpdateToast';
-import { UpdateBadge } from '@/components/UpdateBadge';
 import { useAppTheme, toggleAppTheme } from '@/design/theme';
 import { SettingsModal, type Section as SettingsSection } from '@/components/SettingsModal';
 import { PixelPanel } from '@/components/PixelPanel';
@@ -282,9 +280,6 @@ export function App() {
       {/* rt-12: global fixed-overlay toast for voice-Michael completions ("Oscar
           finished X"). Self-positions bottom-right; renders null until one arrives. */}
       <CompletionToast />
-      {/* v0.3.4: background-update toast ("restart to update"); renders null until
-          main's updater pushes a status. */}
-      <UpdateToast />
       {/* Title bar */}
       <div
         className="cth-titlebar-drag"
@@ -305,9 +300,6 @@ export function App() {
           alt="Munder Difflin"
           style={{ height: 20, width: 'auto', display: 'block' }}
         />
-        {/* v0.3.7: the version is no longer inert text — it doubles as the
-            update control (check / download / restart to update). */}
-        <UpdateBadge />
         <span style={{
           fontFamily: 'var(--cth-font-ui)',
           fontSize: 13,

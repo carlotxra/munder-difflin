@@ -11,7 +11,6 @@ import { homedir } from 'node:os';
 import { request as httpsRequest } from 'node:https';
 import { PtyManager, type SpawnOptions } from './pty';
 import { resolveCommand as resolveCliCommand, isSafeCommandName } from './shellEnv';
-import { initAutoUpdater, abortPendingRestart } from './updater';
 import { RealtimeFloorWatcher } from './realtimeFloorWatcher';
 import {
   readConfig, writeConfig, setAgentTokenCap, resetConfig, onConfigWritten, ensureHarnessHome, ensureClaudePermissionsAccepted,
@@ -3809,11 +3808,7 @@ ipcMain.handle('app:confirmClose', () => {
   teardownAndQuit();
 });
 ipcMain.handle('app:cancelClose', () => {
-  // The modal closes on the renderer side. The one thing main owes anybody here
-  // is the truth about a restart-to-install: if this quit was one, it has just
-  // been called off, and whoever is waiting on it needs to hear that rather than
-  // sit disabled forever waiting for a process that is not going to die.
-  abortPendingRestart();
+  // The modal closes on the renderer side; main has nothing to undo.
 });
 
 // Open a new floor (independent office window). Gated by the multiWindow flag
@@ -5344,12 +5339,6 @@ app.whenReady().then(() => {
   // Guarded: a DB failure (e.g. a bad native build) must degrade to defaults,
   // never block app startup.
   try { persist.open(); } catch (e) { console.error('[db] open failed:', e); }
-  // Auto-update from GitHub releases (packaged builds only; gated on the
-  // `autoUpdate` config flag, default OFF — only an explicit true opts in).
-  // When on: download-in-background + restart-to-apply toast;
-  // never restarts on its own. Falls back to a notify-only releases/latest
-  // check where native updating isn't possible (win-portable, dev-ish builds).
-  initAutoUpdater(() => liveWebContents());
   // Bootstrap the hive (if harnessHome is configured) and start the message router.
   bootstrapHiveServices();
   // Survive sleep/lock. macOS freezes libuv timers during true system sleep, so a

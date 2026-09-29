@@ -46,29 +46,5 @@ test('a downgrade announces nothing', () => {
   assert.equal(shouldShowReleaseDrop('0.4.8', '0.4.7'), false);
 });
 
-// ── the updater wires the decision, and keeps the stamp unconditional ────────
-
-const updater = fs.readFileSync(path.resolve(__dirname, '..', 'src/main/updater.ts'), 'utf8');
-
-test('the stamp write is still unconditional on a version change', () => {
-  // This is what arms every install that boots this version even once, and it
-  // is the half that ALREADY worked — it must not be re-gated.
-  assert.match(updater, /if \(previous !== current\) \{\s*\n\s*try \{\s*\n\s*mkdirSync/);
-});
-
-test('the drop fires only when the stamp actually landed', () => {
-  // Otherwise an unwritable userData reopens the drop on every boot forever.
-  assert.match(updater, /if \(stamped && shouldShowReleaseDrop\(previous, current\)\)/);
-});
-
-test('a failed stamp write cannot skip the decision by throwing', () => {
-  assert.match(updater, /logLine\(`last-run-version stamp failed/);
-});
-
-// (e) unchanged: no drop block in the body still renders nothing
-test('(e) rendering a body with no drop block is untouched', () => {
-  const toast = fs.readFileSync(
-    path.resolve(__dirname, '..', 'src/renderer/src/components/UpdateToast.tsx'), 'utf8'
-  );
-  assert.match(toast, /drop/i, 'UpdateToast still decides on the drop block itself');
-});
+// The updater that wired this decision (and the toast that drew it) were
+// removed in T-019; see test/updater-removed.test.cjs.

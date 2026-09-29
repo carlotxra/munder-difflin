@@ -162,8 +162,6 @@
   "settingsHero": {
     "sponsoredBy": "Sponsored by",
     "visit": "visit",
-    "whatsNew": "what's new",
-    "whatsNewTitle": "Show the release notes for the update you were last told about",
     "starOnGitHub": "star on GitHub",
     "reportProblem": "report a problem",
     "fullChangelog": "full changelog →",
@@ -239,8 +237,6 @@
       "maintenance": "Maintenance",
       "autoCompact": "Scheduled auto-compact",
       "autoCompactDesc": "Queue /compact for every agent on a schedule (hourly by default; interval in the Triggers tab). Off by default — long-running agents may overflow their context without it.",
-      "autoUpdate": "Auto-update",
-      "autoUpdateDesc": "Check GitHub releases and download updates in the background; you choose when to restart. Never restarts on its own.",
       "telemetry": "Anonymous usage stats",
       "telemetryDesc": "A handful of anonymous events (app opened, agent spawned, feature used) — never prompts, code, paths, or agent output. Full list in TELEMETRY.md.",
       "officeSmallTalk": "Office small talk",

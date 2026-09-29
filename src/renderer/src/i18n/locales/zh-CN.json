@@ -162,8 +162,6 @@
   "settingsHero": {
     "sponsoredBy": "赞助方",
     "visit": "访问",
-    "whatsNew": "新功能",
-    "whatsNewTitle": "显示上次告知你的更新的发布说明",
     "starOnGitHub": "在 GitHub 上标星",
     "reportProblem": "反馈问题",
     "fullChangelog": "完整更新日志 →",
@@ -239,8 +237,6 @@
       "maintenance": "维护",
       "autoCompact": "定时自动压缩",
       "autoCompactDesc": "按计划为每个智能体排队执行 /compact（默认每小时；间隔在触发器标签页设置）。默认关闭——长期运行的智能体不开启可能会撑爆上下文。",
-      "autoUpdate": "自动更新",
-      "autoUpdateDesc": "后台检查 GitHub 发布并下载更新；由你选择何时重启。绝不会自行重启。",
       "telemetry": "匿名使用统计",
       "telemetryDesc": "少量匿名事件（打开应用、生成智能体、使用功能）——绝不包含提示词、代码、路径或智能体输出。完整清单见 TELEMETRY.md。",
       "officeSmallTalk": "办公室闲聊",

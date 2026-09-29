@@ -4,8 +4,6 @@ import type { HireManifest } from '../shared/hire';
 export type { HireManifest } from '../shared/hire';
 import type { IntegrationRecord, IntegrationTemplate } from '../shared/integrations';
 export type { IntegrationRecord, IntegrationTemplate } from '../shared/integrations';
-import type { UpdateStatus } from '../shared/updateState';
-export type { UpdateStatus } from '../shared/updateState';
 import type { ToolStatus } from '../shared/toolCatalog';
 export type { ToolStatus } from '../shared/toolCatalog';
 import type { HeroPayload } from '../shared/heroPayload';
@@ -292,7 +290,6 @@ export interface HarnessConfig {
    *  HarnessConfig so updateConfig({ strongKeepalive }) is typed across the bridge. */
   strongKeepalive?: boolean;
   /** Auto-update from GitHub releases (default OFF, opt-in; Settings → General). */
-  autoUpdate?: boolean;
   /** Break-spot small talk (default ON) and its innuendo (default OFF). */
   officeSmallTalk?: boolean;
   officeInnuendo?: boolean;
@@ -1397,49 +1394,9 @@ const api = {
   rosterWrite: (snap: RosterSnapshot): Promise<{ ok: boolean; skipped?: string; error?: string }> =>
     ipcRenderer.invoke('roster:write', snap),
 
-  // ─── Auto-update (v0.3.4; full state model v0.3.7) ──────────────────────────
-  /** Push channel from main's updater — every stage of the pipeline, so the
-   *  toolbar badge can show "checking", download progress, and the staged
-   *  "restart to update" rather than only the terminal states. */
-  onUpdateStatus: (cb: (status: UpdateStatus) => void): (() => void) => {
-    const listener = (_e: IpcRendererEvent, payload: UpdateStatus) => cb(payload);
-    ipcRenderer.on('update:status', listener);
-    return () => ipcRenderer.removeListener('update:status', listener);
-  },
-  /** The last known status — a reloaded window subscribes AFTER main may have
-   *  already emitted, so it pulls the current state instead of waiting 6h. */
-  updateCurrent: (): Promise<UpdateStatus> => ipcRenderer.invoke('update:current'),
-  /** Quit and install the downloaded update — only ever called from an explicit
-   *  "restart to update" click. */
-  updateRestartAndInstall: (): Promise<{ ok: boolean; error?: string }> =>
-    ipcRenderer.invoke('update:restartAndInstall'),
-  /** Manual re-check. */
-  updateCheckNow: (): Promise<{ ok: boolean; error?: string }> =>
-    ipcRenderer.invoke('update:checkNow'),
-  /** Start the download for an already-detected update (autoDownload normally
-   *  beats the user to it; this is the explicit one-click path). */
-  updateDownload: (): Promise<{ ok: boolean; error?: string }> =>
-    ipcRenderer.invoke('update:download'),
-  /** Open the project's releases page for a notify-only update. */
-  updateOpenRelease: (url?: string): Promise<{ ok: boolean }> =>
-    ipcRenderer.invoke('update:openRelease', url),
   /** Which OS this window runs on, for platform-specific copy. */
   platform: process.platform as string,
-  arch: process.arch as string,
-  /** DEV ONLY — fabricate an update status so the toast can be inspected without
-   *  cutting a release. Refused (`{ok:false}`) in a packaged build; see the
-   *  handler in updater.ts. Call it from the devtools console:
-   *    await window.cth.updateSimulate()                       // notify-only digest toast
-   *    await window.cth.updateSimulate({ state: 'downloaded' }) // restart-to-update toast
-   *    await window.cth.updateSimulate({ drop: true })          // the centered release page
-   *    await window.cth.updateSimulate({ notes: '<!-- drop -->…' }) // your own drop */
-  updateSimulate: (opts?: {
-    state?: 'downloaded' | 'available-manual';
-    version?: string;
-    notes?: string;
-    /** Preview the centered release page using the default drop template. */
-    drop?: boolean;
-  }): Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke('update:simulate', opts)
+  arch: process.arch as string
 };
 
 contextBridge.exposeInMainWorld('cth', api);

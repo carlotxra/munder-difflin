@@ -25,9 +25,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PixelButton } from './PixelButton';
-import { Icon } from './Icon';
 import { DEFAULT_HERO, type HeroPayload } from '@shared/heroPayload';
-import { manualDownloadUrl, pendingVersion, reduceStatus, type UpdateStatus } from '@shared/updateState';
 
 const GITHUB_REPO_URL = 'https://github.com/chaitanyagiri/munder-difflin';
 const FOUNDERS_WALL_URL = 'https://munderdiffl.in/wall.html';
@@ -39,23 +37,6 @@ export function SettingsHeroCard() {
   // Starts on the compiled-in defaults, so there is no empty frame or spinner
   // while the fetch is in flight — it just fills in if anything changed.
   const [hero, setHero] = useState<HeroPayload>(DEFAULT_HERO);
-  /** Whatever release the updater knows about, so the card can offer the
-   *  manual download right where the version is shown. */
-  const [status, setStatus] = useState<UpdateStatus | null>(null);
-  useEffect(() => {
-    const off = window.cth.onUpdateStatus?.((next) => setStatus((prev) => reduceStatus(prev, next)));
-    void window.cth.updateCurrent?.().then((cur) => {
-      if (cur) setStatus((prev) => reduceStatus(prev, cur));
-    }).catch(() => { /* push channel still works */ });
-    return off;
-  }, []);
-  const pending = version ? pendingVersion(status, version) : null;
-  const downloadManually = () => {
-    if (!status) return;
-    const url = manualDownloadUrl(status, window.cth.platform, window.cth.arch);
-    if (url) void window.cth.updateOpenRelease(url);
-  };
-
   useEffect(() => {
     let alive = true;
     window.cth.appInfo()
@@ -69,13 +50,6 @@ export function SettingsHeroCard() {
 
   const PLAN = hero.plan;
   const SPONSOR = hero.sponsor;
-
-  /** Re-show the release notes. UpdateToast owns that surface — it holds the
-   *  last status and the drop renderer — so this asks rather than duplicating
-   *  it, via the same CustomEvent convention App uses for opening Settings. */
-  const showReleaseNotes = () => {
-    window.dispatchEvent(new CustomEvent('cth:show-release-notes'));
-  };
 
   const INK = 'var(--cth-ink-900)';
   const MONO = 'var(--cth-font-mono, monospace)';
@@ -103,18 +77,6 @@ export function SettingsHeroCard() {
               padding: '2px 7px', background: 'var(--cth-mint-light)',
               boxShadow: 'inset 0 0 0 1px var(--cth-mint)', color: INK
             }}>{PLAN.label}</span>
-            {pending && (
-              <>
-                <span style={{ flex: 1 }} />
-                <span style={{ fontFamily: MONO, fontSize: 11, color: 'var(--cth-ink-700)' }}>
-                  v{pending} is out
-                </span>
-                <PixelButton variant="primary" size="sm" onClick={downloadManually}
-                  title="Download the installer and replace the app yourself. Auto-update is in Updates below.">
-                  download v{pending}
-                </PixelButton>
-              </>
-            )}
           </div>
           <div style={{ marginTop: 6, fontSize: 12.5, lineHeight: 1.5, color: 'var(--cth-ink-700)', maxWidth: '64ch' }}>
             {PLAN.blurb}
@@ -206,12 +168,6 @@ export function SettingsHeroCard() {
           display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center',
           paddingTop: 12, borderTop: `2px solid ${INK}`
         }}>
-          <PixelButton variant="secondary" size="sm" onClick={showReleaseNotes}>
-            <span title={t('settingsHero.whatsNewTitle')}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-              <Icon name="sparkle" /> {t('settingsHero.whatsNew')}
-            </span>
-          </PixelButton>
           <PixelButton variant="secondary" size="sm" onClick={() => void window.cth.openExternal(GITHUB_REPO_URL)}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               ⭐ {t('settingsHero.starOnGitHub')}
