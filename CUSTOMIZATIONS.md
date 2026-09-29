@@ -33,9 +33,13 @@ git diff --stat main..stable       # files touched
 | Model catalog | 24-entry bundled Copilot list, upstream remote fetch kept, plus a local override layer | `--model-catalog`, `MUNDER_MODEL_CATALOG`, `MUNDER_MODEL_CATALOG_REMOTE`, `<userData>/model-catalog.override.json` | `src/shared/modelCatalog.json`, `src/main/modelCatalogOverride.ts`, `docs/model-catalog.json` | `a237b387`, `92e96778`, `3180e268`, `7fb1a727`, `416186d7` | merged |
 | Custom model entry | A "Custom…" option in every model picker for typing any model id | picker option "Custom…" | `src/shared/customModel.ts`, `src/renderer/src/components/CustomModelEntry.tsx` | `cbdc6d90` | merged |
 | Office small talk | Override file for break-spot lines; small talk toggle; innuendo off by default | `<userData>/office-lines.json`; config `officeSmallTalk`, `officeInnuendo` | `src/shared/officeLinesPayload.ts`, `src/renderer/src/scene/office/officeLinesOverride.ts`, `cafeteriaLines.ts` | `123896da` | merged |
-| Auto-update off | Auto-update is opt-in; downloads only start automatically when it is on | config `autoUpdate` (default `false`) | `src/main/updater.ts`, `src/main/config.ts`, `UpdatesSection.tsx` | `c314a653`, `17672cce`, `04afd636` | merged |
 | Ask-first setting | Workers send god a `DECISION NEEDED` message instead of silently picking between designs, changing an interface or config format, or deleting | Settings → Autonomy & Budgets → "Workers ask before ambiguous decisions"; config `askFirst` (default on) | `src/main/askFirst.ts`, `src/main/hive.ts`, `src/main/config.ts`, `SettingsModal.tsx` | `8f685eee` (merge `4da86e2f`) | merged |
 | Orchestrator launch flags | Extra CLI flags (e.g. a reasoning-effort flag) appended to god's launch argv only, for any provider; other agents never get them | Settings → Agents & Models → Advanced → "Extra launch flags for <god>" (shell-style string); config `godArgs` (string[], default `[]`) | `src/shared/godArgs.ts`, `src/main/index.ts`, `src/main/config.ts`, `SettingsModal.tsx`, locales; test `test/god-launch-args.test.cjs` | branch `god-launch-args` | pending merge |
+| Loopback listeners | Slack and webhook servers bind `127.0.0.1`, not all interfaces; the tunnel still dials in locally | none | `src/main/slack.ts`, `src/main/webhook.ts`; test `test/listen-loopback.test.cjs` | branch `security-hardening` (T-019) | pending merge |
+| Config secrets encrypted | `slackBotToken`, `slackSigningSecret`, `groqApiKey`, `webhookSecret` move from `config.json` into the safeStorage store (one-time migration); `config.json` is written `0600` | `<userData>/integration-secrets.json` (refs `config:<key>`) | `src/main/secretStore.ts`, `src/main/config.ts`, `src/main/integrations.ts`; test `test/config-secrets.test.cjs` | branch `security-hardening` (T-019) | pending merge |
+| Auto-updater removed | No electron-updater, no update IPC/toast/badge/Settings section, no `publish` feed; the fork can never poll or install the upstream build | none (the `autoUpdate` setting is gone) | deleted `src/main/updater.ts`, `UpdateToast.tsx`, `UpdateBadge.tsx`, `UpdatesSection.tsx`; `electron-builder.yml`; test `test/updater-removed.test.cjs` | branch `security-hardening` (T-019) | pending merge |
+| Remote fetch off | No request to upstream `raw.githubusercontent` for the model catalog or the hero while off; bundled catalog + local override, bundled hero | Settings → General → "Fetch model list from GitHub"; config `remoteFetch` (default `false`) | `src/main/hero.ts`, `src/main/modelCatalogOverride.ts`, `src/main/index.ts`, `SettingsModal.tsx`; test `test/remote-fetch-off.test.cjs` | branch `security-hardening` (T-019) | pending merge |
+| Tunnel deps | Unused `localtunnel` removed; tunnelmole telemetry off at install (CI env, documented command) and at runtime | `TUNNELMOLE_TELEMETRY=0` | `package.json`, `.github/workflows/{ci,release}.yml`, `src/main/{slack,webhook}.ts`; test `test/tunnel-deps.test.cjs` | branch `security-hardening` (T-019) | pending merge |
 
 ## Copilot CLI harness (T-002, T-003)
 
@@ -110,7 +114,10 @@ To turn off the remote fetch, set `"remote": false` in either override, or set
 - The override file is not created automatically. Copy the example into `<userData>` to start
   from it.
 
-## Auto-update default off (T-009)
+## Auto-update default off (T-009), superseded by T-019
+
+T-019 removed the updater entirely (see the summary row "Auto-updater removed"). The notes below are history.
+
 
 - `c314a653`: `DEFAULTS.autoUpdate` is now `false`. Only an explicit `true` enables background
   checks. The updater gate fails closed if the config cannot be read.
@@ -197,9 +204,10 @@ To turn off the remote fetch, set `"remote": false` in either override, or set
 
 | File | Purpose |
 |---|---|
-| `config.json` | Settings, including `autoUpdate`, `officeSmallTalk`, `officeInnuendo`, `askFirst` and `copilotRequestCap` |
+| `config.json` | Settings (mode `0600`, no secrets), including `remoteFetch`, `officeSmallTalk`, `officeInnuendo`, `askFirst` and `copilotRequestCap` |
 | `model-catalog.override.json` | Model catalog override |
-| `model-catalog.json` | Upstream remote-catalog cache. Do not edit it |
+| `model-catalog.json` | Upstream remote-catalog cache (only used while `remoteFetch` is on). Do not edit it |
+| `integration-secrets.json` | Encrypted secrets (integrations and the four config secrets), mode `0600` |
 | `office-lines.json` | Small-talk line override |
 
 ## Upstream merge hotspots
@@ -210,10 +218,10 @@ item.
 | File | Ours | Re-check |
 |---|---|---|
 | `src/main/hive.ts` | Copilot hook installer (writes the hive prompt into `copilot-instructions.md`), OTel env | `installCopilotHooks` still runs; Copilot agents still get inbox mail and telemetry; `askFirstPromptLine` is still in the prompt builder |
-| `src/main/config.ts` | `DEFAULTS` (`autoUpdate: false`, `askFirst: true`, `officeSmallTalk`, `officeInnuendo`), `copilotRequestCap` | `autoUpdate` is still `false`; no new upstream default silently re-enables updates |
-| `src/main/updater.ts` | `=== true` gate, `autoDownload` follows the flag | Upstream has not reset `autoDownload = true` or changed the gate |
+| `src/main/config.ts` | `DEFAULTS` (`remoteFetch: false`, `askFirst: true`, `officeSmallTalk`, `officeInnuendo`), `copilotRequestCap`, `CONFIG_SECRET_KEYS` stash/load in `persistConfig`/`readConfig` | `remoteFetch` is still `false`; secrets still never reach `config.json`; an upstream `autoUpdate` field is not reintroduced |
+| `src/main/updater.ts` (deleted) | Removed in T-019 | An upstream merge must not bring it (or `electron-updater`, or the `publish` block) back; `test/updater-removed.test.cjs` fails if it does |
 | `src/main/index.ts` | Catalog override call sites, `office:lines` IPC, telemetry wiring, `hive.setAskFirst` (bootstrap and `config:update`) | Override is still applied before the remote fetch |
-| `src/renderer/src/components/SettingsModal.tsx` | Small-talk and innuendo toggles, auto-update toggle default, ask-first toggle | Toggles still render; auto-update starts off; ask-first starts on |
+| `src/renderer/src/components/SettingsModal.tsx` | Small-talk and innuendo toggles, remote-fetch toggle, ask-first toggle | Toggles still render; remote fetch starts off; no auto-update toggle; ask-first starts on |
 | `src/shared/modelCatalog.json` and `docs/model-catalog.json` | 24 Copilot rows; the mirror matches the bundled file | Keep our Copilot rows; re-sync the mirror (a test enforces it) |
 | `src/shared/agentProvider.ts`, `providerAutomation.ts` | Copilot preset (`-i`, hooks bridge, commands) | Upstream preset changes have not reverted to `-p` |
 | `src/main/telemetry.ts`, `breaker.ts`, `pricing.ts` | `/v1/traces` ingest, Copilot request cap | Copilot still shows n/a, not $0 |
