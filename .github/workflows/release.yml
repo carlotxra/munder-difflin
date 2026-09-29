@@ -85,8 +85,8 @@ jobs:
         shell: bash
         run: |
           cd dist
-          # hash only the distributable artifacts, not blockmaps/yml
-          files=$(ls *.dmg *.zip *.exe *.AppImage 2>/dev/null || true)
+          # hash only the distributable installers
+          files=$(ls *.dmg *.exe *.AppImage 2>/dev/null || true)
           [ -z "$files" ] && { echo "no artifacts to hash"; exit 0; }
           if command -v sha256sum >/dev/null 2>&1; then
             sha256sum $files > "SHA256SUMS-${{ matrix.os }}.txt"
@@ -99,16 +99,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os }}-dist
-          # zip + latest*.yml + blockmaps feed electron-updater (auto-update):
-          # latest-mac.yml points Squirrel.Mac at the zip; nsis/AppImage use
-          # latest.yml/latest-linux.yml + blockmaps for differential download.
+          # Installers only. No zip, latest*.yml or blockmaps: those fed the
+          # auto-updater, which this fork removed (T-019).
           path: |
             dist/*.dmg
-            dist/*.zip
             dist/*.exe
             dist/*.AppImage
-            dist/*.blockmap
-            dist/latest*.yml
             dist/SHA256SUMS-*.txt
           if-no-files-found: warn
 
@@ -127,7 +123,7 @@ jobs:
       - name: Flatten + merge checksums
         run: |
           mkdir -p release
-          find artifacts -type f \( -name '*.dmg' -o -name '*.zip' -o -name '*.exe' -o -name '*.AppImage' -o -name '*.blockmap' -o -name 'latest*.yml' \) -exec cp {} release/ \;
+          find artifacts -type f \( -name '*.dmg' -o -name '*.exe' -o -name '*.AppImage' \) -exec cp {} release/ \;
           cat artifacts/*/SHA256SUMS-*.txt > release/SHA256SUMS.txt 2>/dev/null || true
           ls -la release
 
@@ -137,20 +133,12 @@ jobs:
           # RELEASE.md is the human-facing notes; GitHub shows it as the body.
           body_path: RELEASE.md
           # A tag carrying a pre-release suffix (v0.4.4-rc.1, -beta.2 …) publishes
-          # as a PRE-RELEASE. This is load-bearing, not cosmetic: the in-app
-          # updater polls /releases/latest, and GitHub excludes pre-releases from
-          # that endpoint. So an rc gets a real, public, shareable download page
-          # WITHOUT offering itself to every installed copy of the app — which is
-          # exactly what you want for a build that needs testing on a platform the
-          # authors cannot run. A clean `vX.Y.Z` tag is unaffected and still ships
-          # as the latest release to everyone.
+          # as a PRE-RELEASE, so /releases/latest keeps pointing at the last clean
+          # `vX.Y.Z` while the rc still gets a shareable download page.
           prerelease: ${{ contains(github.ref_name, '-') }}
           fail_on_unmatched_files: false
           files: |
             release/*.dmg
-            release/*.zip
             release/*.exe
             release/*.AppImage
-            release/*.blockmap
-            release/latest*.yml
             release/SHA256SUMS.txt
