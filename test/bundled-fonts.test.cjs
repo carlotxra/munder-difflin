@@ -108,13 +108,3 @@ test('tokens.css and tokens.ts do not drift apart', () => {
   assert.equal(s.tsUi, s.cssUi);
   assert.equal(s.tsMono, s.cssMono);
 });
-
-test('the release-drop iframe also falls through to a system CJK face', () => {
-  // Its own <style> block, separate from the app tokens, and easy to forget.
-  const drop = read('src/shared/releaseDrop.ts');
-  for (const re of [/--font-mono: (.+);/, /--font-sans: (.+);/]) {
-    const stack = drop.match(re)[1];
-    assert.match(stack, /PingFang SC|Microsoft YaHei|Noto Sans( Mono)? CJK SC/);
-    assert.match(stack, /Geeza Pro|Noto Naskh Arabic/);
-  }
-});

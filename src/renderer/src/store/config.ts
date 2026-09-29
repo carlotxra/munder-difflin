@@ -13,7 +13,7 @@ import type {
   OrgTriggerConfig,
   WebhookTrigger
 } from '@shared/triggers';
-import { isNewer } from '@shared/updateState';
+import { isNewer } from '@shared/version';
 import modelCatalog from '@shared/modelCatalog.json';
 import type { CatalogModel, ModelCatalog } from '@shared/modelCatalogPayload';
 
