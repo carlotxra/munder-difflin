@@ -4,7 +4,8 @@
  * Secrets are ENCRYPTED AT REST via Electron `safeStorage` in
  * `userData/integration-secrets.json` (mode 0600), a file separate from
  * config.json. Integrations keep their credentials here, and so do the config
- * secrets (Slack, Groq, webhook) — see CONFIG_SECRET_KEYS in config.ts.
+ * secrets (Slack, Groq, webhook, per-trigger webhook secrets) — see
+ * CONFIG_SECRET_KEYS in config.ts.
  *
  * SECURITY: nothing is written unless `safeStorage.isEncryptionAvailable()`
  * (fail closed — no plaintext fallback). Decrypted values stay in main.
@@ -71,6 +72,11 @@ export function getSecret(secretRef: string | undefined): string | undefined {
 export function hasSecret(secretRef: string | undefined): boolean {
   if (!secretRef) return false;
   return !!readSecretBlob()[secretRef];
+}
+
+/** Refs of every stored secret starting with `prefix` (no decryption). */
+export function listSecretRefs(prefix: string): string[] {
+  return Object.keys(readSecretBlob()).filter((ref) => ref.startsWith(prefix));
 }
 
 /** Delete a stored secret. Idempotent. */

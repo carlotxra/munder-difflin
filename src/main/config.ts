@@ -12,7 +12,7 @@ import {
 import { defaultMcpDefaults } from '../shared/mcpCatalog';
 import { MAX_AGENT_TOKEN_CAP } from '../shared/tokenCaps';
 import { expandTilde, normalizeHiveHome } from './fs';
-import { deleteSecret, getSecret, secretStoreAvailable, setSecret } from './secretStore';
+import { deleteSecret, getSecret, listSecretRefs, secretStoreAvailable, setSecret } from './secretStore';
 import type { IntegrationRecord } from '../shared/integrations';
 import {
   DEFAULT_CONTEXT_TRIGGER,
@@ -521,6 +521,11 @@ function configPath(): string {
 export const CONFIG_SECRET_KEYS = ['slackBotToken', 'slackSigningSecret', 'groqApiKey', 'webhookSecret'] as const;
 type ConfigSecretKey = typeof CONFIG_SECRET_KEYS[number];
 const secretRef = (key: ConfigSecretKey): string => `config:${key}`;
+/** Each webhook trigger's secret is stored per id; config.json keeps `secret: ''`. */
+const WEBHOOK_SECRET_PREFIX = 'config:webhookTrigger:';
+const webhookSecretRef = (id: string): string => `${WEBHOOK_SECRET_PREFIX}${id}`;
+const hasPlaintextWebhookSecret = (cfg: HarnessConfig): boolean =>
+  Array.isArray(cfg.webhookTriggers) && cfg.webhookTriggers.some((t) => typeof t?.secret === 'string' && t.secret !== '');
 
 /** Move the secrets out of `cfg` into the store. Returns the object to write to
  *  disk. A key that is present but empty clears its stored secret; an absent
@@ -543,6 +548,23 @@ function stashSecrets(cfg: HarnessConfig): HarnessConfig {
     }
     delete onDisk[key];
   }
+  if (Array.isArray(cfg.webhookTriggers)) {
+    const keep = new Set<string>();
+    onDisk.webhookTriggers = cfg.webhookTriggers.map((t) => {
+      if (!t || typeof t.id !== 'string' || !t.id) return t;
+      const ref = webhookSecretRef(t.id);
+      if (typeof t.secret === 'string' && t.secret !== '') {
+        keep.add(ref);
+        if (getSecret(ref) !== t.secret) {
+          const res = setSecret(ref, t.secret);
+          if (!res.ok) throw new Error(`could not store the secret of webhook ${t.id}: ${res.error}`);
+        }
+      }
+      return { ...t, secret: '' };
+    });
+    // A deleted webhook, or one whose secret was cleared, takes its secret with it.
+    for (const ref of listSecretRefs(WEBHOOK_SECRET_PREFIX)) if (!keep.has(ref)) deleteSecret(ref);
+  }
   return onDisk;
 }
 
@@ -555,6 +577,12 @@ function loadSecrets(cfg: HarnessConfig): HarnessConfig {
     const value = getSecret(secretRef(key));
     if (value) next[key] = value;
   }
+  if (Array.isArray(next.webhookTriggers)) {
+    next.webhookTriggers = next.webhookTriggers.map((t) => {
+      if (!t || typeof t.id !== 'string' || (typeof t.secret === 'string' && t.secret !== '')) return t;
+      return { ...t, secret: getSecret(webhookSecretRef(t.id)) ?? '' };
+    });
+  }
   return next;
 }
 
@@ -562,7 +590,7 @@ function loadSecrets(cfg: HarnessConfig): HarnessConfig {
  *  Runs whenever the file still holds one, so a launch without OS encryption
  *  just retries on the next launch. */
 function migratePlaintextSecrets(parsed: HarnessConfig): void {
-  if (!CONFIG_SECRET_KEYS.some((k) => k in parsed)) return;
+  if (!CONFIG_SECRET_KEYS.some((k) => k in parsed) && !hasPlaintextWebhookSecret(parsed)) return;
   if (!secretStoreAvailable()) return;
   try {
     persistConfig(parsed, { notify: false });
