@@ -239,6 +239,8 @@
       "autoCompactDesc": "Queue /compact for every agent on a schedule (hourly by default; interval in the Triggers tab). Off by default — long-running agents may overflow their context without it.",
       "telemetry": "Anonymous usage stats",
       "telemetryDesc": "A handful of anonymous events (app opened, agent spawned, feature used) — never prompts, code, paths, or agent output. Full list in TELEMETRY.md.",
+      "remoteFetch": "Fetch model list from GitHub",
+      "remoteFetchDesc": "Download the model catalog and the Settings header from the upstream GitHub repo. Off: the list bundled with this build (plus your local override file) is used, and nothing is requested.",
       "officeSmallTalk": "Office small talk",
       "officeSmallTalkDesc": "Speech bubbles when agents take a break at the coffee machine, vending machine or a table. Lines can be changed in office-lines.json in the app's data folder.",
       "officeInnuendo": "Allow innuendo",

@@ -490,6 +490,15 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
     setAutoCompactPending(next);
   };
 
+  // ─── Remote content (default OFF; only an explicit true fetches upstream) ──
+  const [remoteFetchOn, setRemoteFetchOn] = useState<boolean>(config.remoteFetch === true);
+  const toggleRemoteFetch = async () => {
+    const next = !remoteFetchOn;
+    setRemoteFetchOn(next);
+    try { stage({ remoteFetch: next }); }
+    catch { setRemoteFetchOn(!next); }
+  };
+
   // ─── Anonymous usage stats (default ON = opt-out; contract in TELEMETRY.md) ─
   const [telemetryOn, setTelemetryOn] = useState<boolean>(config.telemetryEnabled !== false);
   const toggleTelemetry = async () => {
@@ -1161,6 +1170,24 @@ export function SettingsModal({ config, onClose, initialSection }: SettingsModal
                             onClick={toggleTelemetry}
                           >
                             {telemetryOn ? t('common.on') : t('common.off')}
+                          </PixelButton>
+                        </div>
+                        <div style={{ height: 10 }} />
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            <span style={{ fontSize: 13, lineHeight: '20px', color: 'var(--cth-ink-900)' }}>
+                              {t('settings.general.remoteFetch')}
+                            </span>
+                            <span style={{ fontSize: 12, lineHeight: '16px', color: 'var(--cth-ink-500)' }}>
+                              {t('settings.general.remoteFetchDesc')}
+                            </span>
+                          </div>
+                          <PixelButton
+                            variant={remoteFetchOn ? 'primary' : 'secondary'}
+                            size="sm"
+                            onClick={toggleRemoteFetch}
+                          >
+                            {remoteFetchOn ? t('common.on') : t('common.off')}
                           </PixelButton>
                         </div>
                         <div style={{ height: 10 }} />

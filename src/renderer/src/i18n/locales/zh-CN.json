@@ -239,6 +239,8 @@
       "autoCompactDesc": "按计划为每个智能体排队执行 /compact（默认每小时；间隔在触发器标签页设置）。默认关闭——长期运行的智能体不开启可能会撑爆上下文。",
       "telemetry": "匿名使用统计",
       "telemetryDesc": "少量匿名事件（打开应用、生成智能体、使用功能）——绝不包含提示词、代码、路径或智能体输出。完整清单见 TELEMETRY.md。",
+      "remoteFetch": "从 GitHub 获取模型列表",
+      "remoteFetchDesc": "从上游 GitHub 仓库下载模型目录和设置页头部。关闭时：使用此版本内置的列表（以及你的本地覆盖文件），不发出任何请求。",
       "officeSmallTalk": "办公室闲聊",
       "officeSmallTalkDesc": "智能体在咖啡机、自动售货机或桌边休息时显示对话气泡。可在应用数据文件夹中的 office-lines.json 修改台词。",
       "officeInnuendo": "允许双关玩笑",

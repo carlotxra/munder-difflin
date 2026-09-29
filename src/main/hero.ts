@@ -19,8 +19,11 @@ const TTL_MS = 6 * 60 * 60 * 1000;
 
 export async function loadHero(
   cachePath: string,
-  opts: { force?: boolean } = {}
+  opts: { force?: boolean; remoteFetch?: boolean } = {}
 ): Promise<{ hero: HeroPayload; fetchedAt: number; stale: boolean }> {
+  // The `remoteFetch` setting (default off): without an explicit true, no request
+  // goes upstream and the cached upstream copy is not served either.
+  if (opts.remoteFetch !== true) return { hero: DEFAULT_HERO, fetchedAt: 0, stale: true };
   let cached: { hero: HeroPayload; fetchedAt: number } | null = null;
   try {
     if (existsSync(cachePath)) cached = JSON.parse(readFileSync(cachePath, 'utf8'));

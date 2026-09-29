@@ -102,6 +102,8 @@ export interface HarnessConfig {
   /** Anonymous product analytics (default ON, opt-out; see TELEMETRY.md).
    *  Mirrors the main-process field (src/main/config.ts). */
   telemetryEnabled?: boolean;
+  /** Fetch the model catalog + hero payload from upstream (default OFF). */
+  remoteFetch?: boolean;
   slackEnabled?: boolean;
   slackSigningSecret?: string;
   slackBotToken?: string;

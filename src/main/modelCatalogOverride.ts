@@ -37,6 +37,10 @@ export interface OverrideContext {
   argv: readonly string[];
   env: Record<string, string | undefined>;
   userDataDir: string;
+  /** The `remoteFetch` setting. Only an explicit true lets the upstream
+   *  catalog be fetched; otherwise the baked catalog plus the local overrides
+   *  are all there is. */
+  remoteFetch?: boolean;
   /** Injected for tests; defaults to the https-only getText. */
   fetchText?: (url: string) => Promise<string>;
 }
@@ -93,7 +97,7 @@ export async function loadModelCatalogWithOverrides(
   const file = existsSync(wellKnown) ? await readLayer(wellKnown, ctx) : null;
 
   const envOff = /^(0|false|off|no)$/i.test(ctx.env[REMOTE_ENV]?.trim() ?? '');
-  const remoteOn = !envOff && top?.remote !== false && file?.remote !== false;
+  const remoteOn = ctx.remoteFetch === true && !envOff && top?.remote !== false && file?.remote !== false;
 
   const remote: RemoteCatalogResult = remoteOn
     ? await (opts.load ?? loadModelCatalog)(cachePath, { force: opts.force })

@@ -46,7 +46,7 @@ function write(dir, name, value) {
 
 const run = (s, { argv = [], env = {}, fetchText } = {}) =>
   loadModelCatalogWithOverrides(path.join(s.dir, 'model-catalog.json'),
-    { argv, env, userDataDir: s.dir, fetchText }, { load: s.load });
+    { argv, env, userDataDir: s.dir, fetchText, remoteFetch: true }, { load: s.load });
 
 // ─── source selection ───────────────────────────────────────────────────────
 
@@ -152,6 +152,6 @@ test('MUNDER_MODEL_CATALOG_REMOTE=0 skips the fetch', async () => {
 test('force is passed through to the remote loader', async () => {
   const s = setup();
   await loadModelCatalogWithOverrides(path.join(s.dir, 'c.json'),
-    { argv: [], env: {}, userDataDir: s.dir }, { load: s.load, force: true });
+    { argv: [], env: {}, userDataDir: s.dir, remoteFetch: true }, { load: s.load, force: true });
   assert.equal(s.calls[0].opts.force, true);
 });

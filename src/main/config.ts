@@ -325,6 +325,11 @@ export interface HarnessConfig {
    *  without an injected key and environments with DO_NOT_TRACK set never send
    *  regardless of this flag. (Mirrored in preload + renderer config.) */
   telemetryEnabled?: boolean;
+  /** Fetch the model catalog and the Settings hero payload from upstream
+   *  (raw.githubusercontent.com). Default OFF: only an explicit true fetches;
+   *  otherwise the bundled catalog (plus local overrides) and the bundled hero
+   *  are used. (Mirrored in preload + renderer config.) */
+  remoteFetch?: boolean;
   /** Master flag for the TV-show office themes feature (Settings theme picker +
    *  destructive switch flow). Default false = the picker is hidden and the
    *  office renders as today (zero behavior change). */
@@ -465,6 +470,7 @@ const DEFAULTS: HarnessConfig = {
   officeSmallTalk: true,
   officeInnuendo: false,
   telemetryEnabled: true,
+  remoteFetch: false,
   multiWindow: true,
   tvShowOffices: false,
   officeTheme: 'office',

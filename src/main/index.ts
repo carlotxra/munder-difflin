@@ -3547,7 +3547,9 @@ ipcMain.handle('hive:patchAgentRole', (_evt, id: unknown, role: unknown) => {
 /** Plan copy and sponsor, fetched from the repo so they can change without a
  *  release. Validated in shared/heroPayload before it reaches the renderer. */
 ipcMain.handle('hero:payload', async (_evt, force: unknown) =>
-  loadHero(join(app.getPath('userData'), 'hero.json'), { force: force === true }));
+  loadHero(join(app.getPath('userData'), 'hero.json'), {
+    force: force === true, remoteFetch: readConfig().remoteFetch === true
+  }));
 
 // ─── IPC: model catalog (remote data, cached) ───────────────────────────────
 /** The agent model presets, fetched from docs/model-catalog.json on main so a
@@ -3557,7 +3559,8 @@ const MODEL_CATALOG_CACHE = () => join(app.getPath('userData'), 'model-catalog.j
 /** Local overrides (flag/env, then userData/model-catalog.override.json) sit on
  *  top of the remote copy — see modelCatalogOverride.ts. */
 const MODEL_CATALOG_CTX = () => ({
-  argv: process.argv, env: process.env, userDataDir: app.getPath('userData')
+  argv: process.argv, env: process.env, userDataDir: app.getPath('userData'),
+  remoteFetch: readConfig().remoteFetch === true
 });
 ipcMain.handle('models:catalog', async (_evt, force: unknown) =>
   loadModelCatalogWithOverrides(MODEL_CATALOG_CACHE(), MODEL_CATALOG_CTX(), { force: force === true }));
