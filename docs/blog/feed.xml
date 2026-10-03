@@ -4,9 +4,81 @@
   <subtitle>Guides, deep dives, and comparisons on running multi-agent Claude Code: orchestration, agent memory, automation, and the tooling landscape.</subtitle>
   <link href="https://munderdiffl.in/blog/feed.xml" rel="self" />
   <link href="https://munderdiffl.in/blog/" />
-  <updated>2026-09-26T00:00:00.000Z</updated>
+  <updated>2026-10-03T00:00:00.000Z</updated>
   <id>https://munderdiffl.in/blog/</id>
   <author><name>Chaitanya Giri</name><uri>https://munderdiffl.in</uri></author>
+  <entry>
+    <title>Agent Tools Today, 3 Oct 2026: Claude Code Mods, OpenDots, Conductor Mobile</title>
+    <link href="https://munderdiffl.in/blog/agent-tools-today-2026-10-03/" />
+    <id>https://munderdiffl.in/blog/agent-tools-today-2026-10-03/</id>
+    <published>2026-10-03T00:00:00.000Z</published>
+    <updated>2026-10-03T00:00:00.000Z</updated><category term="News" />
+    <summary>The top 5 launches, skills and MCP servers, multi agent moves, rising repos and arguments in coding agents on 3 Oct 2026, each with its source.</summary>
+  </entry>
+  <entry>
+    <title>Hermes Agent: what it is, how to install it and what it costs</title>
+    <link href="https://munderdiffl.in/blog/what-is-hermes-agent/" />
+    <id>https://munderdiffl.in/blog/what-is-hermes-agent/</id>
+    <published>2026-10-03T00:00:00.000Z</published>
+    <updated>2026-10-03T00:00:00.000Z</updated><category term="Concepts" />
+    <summary>Hermes Agent is Nous Research&#39;s MIT licensed AI agent with memory, skills and chat channels. Install command, models, pricing and how it compares.</summary>
+  </entry>
+  <entry>
+    <title>What Is Codex? OpenAI&#39;s Coding Agent in the CLI, App and Cloud</title>
+    <link href="https://munderdiffl.in/blog/what-is-codex/" />
+    <id>https://munderdiffl.in/blog/what-is-codex/</id>
+    <published>2026-10-02T00:00:00.000Z</published>
+    <updated>2026-10-02T00:00:00.000Z</updated><category term="Concepts" />
+    <summary>What is Codex? OpenAI&#39;s coding agent runs in your terminal, the ChatGPT desktop app, your IDE and the cloud. Which plans include it, checked 2 Oct 2026.</summary>
+  </entry>
+  <entry>
+    <title>What is Pi agent? The open source coding agent harness, explained</title>
+    <link href="https://munderdiffl.in/blog/what-is-pi-agent/" />
+    <id>https://munderdiffl.in/blog/what-is-pi-agent/</id>
+    <published>2026-10-02T00:00:00.000Z</published>
+    <updated>2026-10-02T00:00:00.000Z</updated><category term="Concepts" />
+    <summary>Pi agent is Earendil&#39;s MIT licensed coding agent harness. What it is, how to install it, what Pi 1.0 and Pi Durable add, and how it compares.</summary>
+  </entry>
+  <entry>
+    <title>Best Open Source AI Agents: 10 Picks by Job, Checked 1 Oct 2026</title>
+    <link href="https://munderdiffl.in/blog/open-source-ai-agents/" />
+    <id>https://munderdiffl.in/blog/open-source-ai-agents/</id>
+    <published>2026-10-01T00:00:00.000Z</published>
+    <updated>2026-10-01T00:00:00.000Z</updated><category term="Comparisons" />
+    <summary>The best open source AI agents in 2026, sorted by job: personal assistants, coding agents, agent teams and a framework. Licences checked 1 Oct 2026.</summary>
+  </entry>
+  <entry>
+    <title>ChatGPT Dots Alternatives: 7 Always On Agents, Local and Cloud</title>
+    <link href="https://munderdiffl.in/blog/chatgpt-dots-alternatives/" />
+    <id>https://munderdiffl.in/blog/chatgpt-dots-alternatives/</id>
+    <published>2026-09-30T00:00:00.000Z</published>
+    <updated>2026-09-30T00:00:00.000Z</updated><category term="Comparisons" />
+    <summary>Personal ChatGPT dots need Pro from $100 a month and skip the UK and EU. Seven alternatives, sorted by where they run: your computer or a vendor&#39;s cloud.</summary>
+  </entry>
+  <entry>
+    <title>ChatGPT Dots vs Munder Difflin: One Cloud Agent or a Team on Your Computer</title>
+    <link href="https://munderdiffl.in/blog/munder-difflin-vs-chatgpt-dots/" />
+    <id>https://munderdiffl.in/blog/munder-difflin-vs-chatgpt-dots/</id>
+    <published>2026-09-30T00:00:00.000Z</published>
+    <updated>2026-09-30T00:00:00.000Z</updated><category term="Comparisons" />
+    <summary>ChatGPT dots vs Munder Difflin: one hosted agent on OpenAI&#39;s cloud, or a free, open source team of agents on your own computer. Checked 30 Sep 2026.</summary>
+  </entry>
+  <entry>
+    <title>What Is ChatGPT Dots? OpenAI&#39;s Always On Agents Explained</title>
+    <link href="https://munderdiffl.in/blog/what-is-chatgpt-dots/" />
+    <id>https://munderdiffl.in/blog/what-is-chatgpt-dots/</id>
+    <published>2026-09-30T00:00:00.000Z</published>
+    <updated>2026-09-30T00:00:00.000Z</updated><category term="Concepts" />
+    <summary>ChatGPT dots are OpenAI&#39;s always on agents, launched 29 Sep 2026. What a dot does, who can get one, what it costs and what it cannot do yet.</summary>
+  </entry>
+  <entry>
+    <title>What Is OpenCode? Install, Pricing and How It Compares</title>
+    <link href="https://munderdiffl.in/blog/what-is-opencode/" />
+    <id>https://munderdiffl.in/blog/what-is-opencode/</id>
+    <published>2026-09-29T00:00:00.000Z</published>
+    <updated>2026-09-29T00:00:00.000Z</updated><category term="Concepts" />
+    <summary>OpenCode is Anomaly&#39;s MIT licensed coding agent for the terminal. What it is, how to install it, what it costs, and how it compares with Claude Code and Codex.</summary>
+  </entry>
   <entry>
     <title>Grok Bot Pricing: What $20, $30, $100 and $300 a Month Actually Buy</title>
     <link href="https://munderdiffl.in/blog/grok-bot-pricing/" />
@@ -72,12 +144,12 @@
     <summary>Turn Claude Code into a personal AGI on your own computer: agents with memory, schedules, Gmail, Calendar, voice and Slack, set up in Munder Difflin 0.5.2.</summary>
   </entry>
   <entry>
-    <title>How to Install Gemini CLI, and Who Can Still Use It in 2026</title>
+    <title>How to Install Gemini CLI, and Can It Use Gemini 4 Yet?</title>
     <link href="https://munderdiffl.in/blog/how-to-install-gemini-cli/" />
     <id>https://munderdiffl.in/blog/how-to-install-gemini-cli/</id>
     <published>2026-09-15T00:00:00.000Z</published>
-    <updated>2026-09-15T00:00:00.000Z</updated><category term="Guides" />
-    <summary>Install Google&#39;s Gemini CLI with npm on Mac, Windows or Linux, why Homebrew is stuck on 0.46.0, and which sign in still works after 18 Jun 2026.</summary>
+    <updated>2026-10-02T00:00:00.000Z</updated><category term="Guides" />
+    <summary>Install Gemini CLI 0.62.0 with one npm command, see which sign ins still work after 18 Jun 2026, and why Gemini 4 Argon isn&#39;t in it yet.</summary>
   </entry>
   <entry>
     <title>Is Ollama Good for Coding? What Local Models Can and Can&#39;t Do</title>
@@ -128,12 +200,12 @@
     <summary>Connect Slack to Munder Difflin 0.5.2: create the Slack app, add the bot scopes, pick one of three connection modes, and get answers in the thread.</summary>
   </entry>
   <entry>
-    <title>Grok Bot Alternatives: Six Picks, Grouped by What You Want</title>
+    <title>Grok Bot Alternatives: 9 Picks, Hosted or on Your Computer</title>
     <link href="https://munderdiffl.in/blog/grok-bot-alternatives/" />
     <id>https://munderdiffl.in/blog/grok-bot-alternatives/</id>
     <published>2026-09-14T00:00:00.000Z</published>
-    <updated>2026-09-14T00:00:00.000Z</updated><category term="Comparisons" />
-    <summary>Grok Bot runs every Bot on one shared cloud computer. Six alternatives checked on 14 Sep 2026, grouped by hosting, privacy and model choice.</summary>
+    <updated>2026-09-30T00:00:00.000Z</updated><category term="Comparisons" />
+    <summary>Grok Bot runs every Bot on one shared cloud computer in the US. Nine alternatives checked on 30 Sep 2026, from ChatGPT dots to open source agents you run.</summary>
   </entry>
   <entry>
     <title>Herdr Alternatives: What to Pick and Who Each One Fits</title>
@@ -392,12 +464,12 @@
     <summary>CrewAI, AutoGen (now Microsoft Agent Framework), and LangGraph are frameworks — Python you write to build your own agent system. A multi-agent harness is an app you download that runs a team on your repos today. Here&#39;s how to tell which one you actually need.</summary>
   </entry>
   <entry>
-    <title>GitHub Copilot CLI vs Claude Code as Hive Workers</title>
+    <title>Claude Code vs GitHub Copilot: CLI, Editor and Pricing Compared</title>
     <link href="https://munderdiffl.in/blog/github-copilot-cli-vs-claude-code-for-hive-work/" />
     <id>https://munderdiffl.in/blog/github-copilot-cli-vs-claude-code-for-hive-work/</id>
     <published>2026-07-03T00:00:00.000Z</published>
-    <updated>2026-07-03T00:00:00.000Z</updated><category term="Comparisons" />
-    <summary>How GitHub Copilot CLI and Claude Code behave as agent engines inside a multi-agent harness: hooks, inbox mail, orchestration, session lifecycle — and why the right answer is to run both.</summary>
+    <updated>2026-09-29T00:00:00.000Z</updated><category term="Comparisons" />
+    <summary>Claude Code vs GitHub Copilot, checked 29 Sep 2026: Copilot CLI and the editor, AI Credits vs Claude plans, models, hooks, and when to pick each.</summary>
   </entry>
   <entry>
     <title>How to Add a GitHub Copilot CLI Agent to Your Floor</title>
@@ -414,77 +486,5 @@
     <published>2026-07-03T00:00:00.000Z</published>
     <updated>2026-09-10T00:00:00.000Z</updated><category term="Guides" />
     <summary>A practical guide to Munder Difflin&#39;s Agent Gallery: pick one of 80 ready made roles, download its manifest, import it with Add agent, review every field, customise identity, workspace, engine and briefing, then spawn it yourself.</summary>
-  </entry>
-  <entry>
-    <title>How to Brief Your Orchestrator (So the Floor Actually Ships)</title>
-    <link href="https://munderdiffl.in/blog/how-to-talk-to-your-orchestrator/" />
-    <id>https://munderdiffl.in/blog/how-to-talk-to-your-orchestrator/</id>
-    <published>2026-07-03T00:00:00.000Z</published>
-    <updated>2026-07-03T00:00:00.000Z</updated><category term="Guides" />
-    <summary>A practical guide to briefing Munder Difflin&#39;s GOD orchestrator: state the goal not the steps, set constraints and budgets, name the deliverable, and let Michael staff the floor. With bad-vs-good brief examples, mid-run steering, and Talk mode.</summary>
-  </entry>
-  <entry>
-    <title>How to Use the Built-in Monaco IDE</title>
-    <link href="https://munderdiffl.in/blog/how-to-use-the-built-in-monaco-ide/" />
-    <id>https://munderdiffl.in/blog/how-to-use-the-built-in-monaco-ide/</id>
-    <published>2026-07-03T00:00:00.000Z</published>
-    <updated>2026-07-03T00:00:00.000Z</updated><category term="Guides" />
-    <summary>A practical walkthrough of Munder Difflin v0.3.3&#39;s built-in Monaco IDE: the title-bar IDE button, the git CHANGES rail with side-by-side diffs vs HEAD, the file tree, tabs, Cmd/Ctrl+S save — and the agent review workflow it enables.</summary>
-  </entry>
-  <entry>
-    <title>Launching Munder Difflin v0.3.3: A Built-in Monaco IDE and GitHub Copilot CLI Support</title>
-    <link href="https://munderdiffl.in/blog/launching-munder-difflin-v0-3-3/" />
-    <id>https://munderdiffl.in/blog/launching-munder-difflin-v0-3-3/</id>
-    <published>2026-07-03T00:00:00.000Z</published>
-    <updated>2026-07-03T00:00:00.000Z</updated><category term="Story" />
-    <summary>Munder Difflin v0.3.3 adds a full Monaco IDE — file tree, editor tabs, save, and side-by-side git diffs of your agents&#39; changes — plus GitHub Copilot CLI as a first-class agent engine, our first community-contributed provider.</summary>
-  </entry>
-  <entry>
-    <title>Loop Engineering: Designing Agent Loops That Converge</title>
-    <link href="https://munderdiffl.in/blog/loop-engineering-for-ai-agents/" />
-    <id>https://munderdiffl.in/blog/loop-engineering-for-ai-agents/</id>
-    <published>2026-07-03T00:00:00.000Z</published>
-    <updated>2026-07-03T00:00:00.000Z</updated><category term="Concepts" />
-    <summary>Everyone engineers the prompt; almost nobody engineers the loop around it. Stop conditions, drain loops, retry with backoff, compaction cycles, breaker escalation, budgets, and human gates — the outer-loop mechanics that make an agent converge instead of run away.</summary>
-  </entry>
-  <entry>
-    <title>Orca vs Munder Difflin: Agent IDE or Agent Office?</title>
-    <link href="https://munderdiffl.in/blog/orca-vs-munder-difflin/" />
-    <id>https://munderdiffl.in/blog/orca-vs-munder-difflin/</id>
-    <published>2026-07-03T00:00:00.000Z</published>
-    <updated>2026-07-03T00:00:00.000Z</updated><category term="Comparisons" />
-    <summary>Orca is a YC-backed Agent IDE for driving coding agents side by side in isolated worktrees. Munder Difflin is an agent office that runs itself. An honest comparison of the two — and when each one is the right pick.</summary>
-  </entry>
-  <entry>
-    <title>Review Agent Work Where It Happens</title>
-    <link href="https://munderdiffl.in/blog/review-agent-work-where-it-happens/" />
-    <id>https://munderdiffl.in/blog/review-agent-work-where-it-happens/</id>
-    <published>2026-07-03T00:00:00.000Z</published>
-    <updated>2026-07-03T00:00:00.000Z</updated><category term="Concepts" />
-    <summary>AI agents produce diffs faster than humans can review them, and alt-tabbing to an external editor breaks supervision flow. The case for review-in-place: Munder Difflin&#39;s built-in Monaco IDE puts a CHANGES rail and side-by-side diffs vs HEAD right on the office floor.</summary>
-  </entry>
-  <entry>
-    <title>Run a Mixed-Engine Office: the Right CLI for Every Desk</title>
-    <link href="https://munderdiffl.in/blog/run-a-mixed-engine-office/" />
-    <id>https://munderdiffl.in/blog/run-a-mixed-engine-office/</id>
-    <published>2026-07-03T00:00:00.000Z</published>
-    <updated>2026-07-03T00:00:00.000Z</updated><category term="Guides" />
-    <summary>A practical guide to mixing agent engines on one Munder Difflin floor: Claude Code as orchestrator, Codex for coding bursts, Copilot for dispatched tasks, and OpenCode/Crush/pi.dev for BYOK keys and local models.</summary>
-  </entry>
-  <entry>
-    <title>Running Agents in tmux vs an Agent Harness</title>
-    <link href="https://munderdiffl.in/blog/tmux-and-scripts-vs-an-agent-harness/" />
-    <id>https://munderdiffl.in/blog/tmux-and-scripts-vs-an-agent-harness/</id>
-    <published>2026-07-03T00:00:00.000Z</published>
-    <updated>2026-07-03T00:00:00.000Z</updated><category term="Comparisons" />
-    <summary>tmux panes, git worktrees, shell scripts, and cron will absolutely run several Claude Code sessions at once. Here&#39;s what that DIY setup does well, where it breaks at scale, and what a purpose-built agent harness automates.</summary>
-  </entry>
-  <entry>
-    <title>Voice Is a Control Plane, Not a Gimmick</title>
-    <link href="https://munderdiffl.in/blog/voice-as-a-control-plane-for-agent-fleets/" />
-    <id>https://munderdiffl.in/blog/voice-as-a-control-plane-for-agent-fleets/</id>
-    <published>2026-07-03T00:00:00.000Z</published>
-    <updated>2026-07-03T00:00:00.000Z</updated><category term="Concepts" />
-    <summary>Voice is a terrible way to write code and a great way to run a fleet. Why low-bandwidth commands over high-bandwidth work is the right split — with Munder Difflin&#39;s Talk mode (echo-back confirmation, spend caps, michael-voice attribution) as the case study.</summary>
   </entry>
 </feed>

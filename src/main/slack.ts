@@ -111,6 +111,9 @@ const TUNNEL_START_TIMEOUT_MS = 10_000;
 /** Listener address. The tunnel client dials it locally. */
 export const LISTEN_HOST = '127.0.0.1';
 
+/** Socket inactivity timeout for Slack API calls (matches fetchText.ts's 12s). */
+const SLACK_API_TIMEOUT_MS = 12_000;
+
 export class SlackWebhookServer {
   private server: Server | null = null;
   private tunnelUrl: string | null = null;
@@ -394,6 +397,12 @@ export function postSlackReply(opts: {
       });
     });
     req.on('error', (e) => resolve({ ok: false, error: errMsg(e) }));
+    // Node has no default socket timeout, so a peer that accepts the connection
+    // but never responds (stalled middlebox, network partition after handshake)
+    // would leave this promise pending forever — wedging the done-summary poller
+    // (its finally never runs) and hanging the loopback /reply handler. Destroy
+    // with an error so the 'error' handler resolves the usual transient path.
+    req.setTimeout(SLACK_API_TIMEOUT_MS, () => req.destroy(new Error('timed out')));
     req.write(body);
     req.end();
   });
