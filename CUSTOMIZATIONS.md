@@ -14,8 +14,9 @@ A living record of what this fork, `carlotxra/munder-difflin`, changes compared 
 | `stable` | Upstream plus our features. Feature branches merge into `stable`, never into `main`. |
 | feature branches | Branched from `stable` and merged back into it. |
 
-**Upstream base:** `stable` is built on upstream `main` at `e9793df3` (Merge PR #623). The
-latest upstream tag it contains is `v0.5.3` (`c7c8921f`).
+**Upstream base:** `stable` is built on upstream `main` at `9e26ca5f` (Merge PR #675, the
+v0.5.5 site release), via branch `upstream-sync-0.5.5` (T-021). Upstream `package.json` still
+says `0.4.6`.
 
 **Refreshing this file:** after a merge into `stable`, run the commands below, then update the
 table and sections to match.
@@ -171,6 +172,24 @@ T-019 removed the updater entirely (see the summary row "Auto-updater removed").
   `test/model-catalog.test.cjs` and `test/provider-config.test.cjs` were updated. Our 24 Copilot
   rows are unchanged.
 
+
+## Upstream sync to v0.5.5 (T-021)
+
+- Branch `upstream-sync-0.5.5` merges upstream `main` at `9e26ca5f` into stable `b51712ad` (a
+  real merge, 58 upstream commits, site and blog included). It fast-forwards onto `stable`.
+- One conflict, in `src/main/slack.ts`: our `LISTEN_HOST = '127.0.0.1'` and upstream's new
+  `SLACK_API_TIMEOUT_MS` were added at the same spot. Both were kept.
+- App-code changes from upstream: hook-socket health (`hooks.ts`), worker wake/launch
+  (`workerWake.ts`, `workerLaunch.ts`), `reflect.ts`, `hive.ts`, `index.ts`, terminal pool and
+  keys, office character sprites, and a Pi `positionalInitialPrompt` in `agentProvider.ts`. None
+  adds a network host or a listener beyond the hook socket, which is a local UNIX socket.
+- T-019/T-020 hardening re-checked after the merge: the loopback binds, `CONFIG_SECRET_KEYS`,
+  `remoteFetch: false`, `TUNNELMOLE_TELEMETRY=0`, no updater or `electron-updater`, and no
+  `localtunnel`.
+- Paywall: upstream's blog (`your-first-hour-with-munder-difflin`) describes a licence-key screen
+  backed by `app.harnessmd.com`. That code is **not** in the public source. There is no licence,
+  entitlement or harnessmd reference in `src/`, `package.json` or `electron-builder.yml`, so our
+  build is not gated.
 
 ## Custom model "use" keeps the model (T-016)
 
