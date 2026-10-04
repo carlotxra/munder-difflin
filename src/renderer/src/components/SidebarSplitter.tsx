@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { shouldSnapCloseFloor } from '@shared/floorLayout';
 
 export interface SidebarSplitterProps {
   /** Current sidebar width in px. */
@@ -9,6 +10,10 @@ export interface SidebarSplitterProps {
   viewportWidth: number;
   min?: number;
   max?: number;
+  /** Dragged to (near) the left edge: hide the floor instead of clamping.
+   *  The width is put back to where the drag started first, so restoring the
+   *  floor returns the previous width. */
+  onSnapClose?: () => void;
 }
 
 /**
@@ -16,7 +21,7 @@ export interface SidebarSplitterProps {
  * (right). Drag left → wider sidebar. Cursor + pixel-stripe affordance.
  */
 export function SidebarSplitter({
-  width, onChange, viewportWidth, min = 320, max = 1200
+  width, onChange, viewportWidth, min = 320, max = 1200, onSnapClose
 }: SidebarSplitterProps) {
   const startRef = useRef<{ clientX: number; width: number } | null>(null);
   const [active, setActive] = useState(false);
@@ -25,6 +30,12 @@ export function SidebarSplitter({
     const onMove = (e: MouseEvent) => {
       if (!startRef.current) return;
       const delta = startRef.current.clientX - e.clientX; // left drag = positive delta → grow sidebar
+      if (onSnapClose && shouldSnapCloseFloor(startRef.current.width + delta, viewportWidth)) {
+        onChange(startRef.current.width);
+        onUp();
+        onSnapClose();
+        return;
+      }
       const clampMax = Math.min(max, Math.max(min, viewportWidth - 360));
       const next = Math.min(clampMax, Math.max(min, startRef.current.width + delta));
       onChange(next);
@@ -45,7 +56,7 @@ export function SidebarSplitter({
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
-  }, [active, viewportWidth, min, max, onChange]);
+  }, [active, viewportWidth, min, max, onChange, onSnapClose]);
 
   return (
     <div

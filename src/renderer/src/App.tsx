@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { isFloorEffectivelyHidden } from '@shared/floorLayout';
 import { useStore, selectedAgent } from '@/store/store';
 import { startMockLoop, stopMockLoop } from '@/store/mockEvents';
 import type { HarnessConfig } from '@/store/config';
@@ -57,6 +59,12 @@ export function App() {
   const appThemeNow = useAppTheme();
   const sidebarWidth = useStore(s => s.sidebarWidth);
   const setSidebarWidth = useStore(s => s.setSidebarWidth);
+  const floorHiddenPref = useStore(s => s.floorHidden);
+  const setFloorHidden = useStore(s => s.setFloorHidden);
+  // With no agents the floor carries the empty-floor 'add agent' prompt and the
+  // boot screen, so it always shows then (T-031).
+  const floorHidden = isFloorEffectivelyHidden(floorHiddenPref, agentCount);
+  const { t } = useTranslation();
   const ideOpen = useStore(s => s.ideOpen);
   const setIdeOpen = useStore(s => s.setIdeOpen);
 
@@ -362,6 +370,28 @@ export function App() {
         >
           <GearGlyph />
         </button>
+        {/* Hide / show the office floor (T-031): the right panel takes the
+            full width. Same stroke-icon style as the focus-mode button. */}
+        <button
+          className="cth-titlebar-nodrag cth-tip"
+          onClick={() => setFloorHidden(!floorHidden)}
+          disabled={agentCount === 0}
+          data-tip={floorHidden ? t('floor.show') : t('floor.hide')}
+          aria-label={floorHidden ? t('floor.show') : t('floor.hide')}
+          aria-pressed={floorHidden}
+          style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            width: 28, height: 28, padding: 0,
+            background: floorHidden ? 'var(--cth-cream-300)' : 'var(--cth-paper-100)',
+            boxShadow: 'inset 0 0 0 1px var(--cth-ink-300)',
+            border: 'none', borderRadius: 2,
+            cursor: agentCount === 0 ? 'default' : 'pointer',
+            opacity: agentCount === 0 ? 0.5 : 1,
+            color: 'var(--cth-ink-900)'
+          }}
+        >
+          <FloorGlyph hidden={floorHidden} />
+        </button>
         {/* Fullscreen. The title bar is chrome, not canvas, so these two use
             clean stroke icons rather than the 16x16 pixel set the rest of the UI
             is drawn in — at 16-18px a pixel-grid glyph reads as a rendering
@@ -398,6 +428,7 @@ export function App() {
         padding: 16,
         gap: 0
       }}>
+        {!floorHidden && (
         <div style={{ flex: 1, minHeight: 0, minWidth: 0, position: 'relative' }}>
           <OfficeFloor />
           <MemoryPanel />
@@ -426,14 +457,21 @@ export function App() {
           )}
         </div>
 
-        <SidebarSplitter
-          width={sidebarWidth}
-          onChange={setSidebarWidth}
-          viewportWidth={vpWidth}
-        />
+        )}
+
+        {!floorHidden && (
+          <SidebarSplitter
+            width={sidebarWidth}
+            onChange={setSidebarWidth}
+            viewportWidth={vpWidth}
+            onSnapClose={() => setFloorHidden(true)}
+          />
+        )}
 
         <div style={{
-          width: sidebarWidth, flexShrink: 0,
+          // Hidden floor: the panel takes the whole row. sidebarWidth is left
+          // alone so showing the floor again returns the previous width.
+          ...(floorHidden ? { flex: 1, minWidth: 0 } : { width: sidebarWidth, flexShrink: 0 }),
           minHeight: 0, display: 'flex', flexDirection: 'column'
         }}>
           {agent ? (
@@ -543,6 +581,17 @@ function Glyph({ children }: { children: React.ReactNode }) {
       strokeLinecap="round" strokeLinejoin="round"
       aria-hidden="true" focusable="false"
     >{children}</svg>
+  );
+}
+
+/** Floor toggle: a window outline with the floor pane (divider + lines) on
+ *  the left while it shows; the bare outline while it is hidden. */
+function FloorGlyph({ hidden }: { hidden: boolean }) {
+  return (
+    <Glyph>
+      <rect x="2.5" y="3.5" width="11" height="9" />
+      {!hidden && <path d="M7.5 3.5v9M3.5 5.5h3M3.5 8h3M3.5 10.5h3" />}
+    </Glyph>
   );
 }
 

@@ -1484,5 +1484,9 @@
     "hold": "Hold (1:1 with me)",
     "endHold": "End 1:1",
     "kill": "Kill & archive"
+  },
+  "floor": {
+    "hide": "Hide floor",
+    "show": "Show floor"
   }
 }

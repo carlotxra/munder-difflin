@@ -16,6 +16,7 @@ import { DEFAULT_ORG_TRIGGER, type OrgTriggerConfig, type WebhookTrigger } from 
 import { isCompactionCommand } from '@shared/providerAutomation';
 import { preferredAgentRole } from '@shared/agentRole';
 import { isInboxNudge } from '@shared/hiveNudge';
+import { LS_FLOOR_HIDDEN, parseFloorHidden, serializeFloorHidden } from '@shared/floorLayout';
 import { refocusAfterRemoval, focusOnLoad, restoreFocus } from './focusMode';
 import { chooseRosterSource } from './rosterSource';
 
@@ -212,6 +213,9 @@ interface State {
    *  fallback for anything that genuinely has no particular agent in mind. */
   ideAgentId: string | null;
   sidebarWidth: number;
+  /** The human hid the office floor (T-031): the right panel takes the full
+   *  width. sidebarWidth is kept so restoring returns the previous width. */
+  floorHidden: boolean;
   sidebarTab: SidebarTab;
   godStatus: GodStatus;
   /** Per-agent outgoing message queue (agent id → messages awaiting delivery).
@@ -357,6 +361,7 @@ interface State {
   setIdeOpen: (open: boolean, agentId?: string | null) => void;
   setIdeInitialFile: (path: string | null) => void;
   setSidebarWidth: (px: number) => void;
+  setFloorHidden: (hidden: boolean) => void;
   setSidebarTab: (tab: SidebarTab) => void;
   /** Drop persisted agents whose PTY is no longer alive in the main process.
    *  Called once at startup so a renderer reload (e.g. after the laptop sleeps)
@@ -642,6 +647,9 @@ const initialSidebarWidth = (() => {
   } catch { /* noop */ }
   return 420;
 })();
+const initialFloorHidden = (() => {
+  try { return parseFloorHidden(window.localStorage.getItem(LS_FLOOR_HIDDEN)); } catch { return false; }
+})();
 const initialSidebarTab: SidebarTab = (() => {
   try {
     const v = window.localStorage.getItem(LS_SIDEBAR_TAB);
@@ -710,6 +718,7 @@ export const useStore = create<State>((set, get) => ({
   ideOpen: false,
   ideAgentId: null,
   sidebarWidth: initialSidebarWidth,
+  floorHidden: initialFloorHidden,
   sidebarTab: initialSidebarTab,
   godStatus: 'booting',
   messageQueues: initialQueues,
@@ -1066,6 +1075,10 @@ export const useStore = create<State>((set, get) => ({
     const clamped = Math.min(1200, Math.max(320, Math.round(px)));
     try { window.localStorage.setItem(LS_SIDEBAR_WIDTH, String(clamped)); } catch { /* noop */ }
     set({ sidebarWidth: clamped });
+  },
+  setFloorHidden: (hidden) => {
+    try { window.localStorage.setItem(LS_FLOOR_HIDDEN, serializeFloorHidden(hidden)); } catch { /* noop */ }
+    set({ floorHidden: hidden });
   },
   setSidebarTab: (tab) => {
     try { window.localStorage.setItem(LS_SIDEBAR_TAB, tab); } catch { /* noop */ }
