@@ -556,3 +556,40 @@ test('harnessClosingTime (T-045): one closing-facts line per worker in log.jsonl
   assert.ok(idle.quietMs >= closing.CLOSING_IDLE_MS);
   assert.equal(facts.find((e) => e.agentId === 'dirty-1').clean, false);
 });
+
+test('harnessClosingTime (T-045): every provider gets exactly one delivery; only a mid-turn Claude worker is steered; no hook = never parked', async (t) => {
+  withLevers(t);
+  closing.resetClosingState();
+  t.after(() => closing.resetClosingState());
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'md-closing-all-'));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+  const hive = new HiveManager(() => home);
+  const providers = ['claude', 'codex', 'grok', 'kimi', 'gemini', 'antigravity', 'qwen', 'opencode', 'crush', 'pi', 'copilot', 'cursor', 'custom'];
+  const states = ['nohook', 'midturn', 'ended'];
+  const ids = [];
+  await hive.ensureAgent({ id: 'god-1', name: 'Michael', provider: 'claude', cwd: home, isGod: true });
+  for (const p of providers) for (const s of states) {
+    const id = `${p}-${s}`; ids.push(id);
+    const d = path.join(home, 'repos', id); gitRepo(d, false);
+    await hive.ensureAgent({ id, name: id, provider: p, cwd: d });
+    if (s === 'midturn') closing.noteHookForClosing(id, 'PreToolUse');
+    if (s === 'ended') { closing.noteHookForClosing(id, 'PostToolUse'); closing.noteHookForClosing(id, 'Stop'); }
+  }
+  const now = Date.now();
+  closing.setClosingFacts({ lastOutputAt: () => now - 1000 }); // chatty PTYs: nobody may be parked on output alone
+  const control = new ControlRegistry();
+  const ct = new ClosingTimeController(hive, () => ['god-1', ...ids], () => null, () => {}, control);
+  t.after(() => ct.cancel());
+  ct.start();
+  for (const id of ids) {
+    const steered = id === 'claude-midturn';
+    assert.ok(!/parked it/.test(fs.readFileSync(path.join(hive.root(), 'agents', id, 'memory.md'), 'utf8')), `${id}: not parked`);
+    assert.equal(control.snapshot(id).pendingSteers, steered ? 1 : 0, `${id}: steer only for a mid-turn Claude worker`);
+    assert.equal(briefs(hive, id), steered ? 0 : 1, `${id}: exactly one brief`);
+  }
+  // Fallback for every provider: a steer that never lands is replaced at the deadline.
+  const run = { hive, control, godId: 'god-1', workers: new Set(ids), acked: new Set(), isActive: () => true, progress: () => {} };
+  closing.poll(run, now + closing.STEER_DEADLINE_MS + 1_000);
+  assert.equal(control.snapshot('claude-midturn').pendingSteers, 0);
+  assert.equal(briefs(hive, 'claude-midturn'), 1);
+});

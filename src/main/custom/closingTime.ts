@@ -20,6 +20,10 @@
  *    printing (the 11:40 incident: three idle workers were steered and never
  *    re-briefed because their PTYs never read 12s quiet), so the steer/inbox
  *    choice and the steer fallback read the turn-end hook, not PTY output.
+ *    Per provider: no turn-end hook ever (custom, hookless CLIs) = never
+ *    parked, always the inbox brief, which hive routing turns into a terminal
+ *    handoff or a bounce to god. Only Claude can be steered, and the 30s
+ *    deadline backs that up too.
  *  - Every decision is logged to log.jsonl (kind closing-facts, closing-convert)
  *    so a failed closing can be diagnosed from the log alone.
  *  - god is told who was parked and who was briefed, must NOT broadcast, and
