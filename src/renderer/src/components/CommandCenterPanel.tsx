@@ -106,6 +106,7 @@ export function CommandCenterPanel({ agent, fullscreen = false }: { agent: Agent
   // calendar → 'triggers'). seq-keyed so clicking again re-opens the tab even
   // if it was already requested.
   const ccTabRequest = useStore((s) => s.ccTabRequest);
+  const askMeCount = useStore((s) => s.askMeCount);
   useEffect(() => {
     if (!ccTabRequest) return;
     const key = ccTabRequest.tab as CCTab;
@@ -288,6 +289,18 @@ export function CommandCenterPanel({ agent, fullscreen = false }: { agent: Agent
             }}
           >
             <Icon name={tabDef.icon} /> {t(tabDef.labelKey)}
+            {tabDef.key === 'human' && askMeCount > 0 && (
+              <span
+                data-testid="askme-count"
+                title={t('commandCenter.askMePending', { count: askMeCount })}
+                aria-label={t('commandCenter.askMePending', { count: askMeCount })}
+                style={{
+                  minWidth: 16, padding: '0 4px', borderRadius: 8, lineHeight: '16px',
+                  fontSize: 11, fontWeight: 700, textAlign: 'center',
+                  background: 'var(--cth-coral)', color: 'var(--cth-on-accent)'
+                }}
+              >{askMeCount}</span>
+            )}
           </button>
         ))}
       </div>

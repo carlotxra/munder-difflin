@@ -68,3 +68,24 @@ test('every ASK ME surface uses the shared predicate', () => {
   assert.match(kanban, /from '\.\/askMeFilter'/);
   assert.match(read('src/renderer/src/components/AskMeTab.tsx'), /\.filter\(waitsOnHuman\)/);
 });
+
+// ── ASK ME tab count pill: one always-visible place for pending input ────────
+
+test('the always-mounted AgentStrip poll publishes the waiting count', () => {
+  const read = (p) => fs.readFileSync(path.resolve(__dirname, '..', p), 'utf8');
+  const strip = read('src/renderer/src/components/AgentStrip.tsx');
+  assert.match(strip, /setAskMeCount\(countWaitingOnHuman\(raw\?\.tasks\)\)/);
+  const store = read('src/renderer/src/store/store.ts');
+  assert.match(store, /askMeCount: 0,/);
+});
+
+test('the ASK ME tab shows the count pill only when something waits', () => {
+  const read = (p) => fs.readFileSync(path.resolve(__dirname, '..', p), 'utf8');
+  const panel = read('src/renderer/src/components/CommandCenterPanel.tsx');
+  assert.match(panel, /tabDef\.key === 'human' && askMeCount > 0 &&/);
+  assert.match(panel, /data-testid="askme-count"/);
+  for (const loc of ['en', 'ar', 'zh-CN']) {
+    const json = JSON.parse(read(`src/renderer/src/i18n/locales/${loc}.json`));
+    assert.match(json.commandCenter.askMePending, /\{\{count\}\}/, loc);
+  }
+});

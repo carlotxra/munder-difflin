@@ -395,6 +395,7 @@
     "deliveryOnTitle": "队列消息会自动送达每个智能体。点击可暂停整个楼层的投递。",
     "ideTitle": "打开 IDE：浏览并编辑所选智能体工作区中的文件，并将未提交的更改作为差异查看。",
     "ide": "IDE",
+    "askMePending": "{{count}} 个问题等你回答",
     "tabs": {
       "terminal": "终端",
       "floor": "监控",

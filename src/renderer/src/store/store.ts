@@ -256,6 +256,11 @@ interface State {
    *  unmounts the ask-me view) doesn't eat a half-typed answer. */
   answerDrafts: Record<string, string>;
   setAnswerDraft: (taskId: string, text: string) => void;
+  /** Cards waiting on the human (askMeFilter.countWaitingOnHuman), published by
+   *  AgentStrip's always-mounted tasks.json poll so the ASK ME tab can show a
+   *  count pill without polling the ledger again. */
+  askMeCount: number;
+  setAskMeCount: (n: number) => void;
   /** Unsent composer drafts, per agent — so switching agents (which remounts the
    *  composer) doesn't eat what the user was typing. */
   drafts: Record<string, string>;
@@ -871,6 +876,8 @@ export const useStore = create<State>((set, get) => ({
   answerDrafts: {},
   setAnswerDraft: (taskId, text) =>
     set((s) => ({ answerDrafts: { ...s.answerDrafts, [taskId]: text } })),
+  askMeCount: 0,
+  setAskMeCount: (n) => set((s) => (s.askMeCount === n ? s : { askMeCount: n })),
   drafts: {},
   setDraft: (agentId, text) =>
     set((s) => ({ drafts: { ...s.drafts, [agentId]: text } })),

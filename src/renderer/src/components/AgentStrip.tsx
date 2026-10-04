@@ -7,6 +7,7 @@ import { useStore, type Agent } from '@/store/store';
 import { type HarnessConfig } from '@/store/config';
 import { useRestoreTeam } from '@/hooks/useRestoreTeam';
 import { useRtl } from '@/i18n/useDirection';
+import { countWaitingOnHuman } from './askMeFilter';
 
 export interface AgentStripProps {
   /** Needed to rebuild a spawn command when a restorable agent predates the
@@ -74,6 +75,9 @@ export function AgentStrip({ config }: AgentStripProps) {
           }
         }
         setDoingByAgent(map);
+        // The same poll feeds the ASK ME tab's pending-count pill (always
+        // mounted here, unlike the tab and the floor, so the pill stays live).
+        useStore.getState().setAskMeCount(countWaitingOnHuman(raw?.tasks));
       } catch { /* keep last good */ }
     };
     void poll();
