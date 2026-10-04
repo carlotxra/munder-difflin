@@ -47,8 +47,8 @@ test('a lost Enter no longer glues /remote-control onto the next prompt', async 
 
 test('without a lost Enter both lines submit separately, in order', async () => {
   const tui = fakeTui();
-  await typeAndSubmit(tui.io, '/remote-control Michael', 'codex', 0);
-  await typeAndSubmit(tui.io, 'next', 'codex', 0);
+  await typeAndSubmit(tui.io, '/remote-control Michael', 'kimi', 0);
+  await typeAndSubmit(tui.io, 'next', 'kimi', 0);
   assert.deepEqual(tui.submitted, ['/remote-control Michael', 'next']);
   assert.deepEqual(tui.log, ['\x15', '/remote-control Michael', '\r', '\x15', 'next', '\r']);
 });
@@ -91,16 +91,37 @@ test('Enter is sent exactly once (a second could answer a permission prompt)', a
   assert.equal(tui.log.filter((d) => d === '\r').length, 1);
 });
 
-test('clear sequence: Ctrl+U for line editors, none for agy or a custom command', () => {
-  for (const p of ['claude', 'codex', 'copilot', 'qwen', 'grok', 'gemini', 'kimi', 'opencode', 'crush', 'pi', 'cursor']) {
-    assert.equal(clearInputSequence(p), '\x15', p);
+test('clear sequence: Ctrl+U only for verified line editors (T-047 allowlist)', () => {
+  for (const p of ['claude', 'kimi', 'crush']) assert.equal(clearInputSequence(p), '\x15', p);
+  // Ink-style inputs may type a literal "u"; unverified ones get no clear.
+  for (const p of ['copilot', 'grok', 'cursor', 'pi', 'opencode', 'codex', 'gemini', 'qwen', 'antigravity', 'custom', 'someday']) {
+    assert.equal(clearInputSequence(p), null, p);
   }
-  assert.equal(clearInputSequence('antigravity'), null);
-  assert.equal(clearInputSequence('custom'), null);
-  const agy = fakeTui();
-  return typeAndSubmit(agy.io, 'hi', 'antigravity', 0).then(() => {
-    assert.deepEqual(agy.log, ['hi', '\r']);
+  const ink = fakeTui();
+  return typeAndSubmit(ink.io, 'hi', 'copilot', 0).then(() => {
+    assert.deepEqual(ink.log, ['hi', '\r'], 'no Ctrl+U, still one Enter after the echo wait');
   });
+});
+
+test('main-process nudge (submitLine) clears, waits for output via lastOutputAt, Enters once', async () => {
+  const { submitLine } = loadTs('src/main/custom/ptySubmit.ts');
+  const writes = [];
+  let lastOut = 0;
+  const pty = {
+    write(id, d) {
+      writes.push([id, d]);
+      if (d !== '\x15' && d !== '\r') setTimeout(() => { lastOut = Date.now(); }, 30);
+      return { ok: true };
+    },
+    lastOutputAt: () => lastOut
+  };
+  const t0 = Date.now();
+  await submitLine(pty, 'w1', 'nudge', 'claude');
+  assert.deepEqual(writes.map((w) => w[1]), ['\x15', 'nudge', '\r']);
+  assert.ok(Date.now() - t0 < 900, 'returned on the echo, not the 1s timeout');
+
+  const dead = { write: () => ({ ok: false, error: 'no pty: w2' }), lastOutputAt: () => undefined };
+  await assert.rejects(submitLine(dead, 'w2', 'nudge', 'copilot'), /no pty: w2/);
 });
 
 test('bracketed paste only wraps multi-line text', () => {

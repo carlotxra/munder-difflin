@@ -8,9 +8,10 @@
  * can't help when the TUI drops a keystroke.
  *
  * Two guards, both provider-neutral:
- *  1. Clear the input line before typing (Ctrl+U, "kill to line start", which
- *     every readline-style TUI input honours). A line whose Enter was lost is
- *     discarded instead of becoming the prefix of the next submission.
+ *  1. Clear the input line before typing (Ctrl+U, "kill to line start"), for
+ *     the providers verified to honour it (see clearInputSequence). A line
+ *     whose Enter was lost is discarded instead of becoming the prefix of the
+ *     next submission.
  *  2. Don't send Enter until the TUI has echoed the text (any pty output after
  *     the write, bounded by a timeout), so Enter can't race ahead of a TUI that
  *     is still processing the keystrokes.
@@ -18,16 +19,22 @@
  * Enter is never re-sent blindly: if the first one did land, a second could
  * answer a permission prompt the submission just opened.
  *
- * Seam: submitToPty in src/renderer/src/hooks/useHive.ts.
+ * Seams: submitToPty in src/renderer/src/hooks/useHive.ts; nudgeWorker in
+ * src/main/index.ts via src/main/custom/ptySubmit.ts (T-047).
  */
 import type { AgentProvider } from '../agentProvider';
 
-/** Ctrl+U for every provider whose input box is a known line editor. Null for
- *  Antigravity (agy echoes some control input literally; see the paste-marker
- *  note in submitToPty) and for an arbitrary custom command. */
+/** Providers whose input box is verified to treat Ctrl+U as "kill to line
+ *  start" (T-047, from the T-046 audit): Claude Code; kimi (prompt_toolkit);
+ *  crush (bubbles textarea). Ink-style or homegrown inputs (copilot, grok,
+ *  cursor, pi, opencode) may type a literal "u", so everyone not listed gets no
+ *  clear (only the echo wait). To add one, check it in a PTY: type "ab", send
+ *  Ctrl+U, type "c", Enter; the submitted text must be "c". codex, gemini and
+ *  qwen are likely line editors but are not verified yet. */
+const CLEARS_WITH_CTRL_U: ReadonlySet<string> = new Set(['claude', 'kimi', 'crush']);
+
 export function clearInputSequence(provider: AgentProvider): string | null {
-  if (provider === 'antigravity' || provider === 'custom') return null;
-  return '\x15';
+  return CLEARS_WITH_CTRL_U.has(provider) ? '\x15' : null;
 }
 
 export interface PtySubmitIo {
