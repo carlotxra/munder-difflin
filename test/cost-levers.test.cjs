@@ -474,6 +474,29 @@ test('T-048: withdrawClosingSteers drops only CLOSING TIME notes, in order, for 
   assert.equal(control.snapshot('w-2').pendingSteers, 1, 'an agent not named keeps its steer');
 });
 
+test('T-049: every closing brief says it supersedes an earlier CANCELLED and keeps the CLOSING TIME prefix', async (t) => {
+  const { hive, control, ct } = await closingFloor(t);
+  ct.start();
+  ct.cancel();
+  ct.start();
+  const sup = /supersedes any earlier CLOSING TIME CANCELLED/;
+  const steer = queued(control, 'busy-1');
+  assert.equal(steer.length, 1);
+  assert.match(steer[0], sup, 'worker steer');
+  assert.match(steer[0], /^CLOSING TIME\b/);
+  assert.match(steer[0], /subject is exactly "CLOSING-TIME-ACK"/);
+  const inbox = hive.inbox('dirty-1').filter((m) => m.subject === 'CLOSING TIME');
+  assert.ok(inbox.length >= 1);
+  for (const m of inbox) assert.match(m.body, sup, 'worker inbox brief');
+  const godSteer = queued(control, 'god-1');
+  assert.equal(godSteer.length, 1);
+  assert.match(godSteer[0], sup, 'god steer');
+  assert.match(godSteer[0], /^CLOSING TIME\b/);
+  const godBriefs = hive.inbox('god-1').filter((m) => /run the shutdown protocol/.test(m.subject));
+  assert.equal(godBriefs.length, 2);
+  for (const m of godBriefs) assert.match(m.body, sup, 'god brief');
+});
+
 // — T-040: closing time on non-Claude providers —
 
 async function mixedFloor(t) {

@@ -56,13 +56,18 @@ const POLL_MS = 5_000;
 /** A steer still pending this long is replaced by the inbox brief regardless. */
 export const STEER_DEADLINE_MS = 30_000;
 
+/** T-049: a re-press soon after a cancel can put CLOSING TIME CANCELLED and a
+ *  new brief in the same prompt; every brief says which one wins. Briefs keep
+ *  the "CLOSING TIME" prefix that withdrawClosingSteers matches. */
+export const SUPERSEDES_CANCEL = 'This supersedes any earlier CLOSING TIME CANCELLED.';
+
 /** F18: the one delivery a worker gets. Same steps, same exact ACK subject. */
 export const WORKER_BRIEF =
-  'CLOSING TIME: finish your current step and start no new work. Park or commit your work-in-progress, append your current state and concrete next steps to your memory.md, then reply to god with a message whose subject is exactly "CLOSING-TIME-ACK".';
+  `CLOSING TIME: ${SUPERSEDES_CANCEL} Finish your current step and start no new work. Park or commit your work-in-progress, append your current state and concrete next steps to your memory.md, then reply to god with a message whose subject is exactly "CLOSING-TIME-ACK".`;
 
-/** Upstream's god steer, unchanged. */
+/** Upstream's god steer plus the T-049 supersede line. */
 const GOD_STEER =
-  'CLOSING TIME was pressed by the human: pause your current work at the next sensible point and drain your inbox NOW — a shutdown brief is waiting there. Coordinate the floor shutdown before anything else.';
+  `CLOSING TIME was pressed by the human. ${SUPERSEDES_CANCEL} Pause your current work at the next sensible point and drain your inbox NOW — a shutdown brief is waiting there. Coordinate the floor shutdown before anything else.`;
 
 // — live facts, installed from index.ts —
 let lastOutputAt: (agentId: string) => number = () => 0;
@@ -201,7 +206,7 @@ export function customClosingStart(run: ClosingRun, now = Date.now()): boolean {
     act: 'request',
     subject: 'CLOSING TIME — run the shutdown protocol now',
     body: [
-      'The human pressed "closing time": the harness closes as soon as you confirm the floor is safe. The harness has already reached every worker, so do NOT broadcast closing time:',
+      `The human pressed "closing time": the harness closes as soon as you confirm the floor is safe. ${SUPERSEDES_CANCEL} The harness has already reached every worker, so do NOT broadcast closing time:`,
       `- Parked by the harness (idle, clean, ACK recorded): ${names(parked)}.`,
       `- Told to park WIP, save memory and ACK you (one delivery each): ${names(waiting)}.`,
       '',
