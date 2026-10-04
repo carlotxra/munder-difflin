@@ -21,6 +21,7 @@ import type { ControlRegistry } from './control';
 import type { CircuitBreaker } from './breaker';
 import { estimateCostUsd } from './pricing';
 import { validateHookEvent } from '../shared/hookEvents';
+import { gateRoster, rosterKey } from './custom/roster'; // fork: T-034 cost levers
 
 /** Maximum JSON payload bytes in one newline-delimited hook frame. */
 const MAX_HOOK_FRAME_BYTES = 256 * 1024;
@@ -546,7 +547,7 @@ export class HookServer {
     // agent line can carry a `ctx NN%` — god then sees whose context is nearly
     // full when it routes work, instead of guessing from cumulative token spend.
     const roster = wantsRoster
-      ? this.hive.rosterContext((id) => this.contextFor(id))
+      ? gateRoster(agentId, event, p.session_id, this.hive.rosterContext((id) => this.contextFor(id)), () => rosterKey(this.hive.root(), (id) => this.contextFor(id)))
       : null;
 
     // Standing goal (hire Briefing) — durable roster field, re-read every cycle so

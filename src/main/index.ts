@@ -66,6 +66,9 @@ import { buildWorkerLaunch } from './workerLaunch';
 import { ControlRegistry } from './control';
 import { WorkerWakeWatchdog, WORKER_WAKE_REPORT_MS, activityEvidenceAt, type WorkerWakeFacts } from './workerWake';
 import { inboxNudgeText } from '../shared/hiveNudge';
+import { wakesGod, nudgeText, slimHeartbeatDigest } from './custom/wake'; // fork: T-034 cost levers
+import { installCostLevers } from './custom/install'; // fork: T-034 cost levers
+import { noteHookForClosing } from './custom/closingTime'; // fork: T-034 cost levers
 import { resolveGodName } from '../shared/godIdentity';
 import { fetchHireManifest, readHireManifestFiles } from './hire';
 import { parseHireDeepLink, type HireManifest } from '../shared/hire';
@@ -301,6 +304,7 @@ function standingGoalFromRoster(agentId: string): string | null {
 // background window can't leave a worker parked on an unread inbox forever).
 // HookServer feeds it the hook stream so a permission/HITL prompt blocks nudges.
 const workerWake = new WorkerWakeWatchdog();
+installCostLevers(() => readConfig(), { lastOutputAt: (id) => { const p = ptyForAgent(id); return p ? ptyManager.lastOutputAt(p) ?? 0 : 0; } }); // fork: T-034 cost levers (custom/install.ts)
 // HookServer needs BOTH: Oscar's control registry (HITL pause/gate/steer/halt via
 // hook returns) AND Jim's breaker (feed recordToolUse on each PostToolUse).
 const hookServer = new HookServer(
@@ -310,7 +314,7 @@ const hookServer = new HookServer(
   control,
   breaker,
   standingGoalFromRoster,
-  (agentId, event, message) => workerWake.noteHook(agentId, event, message)
+  (agentId, event, message) => { workerWake.noteHook(agentId, event, message); noteHookForClosing(agentId, event); } // fork: T-034
 );
 const memory = new MemoryManager(
   () => readConfig().harnessHome,
@@ -1129,6 +1133,7 @@ function looksStuck(windowMs: number): boolean {
 /** Bounded digest for god — paths + counts, never full files (reference-passing,
  *  #6.2). A few hundred tokens at most. */
 function buildHeartbeatDigest(quietMs: number, actionable = 0): string {
+  const slim = slimHeartbeatDigest(hive, quietMs, actionable); if (slim !== null) return slim; // fork: T-034
   const reg = hive.registry();
   const active = Object.entries(reg.agents).filter(([id, a]) => !a.archived && id !== reg.godId);
   const names = active.map(([, a]) => a.name).join(', ') || '—';
@@ -1171,7 +1176,7 @@ function godActionableInboxCount(): number {
   try {
     const godId = hive.registry().godId;
     if (!godId) return 0;
-    return hive.inbox(godId).filter((m) => !SYSTEM_SENDERS.has(m.from)).length;
+    return hive.inbox(godId).filter((m) => !SYSTEM_SENDERS.has(m.from) && wakesGod(hive, m)).length; // fork: T-034
   } catch { return 0; }
 }
 
@@ -5216,7 +5221,7 @@ function nudgeWorker(ptyId: string, ids: string[] = []): void {
   // produce byte-identical nudges: the queue's one-pending rule recognises either
   // via isInboxNudge, and a watchdog nudge names its ids so the agent can still
   // tell "I filed this last turn" from "woken for nothing".
-  const wrote = ptyManager.write(ptyId, inboxNudgeText(ids));
+  const wrote = ptyManager.write(ptyId, nudgeText(ids)); // fork: T-034
   if (!wrote.ok) { console.warn(`[worker-wake] write failed for ${ptyId}: ${wrote.error}`); return; }
   setTimeout(() => {
     try {

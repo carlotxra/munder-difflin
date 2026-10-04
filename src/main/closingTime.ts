@@ -26,6 +26,7 @@
 import type { WebContents } from 'electron';
 import type { HiveManager, HiveMessage } from './hive';
 import type { ControlRegistry } from './control';
+import { customClosingStart, customClosingCancel } from './custom/closingTime'; // fork: T-034 cost levers
 
 export type ClosingTimePhase =
   | 'started' | 'progress' | 'complete' | 'timeout' | 'cancelled';
@@ -105,6 +106,7 @@ export class ClosingTimeController {
     this.acked = new Set();
     this.active = true;
 
+    if (customClosingStart({ hive: this.hive, control: this.control, godId: this.godId, workers: this.workers, acked: this.acked, isActive: () => this.active, progress: () => this.emitState('progress') })) { this.armTimeout(); this.emitState('started'); return { ok: true }; } // fork: T-034
     const names = [...this.workers]
       .map((id) => `${reg.agents[id]?.name ?? id} (${id})`)
       .join(', ') || '(none — the floor is just you)';
@@ -157,6 +159,7 @@ export class ClosingTimeController {
     this.control?.clearSteers(this.godId);
     for (const id of this.workers) this.control?.clearSteers(id);
     this.emitState('cancelled');
+    if (customClosingCancel(this.hive)) return; // fork: T-034
     try {
       this.hive.send({
         to: 'god',

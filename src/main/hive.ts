@@ -46,6 +46,8 @@ import { expandTilde } from './fs';
 import { shortSockPath } from './sockPath';
 import { cloneInformBody, memorySnapshot } from '../shared/cloneAgent';
 import { resolveGodName } from '../shared/godIdentity';
+import { customRosterContext } from './custom/roster'; // fork: T-034 cost levers
+import { trimPrompt, customDoc } from './custom/promptTrim'; // fork: T-034 cost levers
 
 /** The subset of HarnessConfig the hive consumes for the default-MCP merge.
  *  Kept as a local shape so hive.ts never imports the foundation-owned config
@@ -641,7 +643,7 @@ export class HiveManager {
 
     for (const { filename, contents } of GENERATED_HIVE_DOCS) {
       const path = join(root, filename);
-      if (!existsSync(path)) writeFileSync(path, contents, 'utf8');
+      if (!existsSync(path)) writeFileSync(path, customDoc(filename, contents), 'utf8');
     }
 
     const registry = join(root, 'registry.json');
@@ -700,7 +702,7 @@ export class HiveManager {
     const root = this.root();
     if (!root) return;
     for (const { filename, contents } of GENERATED_HIVE_DOCS) {
-      writeFileSync(join(root, filename), contents, 'utf8');
+      writeFileSync(join(root, filename), customDoc(filename, contents), 'utf8');
     }
   }
 
@@ -1621,7 +1623,7 @@ export class HiveManager {
     const slackLine = meta.isGod
       ? 'SLACK REPLIES: When composing a Slack reply (or writing the `result` field of a Slack-origin kanban card), you MUST: (1) directly address what the user asked — never a bare "done"; (2) include the relevant specifics, outcome, and details; (3) format for Slack mrkdwn — open with a short *bold* headline, use bullet points for multiple items, wrap code/paths in `backtick` blocks, keep it concise (no walls of text). When finishing a Slack-origin task, always write a complete, user-facing, well-formatted `result` on the kanban card — the system posts it verbatim to Slack as the done reply.'
       : `SLACK REPLIES: If god dispatches you a task that came from Slack, it will include an exact \`"${hiveNode}" "<helper>" --channel … --thread … --text "…"\` reply command — when you finish, run it VERBATIM to post your result back to that thread yourself. The reply must be SUBSTANTIVE Slack mrkdwn (a short *bold* headline + the actual outcome/specifics/links), NEVER a bare "done".`;
-    return [
+    return trimPrompt([ // fork: T-034 cost levers (custom/promptTrim.ts)
       `You are "${meta.name}" (${meta.id}), an autonomous agent in a collaborating hive of Claude agents.`,
       `Your private workspace is ${dir}. The shared hive is ${root}. Full protocol: ${inRoot('PROTOCOL.md')}.`,
       '',
@@ -1640,7 +1642,7 @@ export class HiveManager {
       slackLine,
       ctxLine,
       `Env vars available to you: AGENT_ID, AGENT_NAME, HIVE_ROOT, AGENT_DIR.`
-    ].filter(Boolean).join('\n');
+    ].filter(Boolean).join('\n'), meta);
   }
 
   // — messaging —
@@ -2701,6 +2703,7 @@ export class HiveManager {
   rosterContext(
     ctxOf?: (agentId: string) => { tokens: number; limit: number } | undefined
   ): string | null {
+    const custom = customRosterContext(this.root(), ctxOf); if (custom !== undefined) return custom; // fork: T-034
     const root = this.root();
     if (!root) return null;
     try {

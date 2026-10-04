@@ -219,6 +219,24 @@ T-019 removed the updater entirely (see the summary row "Auto-updater removed").
 - Test: `test/hire-any-provider.test.cjs`.
 
 
+## Cost levers (T-034)
+
+The T-032 audit and the T-033 cost numbers led to fork-only levers that cut instruction and wake-up tokens. Every lever's logic lives in its own file under `src/main/custom/`, `src/shared/custom/` or `src/renderer/src/custom/`. Upstream files get only a seam, marked `// fork: T-034`, of at most one line. Each lever is a key of `config.costLevers` (schema: `src/shared/custom/costLevers.ts`, shared with T-035). Every lever defaults ON in this build; set a key to `false` to restore upstream behaviour exactly. Until `installCostLevers` runs, every lever reads OFF, so upstream's own tests still test upstream behaviour. `test/cost-levers.test.cjs` covers each lever. It also fails, naming the override, when an upstream rewrite stops a prompt override from matching.
+
+| Lever (`costLevers.*`) | What it does | Logic | Upstream seams (lines on this branch) |
+|---|---|---|---|
+| all (wiring) | Installs the config source, Slack probe and closing-time facts | `src/main/custom/install.ts`, `levers.ts` | `src/main/index.ts:69-71` (imports), `:307` (`installCostLevers(...)`) |
+| `rosterToon` (F2-F4) | LIVE ROSTER as a TOON table, short roles, breaker shown only when armed (fixes the `'ok'` vs `'healthy'` filter) | `src/main/custom/roster.ts`, `src/shared/custom/rosterTable.ts` | `src/main/hive.ts:49` (import), `:2706` (first line of `rosterContext`) |
+| `rosterOnChange` (F1) | Roster injected at SessionStart, on a new session's first prompt, and when the routing key changes; not on every prompt | `src/main/custom/roster.ts` (`gateRoster`, `rosterKey`) | `src/main/hooks.ts:24` (import), `:550` (roster expression wrapped) |
+| `promptTrim` (F5, F8-F12, F14) | Keyed wording overrides on the system prompt; SLACK REPLIES only when Slack is on; LIVE CONTEXT only for god | `src/main/custom/promptTrim.ts` (`PROMPT_OVERRIDES`) | `src/main/hive.ts:50` (import), `:1626` and `:1645` (`return trimPrompt([ … ], meta)`) |
+| `tasksOwnerProtocol` (F13) | PROTOCOL.md says god is the sole writer of tasks.json (god044) | `src/main/custom/promptTrim.ts` (`PROTOCOL_OVERRIDES`) | `src/main/hive.ts:646`, `:705` (`customDoc(filename, contents)` in both doc writers) |
+| `digestWakes` (J1) | Worker ACKs and info/done reports don't wake god; the slim heartbeat lists them. Requests, DECISION NEEDED, `needs_human`, reply-required and non-agent mail still wake god at once | `src/shared/custom/wake.ts`, `src/main/custom/wake.ts`, `src/renderer/src/custom/wake.ts` | `src/renderer/src/hooks/useHive.ts:22` (import), `:711` (`wakeWorthy(...)`); `src/main/index.ts:1179` (`godActionableInboxCount` filter) |
+| `shortNudge` (F15) | Shorter inbox-wake nudge, same `NUDGE_HEAD` | `src/shared/custom/wake.ts` | `src/renderer/src/hooks/useHive.ts:722`; `src/main/index.ts:5224` (`nudgeWorker`) |
+| `slimHeartbeat` (F17) | Heartbeat digest: 5-line board head and one log summary line instead of 8 raw log.jsonl lines | `src/main/custom/wake.ts` | `src/main/index.ts:1136` (first line of `buildHeartbeatDigest`) |
+| `harnessClosingTime` (J5+F18, god049) | The harness parks strictly idle workers (memory line plus harness ACK) and gives every other worker exactly one short brief; no broadcasts; god is woken once at the last ACK. ACK verification is unchanged | `src/main/custom/closingTime.ts` | `src/main/closingTime.ts:29` (import), `:109` (start), `:162` (cancel); `src/main/index.ts:317` (hook observer) |
+
+Not done, and why: F16 (dead `WORKER_WAKE_NUDGE` and `drainForStop`). Deleting upstream code only adds merge surface and saves no tokens. F19 (a JSON fragment stored as Jim's standing goal) is data, not code: clear it in Edit Agent.
+
 ## User-editable files (macOS)
 
 `<userData>` is Electron's `app.getPath('userData')`, the folder that holds `config.json`.
@@ -254,3 +272,4 @@ item.
 | `src/renderer/src/scene/office/cafeteriaLines.ts` | Two pickers routed through `officeLinesOverride.ts` | New upstream lines or pools still pass through the filter |
 | `src/renderer/src/i18n/locales/{en,ar,zh-CN}.json` | Custom-model, office, update and ask-first strings | Keys are still present after a JSON merge |
 | `CHANGELOG.md` | Fork entries | Keep them separate from upstream entries |
+| `src/main/hive.ts`, `hooks.ts`, `closingTime.ts`, `index.ts`, `renderer/src/hooks/useHive.ts` | T-034 cost-lever seams (`// fork: T-034`) | Each seam line still exists; `test/cost-levers.test.cjs` passes (a missed prompt override is named there) |

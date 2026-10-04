@@ -19,6 +19,7 @@ import type { AgentProvider } from '../../../shared/agentProvider';
 import { bridgeOf, providerPreset } from '../../../shared/agentProvider';
 import { isDurableRole, preferredAgentRole, roleForHiveSpawn } from '../../../shared/agentRole';
 import { inboxNudgeText } from '../../../shared/hiveNudge';
+import { wakeWorthy, nudgeText } from '@/custom/wake'; // fork: T-034 cost levers
 import { resolveGodName } from '../../../shared/godIdentity';
 import { acquireTerminal, resetTerminal, isTerminalAutomationSafe } from '@/components/terminalPool';
 import { canDeliverToAgent, deliverWithAcknowledgement, checkPrecondition } from './queueDelivery';
@@ -707,7 +708,7 @@ export function useHive(config: HarnessConfig | null): void {
           // an empty inbox afterwards — a wasted turn, and the most expensive one
           // on the floor when the agent is god.
           const seen = nudged.current[a.id] ?? (nudged.current[a.id] = new Set());
-          const fresh = inbox.filter((m) => m.id && !seen.has(m.id));
+          const fresh = wakeWorthy(a, inbox.filter((m) => m.id && !seen.has(m.id)), seen); // fork: T-034
           if (fresh.length) {
             // Name the ids: the nudge is queued now and typed whenever the agent
             // next goes idle, so it can arrive long after the agent drained and
@@ -718,7 +719,7 @@ export function useHive(config: HarnessConfig | null): void {
             // inbox as the authority rather than at the list.
             useStore.getState().enqueueMessage(
               a.id,
-              inboxNudgeText(fresh.map((m) => m.id)),
+              nudgeText(fresh.map((m) => m.id)),
               { precondition: 'inbox-nonempty' }
             );
             for (const m of fresh) seen.add(m.id);
