@@ -305,7 +305,7 @@ function standingGoalFromRoster(agentId: string): string | null {
 // background window can't leave a worker parked on an unread inbox forever).
 // HookServer feeds it the hook stream so a permission/HITL prompt blocks nudges.
 const workerWake = new WorkerWakeWatchdog();
-installCostLevers(() => readConfig(), { lastOutputAt: (id) => { const p = ptyForAgent(id); return p ? ptyManager.lastOutputAt(p) ?? 0 : 0; } }); // fork: T-034 cost levers (custom/install.ts)
+installCostLevers(() => readConfig(), { lastOutputAt: (id) => { const p = ptyForAgent(id); return p ? ptyManager.lastOutputAt(p) ?? 0 : 0; }, providerOf: (id) => { const a = hive.registry().agents[id]; return a ? a.provider : null; } }); // fork: T-034, T-040 cost levers (custom/install.ts)
 // HookServer needs BOTH: Oscar's control registry (HITL pause/gate/steer/halt via
 // hook returns) AND Jim's breaker (feed recordToolUse on each PostToolUse).
 const hookServer = new HookServer(

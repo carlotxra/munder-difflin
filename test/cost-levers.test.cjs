@@ -29,6 +29,7 @@ const trim = loadTs('src/main/custom/promptTrim.ts');
 const { isMechanicalMail, shortNudgeText } = loadTs('src/shared/custom/wake.ts');
 const mainWake = loadTs('src/main/custom/wake.ts');
 const closing = loadTs('src/main/custom/closingTime.ts');
+const provider = loadTs('src/main/custom/provider.ts');
 const { isInboxNudge, inboxNudgeText } = loadTs('src/shared/hiveNudge.ts');
 const { HiveManager } = loadTs('src/main/hive.ts');
 const { HookServer } = loadTs('src/main/hooks.ts');
@@ -110,6 +111,8 @@ test('rosterOnChange: start, then only on a change god routes by, and on a new s
     { id: 'jim-1', name: 'Jim', tokens: 2000, lastActiveSecAgo: 10, ...extra }
   ] });
   snap();
+  provider.setProviderSource((id) => hive.registry().agents[id]?.provider ?? null);
+  t.after(() => provider.setProviderSource(() => null));
   const server = new HookServer(hive, () => null, () => ({ notifications: false }));
   const fire = (event, sid = 's1') => server.handle({ agent_id: 'god-1', hook_event_name: event, session_id: sid });
   const ctx = (r) => r?.hookSpecificOutput?.additionalContext ?? '';
@@ -125,6 +128,31 @@ test('rosterOnChange: start, then only on a change god routes by, and on a new s
 
   levers.setCostLeversSource(() => ({ costLevers: { rosterOnChange: false } }));
   assert.match(ctx(await fire('UserPromptSubmit', 's2')), /LIVE ROSTER/, 'off = every prompt (upstream)');
+});
+
+test('rosterOnChange (T-040): a non-Claude or unknown god keeps the roster on every prompt', async (t) => {
+  withLevers(t);
+  roster.resetRosterGate();
+  const { hive } = await floor(t);
+  hive.writeFleetSnapshot({ ts: Date.now(), agents: [{ id: 'god-1', name: 'Michael', isGod: true, lastActiveSecAgo: 3 }] });
+  const providers = { 'god-1': 'copilot' };
+  provider.setProviderSource((id) => (id in providers ? providers[id] : null));
+  t.after(() => provider.setProviderSource(() => null));
+  const server = new HookServer(hive, () => null, () => ({ notifications: false }));
+  const fire = (event) => server.handle({ agent_id: 'god-1', hook_event_name: event, session_id: 's1' });
+  const ctx = (r) => r?.hookSpecificOutput?.additionalContext ?? '';
+
+  assert.match(ctx(await fire('SessionStart')), /LIVE ROSTER/);
+  assert.match(ctx(await fire('UserPromptSubmit')), /LIVE ROSTER/, 'copilot god: unchanged floor is still sent');
+  assert.match(ctx(await fire('UserPromptSubmit')), /LIVE ROSTER/);
+
+  delete providers['god-1'];
+  assert.match(ctx(await fire('UserPromptSubmit')), /LIVE ROSTER/, 'unknown agent: upstream path');
+
+  providers['god-1'] = undefined; // no provider recorded = launched as claude
+  await fire('SessionStart');
+  assert.doesNotMatch(ctx(await fire('UserPromptSubmit')), /LIVE ROSTER/, 'unset provider = claude: gated');
+  assert.equal(provider.isClaudeAgent('god-1'), true);
 });
 
 // — prompt wording (F5, F8-F12, F14) and PROTOCOL.md (F13) —
@@ -252,6 +280,10 @@ async function closingFloor(t) {
   await hive.ensureAgent({ id: 'busy-1', name: 'Busy', provider: 'claude', cwd: repo('busy', false) });
   const now = Date.now();
   closing.setClosingFacts({ lastOutputAt: (id) => (id === 'busy-1' ? now - 1000 : now - 60_000) });
+  closing.noteHookForClosing('idle-1', 'Stop');
+  closing.noteHookForClosing('idle-1', 'Status'); // telemetry tick after the turn: still idle
+  closing.noteHookForClosing('dirty-1', 'Stop');
+  closing.noteHookForClosing('busy-1', 'PreToolUse');
   const control = new ControlRegistry();
   const ct = new ClosingTimeController(hive, () => ['god-1', 'idle-1', 'dirty-1', 'busy-1'], () => null, () => { ct.concluded = true; }, control);
   t.after(() => ct.cancel());
@@ -304,6 +336,7 @@ test('harnessClosingTime: an unconsumed steer becomes an inbox brief once the wo
   const { hive, control, ct } = await closingFloor(t);
   ct.start();
   closing.setClosingFacts({ lastOutputAt: () => Date.now() - 60_000 });
+  closing.noteHookForClosing('busy-1', 'Stop');
   const run = { hive, control, godId: 'god-1', workers: new Set(['busy-1']), acked: new Set(), isActive: () => true, progress: () => {} };
   closing.poll(run);
   assert.equal(control.snapshot('busy-1').pendingSteers, 0, 'steer withdrawn');
@@ -327,4 +360,79 @@ test('harnessClosingTime: cancel tells the briefed workers directly, god is told
   assert.ok(hive.inbox('busy-1').some((m) => m.subject === 'CLOSING TIME CANCELLED'));
   assert.ok(!hive.inbox('idle-1').some((m) => m.subject === 'CLOSING TIME CANCELLED'), 'parked worker took no part');
   assert.match(hive.inbox('god-1').find((m) => m.subject === 'CLOSING TIME CANCELLED').body, /do not broadcast/);
+});
+
+// — T-040: closing time on non-Claude providers —
+
+async function mixedFloor(t) {
+  withLevers(t);
+  closing.resetClosingState();
+  t.after(() => closing.resetClosingState());
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'md-closing-mixed-'));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+  const hive = new HiveManager(() => home);
+  const repo = (n) => { const d = path.join(home, 'repos', n); gitRepo(d, false); return d; };
+  const agents = [
+    ['proxy-mid', 'qwen'],      // proxy shim: PostToolUse but never PreToolUse, quiet TUI mid-turn
+    ['proxy-done', 'qwen'],     // proxy shim that sent Stop: positively idle
+    ['custom-1', 'custom'],     // no hooks at all
+    ['claude-nohook', 'claude'],// hooks never fired
+    ['copilot-busy', 'copilot'] // busy, but its bridge may not show a steer to the model
+  ];
+  await hive.ensureAgent({ id: 'god-1', name: 'Michael', provider: 'claude', cwd: home, isGod: true });
+  for (const [id, p] of agents) await hive.ensureAgent({ id, name: id, provider: p, cwd: repo(id) });
+  const now = Date.now();
+  closing.setClosingFacts({ lastOutputAt: (id) => (id === 'copilot-busy' ? now - 1000 : now - 60_000) });
+  closing.noteHookForClosing('proxy-mid', 'PostToolUse');
+  closing.noteHookForClosing('proxy-done', 'PostToolUse');
+  closing.noteHookForClosing('proxy-done', 'Stop');
+  closing.noteHookForClosing('proxy-done', 'CostSample');
+  closing.noteHookForClosing('copilot-busy', 'PreToolUse');
+  const control = new ControlRegistry();
+  const ct = new ClosingTimeController(hive, () => ['god-1', ...agents.map(([id]) => id)], () => null, () => {}, control);
+  t.after(() => ct.cancel());
+  return { hive, control, ct };
+}
+
+/** One brief reached the worker: its inbox, or (qwen/custom, no renderer in
+ *  tests) upstream's terminal-handoff bounce to god naming it. */
+const briefs = (hive, id) => hive.inbox(id).filter((m) => m.subject === 'CLOSING TIME').length
+  + hive.inbox('god-1').filter((m) => m.subject.includes(`"${id}"`) && m.subject.includes('CLOSING TIME')).length;
+
+test('harnessClosingTime (T-040): only a positive turn-end signal parks a worker', async (t) => {
+  const { hive, control, ct } = await mixedFloor(t);
+  ct.start();
+  const parked = (id) => /parked it/.test(fs.readFileSync(path.join(hive.root(), 'agents', id, 'memory.md'), 'utf8'));
+
+  assert.ok(parked('proxy-done'), 'a proxy worker that sent Stop is parked like a Claude one');
+  assert.equal(briefs(hive, 'proxy-done'), 0);
+  for (const id of ['proxy-mid', 'custom-1', 'claude-nohook']) {
+    assert.ok(!parked(id), `${id}: no turn-end signal, so not parked`);
+    assert.equal(briefs(hive, id), 1, `${id}: one brief`);
+    assert.equal(control.snapshot(id).pendingSteers, 0, `${id}: no steer`);
+  }
+});
+
+test('harnessClosingTime (T-040): a busy non-Claude worker gets the inbox brief, not a steer', async (t) => {
+  const { hive, control, ct } = await mixedFloor(t);
+  ct.start();
+  assert.equal(control.snapshot('copilot-busy').pendingSteers, 0);
+  assert.equal(hive.inbox('copilot-busy').length, 1);
+  assert.match(hive.inbox('copilot-busy')[0].body, /subject is exactly "CLOSING-TIME-ACK"/);
+});
+
+test('harnessClosingTime (T-040): telemetry after a tool call does not count as a turn end', async (t) => {
+  const { hive, control, ct } = await closingFloor(t);
+  ct.start();
+  closing.setClosingFacts({ lastOutputAt: () => Date.now() - 60_000 }); // quiet TUI mid-tool
+  closing.noteHookForClosing('busy-1', 'Status');
+  closing.noteHookForClosing('busy-1', 'Notification');
+  const run = { hive, control, godId: 'god-1', workers: new Set(['busy-1']), acked: new Set(), isActive: () => true, progress: () => {} };
+  closing.poll(run);
+  assert.equal(control.snapshot('busy-1').pendingSteers, 1, 'still mid-turn: the steer stays');
+  assert.equal(hive.inbox('busy-1').length, 0);
+  closing.noteHookForClosing('busy-1', 'Stop');
+  closing.poll(run);
+  assert.equal(control.snapshot('busy-1').pendingSteers, 0, 'turn ended: withdrawn');
+  assert.equal(hive.inbox('busy-1').length, 1, 'inbox brief instead');
 });

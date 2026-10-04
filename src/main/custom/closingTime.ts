@@ -6,13 +6,13 @@
  * also gets a steer: an idle worker spends a turn to say "nothing to save", and
  * a busy one hears it twice. Here the harness does the fan-out itself:
  *
- *  - STRICTLY IDLE workers (no PTY output for 12s+, last hook not a PreToolUse,
- *    empty inbox AND outbox, clean git worktree) are parked by the harness: a
+ *  - STRICTLY IDLE workers (no PTY output for 12s+, a turn END as the last
+ *    turn hook, empty inbox AND outbox, clean git worktree) are parked by the harness: a
  *    dated line goes into their memory.md and the harness records their
  *    CLOSING-TIME-ACK. They take no turn.
  *  - Every other worker gets exactly ONE delivery of the short brief: a busy
- *    one a steer (reaches it at its next hook boundary, the graceful
- *    interrupt), an idle-but-not-clean one an inbox message. A steer still
+ *    Claude one a steer (reaches it at its next hook boundary, the graceful
+ *    interrupt), anyone else an inbox message. A steer still
  *    unconsumed once its worker goes idle is withdrawn and replaced by the inbox
  *    message, so it is never lost and never doubled. Each must ACK itself.
  *  - god is told who was parked and who was briefed, must NOT broadcast, and
@@ -22,6 +22,13 @@
  *    CLOSING-TIME-COMPLETE while any live worker lacks an ACK.
  *  - On cancel, the harness tells the briefed workers itself; nobody broadcasts.
  *
+ * Provider neutrality (T-040): idle needs a POSITIVE turn-end signal (Stop or
+ * SessionStart). A proxy-tier shim sends no PreToolUse and a custom provider
+ * no hooks at all, so "no PreToolUse seen" proved nothing: such a worker could
+ * be parked mid-turn. No turn-end signal = not idle = briefed. The steer rides
+ * hook additionalContext, which only Claude is known to put in front of the
+ * model, so every other provider gets the inbox brief instead.
+ *
  * Seams: start() and cancel() in closingTime.ts, and the hook observer in index.ts.
  */
 import { appendFileSync, existsSync, readdirSync } from 'node:fs';
@@ -30,6 +37,7 @@ import { spawnSync } from 'node:child_process';
 import type { HiveManager } from '../hive';
 import type { ControlRegistry } from '../control';
 import { costLevers } from './levers';
+import { isClaudeProvider } from '../../shared/agentProvider';
 
 /** No PTY output for this long = idle (the worker-wake watchdog's threshold). */
 export const CLOSING_IDLE_MS = 12_000;
@@ -45,26 +53,39 @@ const GOD_STEER =
 
 // — live facts, installed from index.ts —
 let lastOutputAt: (agentId: string) => number = () => 0;
-const lastHook = new Map<string, string>();
+/** agentId → true after a turn end (Stop, SessionStart), false once a turn runs. */
+const turnEnded = new Map<string, boolean>();
 export function setClosingFacts(f: { lastOutputAt: (agentId: string) => number }): void {
   lastOutputAt = f.lastOutputAt;
 }
-/** Hook observer: remembers each agent's last hook event (mid-tool detection). */
+/** Hook events that end a turn or open a session with none running yet. */
+const TURN_END = new Set(['Stop', 'StopFailure', 'SessionStart', 'SessionEnd']);
+/** Not turn boundaries: statusLine/cost telemetry ticks while idle, and an idle
+ *  Notification follows a Stop (a permission one follows a PreToolUse). */
+const NOT_A_BOUNDARY = new Set(['Status', 'CostSample', 'Notification']);
+
+/** Hook observer: tracks whether each agent's last turn boundary was a turn end. */
 export function noteHookForClosing(agentId: string | undefined, event: string | undefined): void {
-  if (agentId && event) lastHook.set(agentId, event);
+  if (!agentId || !event || NOT_A_BOUNDARY.has(event)) return;
+  turnEnded.set(agentId, TURN_END.has(event));
 }
+
+/** Positive idle signal: a turn end was seen and nothing has run since. */
+const atTurnEnd = (id: string): boolean => turnEnded.get(id) === true;
 
 export interface WorkerFacts {
   outputQuietMs: number;
-  midTool: boolean;
+  /** The last turn boundary was a turn end. Never seen one = false. */
+  turnEnded: boolean;
   inbox: number;
   outbox: number;
   clean: boolean;
 }
 
-/** god049 "strict idle". Any doubt (never produced output, not a git repo) is not idle. */
+/** god049 "strict idle". Any doubt (never produced output, no turn-end hook,
+ *  not a git repo) is not idle. */
 export function isStrictlyIdle(f: WorkerFacts): boolean {
-  return f.outputQuietMs >= CLOSING_IDLE_MS && !f.midTool && f.inbox === 0 && f.outbox === 0 && f.clean;
+  return f.outputQuietMs >= CLOSING_IDLE_MS && f.turnEnded && f.inbox === 0 && f.outbox === 0 && f.clean;
 }
 
 function gitClean(dir: string | undefined): boolean {
@@ -81,7 +102,7 @@ function factsFor(hive: HiveManager, id: string, now: number): WorkerFacts {
   const out = lastOutputAt(id);
   return {
     outputQuietMs: out > 0 ? now - out : 0,
-    midTool: lastHook.get(id) === 'PreToolUse',
+    turnEnded: atTurnEnd(id),
     inbox: hive.inbox(id).length,
     outbox: outboxCount(hive.root()!, id),
     clean: gitClean(hive.registry().agents[id]?.cwd)
@@ -103,6 +124,11 @@ export interface ClosingRun {
 let briefed = new Map<string, { via: 'steer' | 'inbox'; pendingAfter: number }>();
 let timer: ReturnType<typeof setInterval> | null = null;
 let allAckedSent = false;
+
+/** A steer reaches the model only as hook additionalContext: a Claude worker
+ *  whose hooks have fired at least once. Anyone else gets the inbox brief. */
+const steerable = (hive: HiveManager, id: string): boolean =>
+  turnEnded.has(id) && isClaudeProvider(hive.registry().agents[id]?.provider ?? 'claude');
 
 const label = (hive: HiveManager, id: string): string => `${hive.registry().agents[id]?.name ?? id} (${id})`;
 
@@ -136,7 +162,7 @@ export function customClosingStart(run: ClosingRun, now = Date.now()): boolean {
       parked.push(id);
       run.hive.send({ to: run.godId, act: 'inform', subject: 'CLOSING-TIME-ACK',
         body: `${label(run.hive, id)} parked by the harness: idle, clean worktree, no pending mail. Its memory.md has the closing line.` }, 'harness');
-    } else if (f.outputQuietMs < CLOSING_IDLE_MS || f.midTool) {
+    } else if (steerable(run.hive, id) && (f.outputQuietMs < CLOSING_IDLE_MS || !f.turnEnded)) {
       run.control?.steer(id, WORKER_BRIEF);
       briefed.set(id, { via: 'steer', pendingAfter: run.control?.snapshot(id).pendingSteers ?? 0 });
     } else {
@@ -181,7 +207,7 @@ export function poll(run: ClosingRun, now = Date.now()): void {
     if (b.via !== 'steer' || run.acked.has(id) || !run.control) continue;
     const pending = run.control.snapshot(id).pendingSteers;
     const quiet = now - lastOutputAt(id);
-    if (pending > 0 && pending === b.pendingAfter && quiet >= CLOSING_IDLE_MS && lastHook.get(id) !== 'PreToolUse') {
+    if (pending > 0 && pending === b.pendingAfter && quiet >= CLOSING_IDLE_MS && atTurnEnd(id)) {
       run.control.clearSteers(id);
       inboxBrief(run, id);
       briefed.set(id, { via: 'inbox', pendingAfter: 0 });
@@ -220,5 +246,5 @@ function stopTimer(): void {
 
 /** Test hook. */
 export function resetClosingState(): void {
-  stopTimer(); briefed = new Map(); allAckedSent = false; lastHook.clear(); lastOutputAt = () => 0;
+  stopTimer(); briefed = new Map(); allAckedSent = false; turnEnded.clear(); lastOutputAt = () => 0;
 }

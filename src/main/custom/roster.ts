@@ -9,10 +9,14 @@
  *    changes in a way god routes by. Every copy stays in god's transcript and
  *    is re-read on every later call, so an unchanged floor is not re-sent.
  *    Seam: the roster expression in HookServer.handle().
+ *    Claude god only (T-040): other bridges may drop SessionStart context
+ *    (agy turns it into a user-visible systemMessage), so a non-Claude god
+ *    keeps upstream's roster on every prompt.
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { costLevers } from './levers';
+import { isClaudeAgent } from './provider';
 import { toonTable, shortRole, breakerArmed } from '../../shared/custom/rosterTable';
 
 type CtxOf = (agentId: string) => { tokens: number; limit: number } | undefined;
@@ -112,7 +116,8 @@ const delivered = new Map<string, { sessionId: string | null; key: string }>();
 
 /**
  * Seam for HookServer.handle(): the roster to inject on this hook, or null.
- * Lever off → `roster` unchanged (upstream: every SessionStart and prompt).
+ * Lever off, or a non-Claude god → `roster` unchanged (upstream: every
+ * SessionStart and prompt).
  */
 export function gateRoster(
   agentId: string | undefined,
@@ -121,7 +126,7 @@ export function gateRoster(
   roster: string | null,
   key: () => string | null
 ): string | null {
-  if (!roster || !agentId || !costLevers().rosterOnChange) return roster;
+  if (!roster || !agentId || !costLevers().rosterOnChange || !isClaudeAgent(agentId)) return roster;
   const k = key() ?? roster;
   const sid = sessionId ?? null;
   const last = delivered.get(agentId);
