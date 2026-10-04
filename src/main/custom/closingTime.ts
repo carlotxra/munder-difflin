@@ -232,7 +232,7 @@ export function poll(run: ClosingRun, now = Date.now()): void {
     const pending = run.control.snapshot(id).pendingSteers;
     const reason = atTurnEnd(id) ? 'turn-end' : now - b.at >= STEER_DEADLINE_MS ? 'deadline' : null;
     if (pending > 0 && pending === b.pendingAfter && reason) {
-      run.control.clearSteers(id);
+      withdrawClosingSteers(run.control, [id]);
       inboxBrief(run, id);
       briefed.set(id, { via: 'inbox', pendingAfter: 0, at: now });
       run.hive.appendLog({ kind: 'closing-convert', agentId: id, reason, steerAgeMs: now - b.at });
@@ -245,6 +245,22 @@ export function poll(run: ClosingRun, now = Date.now()): void {
     run.hive.send({ to: run.godId, act: 'request', subject: 'CLOSING TIME — every worker has acked',
       body: 'Every worker has sent (or the harness recorded) its CLOSING-TIME-ACK. Save your own state, then send CLOSING-TIME-COMPLETE to "human".' }, 'harness');
   }
+}
+
+/** Every closing-time steer note, upstream's and ours, opens with "CLOSING TIME"
+ *  (operator/voice steers are prefixed, e.g. "[voice]"). */
+const CLOSING_STEER = /^CLOSING TIME\b/;
+
+/**
+ * T-048: withdraw the closing-time steers no hook boundary has consumed yet,
+ * and nothing else. Upstream's cancel cleared each agent's whole steer queue,
+ * so an operator's unrelated note queued for a busy agent was lost too.
+ * Steers ride hook additionalContext on every provider that has them, so this
+ * is provider-neutral; an agent with nothing queued is a no-op.
+ */
+export function withdrawClosingSteers(control: ControlRegistry | undefined, ids: Iterable<string>): void {
+  if (!control) return;
+  for (const id of ids) control.withdrawSteers(id, (n) => CLOSING_STEER.test(n));
 }
 
 /**

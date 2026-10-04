@@ -93,6 +93,16 @@ export class ControlRegistry {
   /** Drop all queued-but-undelivered steer notes (e.g. closing time cancelled
    *  before a busy agent's next hook boundary consumed the instruction). */
   clearSteers(id: string): void { const c = this.map.get(id); if (c) c.steerQueue.length = 0; }
+  /** Drop only the queued notes that `match` picks, keeping the rest in order
+   *  (fork T-048: a cancelled closing time must not eat an operator's steer). */
+  withdrawSteers(id: string, match: (note: string) => boolean): number {
+    const q = this.map.get(id)?.steerQueue;
+    if (!q) return 0;
+    const keep = q.filter((n) => !match(n));
+    const dropped = q.length - keep.length;
+    q.splice(0, q.length, ...keep);
+    return dropped;
+  }
   /** Clear pause + halt (lets a paused/halted agent run again). Keeps gates. */
   resume(id: string): void { const c = this.ensure(id); c.paused = false; c.halted = false; }
 

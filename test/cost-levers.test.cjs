@@ -424,6 +424,56 @@ test('harnessClosingTime: cancel tells the briefed workers directly, god is told
   assert.match(hive.inbox('god-1').find((m) => m.subject === 'CLOSING TIME CANCELLED').body, /do not broadcast/);
 });
 
+// — T-048: cancel withdraws pending closing-time steers, and only those —
+
+const queued = (control, id) => { const out = []; let n; while ((n = control.takeSteer(id)) !== undefined) out.push(n); return out; };
+
+test('T-048: cancel withdraws an unconsumed closing steer (busy worker and god)', async (t) => {
+  const { control, ct } = await closingFloor(t);
+  ct.start();
+  assert.equal(control.snapshot('busy-1').pendingSteers, 1);
+  assert.equal(control.snapshot('god-1').pendingSteers, 1);
+  ct.cancel();
+  assert.deepEqual(queued(control, 'busy-1'), [], 'the next hook boundary gets no CLOSING TIME');
+  assert.deepEqual(queued(control, 'god-1'), []);
+});
+
+test('T-048: cancel keeps an unrelated steer queued for the same agent', async (t) => {
+  const { control, ct } = await closingFloor(t);
+  control.steer('busy-1', '[voice] check the flaky test first');
+  ct.start();
+  control.steer('busy-1', 'operator: also bump the version');
+  ct.cancel();
+  assert.deepEqual(queued(control, 'busy-1'), ['[voice] check the flaky test first', 'operator: also bump the version']);
+});
+
+test('T-048: cancel then a quick re-press leaves exactly the new run\'s steer', async (t) => {
+  const { control, ct } = await closingFloor(t);
+  ct.start();
+  ct.cancel();
+  ct.start();
+  assert.deepEqual(queued(control, 'busy-1'), [closing.WORKER_BRIEF]);
+});
+
+test('T-048: lever off, upstream cancel withdraws its steers but keeps unrelated ones', async (t) => {
+  const { control, ct } = await closingFloor(t);
+  levers.setCostLeversSource(() => ({ costLevers: { harnessClosingTime: false } }));
+  control.steer('idle-1', 'operator note');
+  ct.start();
+  ct.cancel();
+  assert.deepEqual(queued(control, 'idle-1'), ['operator note']);
+  for (const id of ['god-1', 'dirty-1', 'busy-1']) assert.deepEqual(queued(control, id), [], id);
+});
+
+test('T-048: withdrawClosingSteers drops only CLOSING TIME notes, in order, for the named agents', () => {
+  const control = new ControlRegistry();
+  for (const n of ['a', closing.WORKER_BRIEF, '[voice] CLOSING TIME is a band', 'b']) control.steer('w-1', n);
+  control.steer('w-2', closing.WORKER_BRIEF);
+  closing.withdrawClosingSteers(control, ['w-1', 'nobody']);
+  assert.deepEqual(queued(control, 'w-1'), ['a', '[voice] CLOSING TIME is a band', 'b']);
+  assert.equal(control.snapshot('w-2').pendingSteers, 1, 'an agent not named keeps its steer');
+});
+
 // — T-040: closing time on non-Claude providers —
 
 async function mixedFloor(t) {

@@ -26,7 +26,7 @@
 import type { WebContents } from 'electron';
 import type { HiveManager, HiveMessage } from './hive';
 import type { ControlRegistry } from './control';
-import { customClosingStart, customClosingCancel } from './custom/closingTime'; // fork: T-034 cost levers
+import { customClosingStart, customClosingCancel, withdrawClosingSteers } from './custom/closingTime'; // fork: T-034 cost levers
 
 export type ClosingTimePhase =
   | 'started' | 'progress' | 'complete' | 'timeout' | 'cancelled';
@@ -156,8 +156,7 @@ export class ClosingTimeController {
     // Drop closing-time steers that no hook boundary has consumed yet, so a
     // busy agent doesn't get told to shut down AFTER the human cancelled.
     // Agents that already saw the note get corrected via the god (below).
-    this.control?.clearSteers(this.godId);
-    for (const id of this.workers) this.control?.clearSteers(id);
+    withdrawClosingSteers(this.control, [this.godId, ...this.workers]); // fork: T-048
     this.emitState('cancelled');
     if (customClosingCancel(this.hive)) return; // fork: T-034
     try {
