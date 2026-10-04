@@ -4,22 +4,48 @@ Eight fixtures (S1–S8, from T-033 §4) run headless against a throwaway hive a
 are scored with file-system and git checks. It reports pass rate, tokens and $
 per fixture, so a prompt or hook change can be A/B tested against `stable`.
 
+**Opt-in only. It spends real money.** Nothing in `npm run build`, `npm test`,
+`npm run dist*`, CI or the release workflow runs it, and its self-test is named
+`*.selftest.mjs` so no `node --test` glob picks it up.
+`test/eval-opt-in.test.cjs` enforces all of that.
+
 ```sh
-npm run eval -- --ref stable --runs 1            # smoke: 8 runs
-npm run eval -- --ref stable --runs 3 --budget 15
-npm run eval -- --ref jim-prompt-cuts --runs 3 --budget 15
-npm run eval -- --only S5,S7 --dry-run           # set up + check, no model call
-node --test eval/                                # offline test of the checks
+npm run eval -- --build stable --runs 1                    # smoke: 8 runs
+npm run eval -- --build stable --runs 3 --max-usd 15
+npm run eval -- --build jim-prompt-cuts --runs 3 --max-usd 15
+npm run eval -- --build ../some-checkout --only S5,S7
+npm run build:eval -- --runs 3 --max-usd 15                # build, then eval the working tree
+npm run eval -- --only S5,S7 --dry-run                     # set up + check, no model call
+node --test eval/checks.selftest.mjs                       # offline test of the checks
 ```
+
+Before any run it prints the estimated $ (per-fixture figures from
+`eval/estimates.json`, flat $0.50 otherwise) and the ceiling (every run hitting
+`--run-budget`). It refuses to start when the estimate is over `--max-usd`, and
+stops starting runs once the spend reaches it. A real run writes fresh medians to
+`<out>/estimates.json`; copy that over `eval/estimates.json` to sharpen the next
+estimate.
+
+### Permission modes
+
+| `--perm` | Agent runs with | Child env |
+|---|---|---|
+| `safe` (default) | `--permission-mode acceptEdits` and `--allowedTools` Read/Write/Edit/Glob/Grep/TodoWrite and `Bash(git|node|ls|mv|cp|mkdir|cat|head|tail|wc|grep|find|sed|echo|date|pwd|test|diff:*)` | allowlist: `PATH HOME USER LOGNAME SHELL TMPDIR TERM LANG LC_* ANTHROPIC_* CLAUDE_CONFIG_DIR` + the harness's `AGENT_*`/`HIVE_*` |
+| `live` | `--permission-mode bypassPermissions`, as the harness spawns agents. **For the human only** | the full parent env |
+
+In `safe` mode a tool outside the list is denied rather than prompted. Each run
+prints `denied <tool> <input>`, and the table has a Denied column, so a stall
+shows up as a denial and not as a silent fail. Compare A/B arms in the same mode.
 
 | Flag | Default | Meaning |
 |---|---|---|
-| `--ref <git ref>` | working tree | Take `src/` from this ref (`git archive`); an app build is evaluated through the ref it was built from |
-| `--src <dir>` | | Or a checkout directory |
+| `--build <dir\|ref>` | working tree | A checkout directory, or a git ref whose `src/` is taken with `git archive`. An app build is evaluated through the ref it was built from |
+| `--ref` / `--src` | | Explicit forms of `--build` |
+| `--perm safe\|live` | `safe` | See Permission modes |
 | `--runs N` | 1 | Runs per fixture |
 | `--only S1,S7` | all | Subset |
 | `--model <id>` | CLI default | `--model` for the agent |
-| `--budget $` | 8 | Total cap; remaining runs are skipped once reached |
+| `--max-usd $` | 8 | Total cap: refuses to start if the estimate is over it, skips remaining runs once reached (`--budget` is the old name) |
 | `--run-budget $` | 1.5 | `--max-budget-usd` per run |
 | `--timeout s` | 600 | Kill a run after this long |
 | `--keep` | off | Keep each run's repo and hive (otherwise only `argv.json` + `stream.jsonl`) |
@@ -40,7 +66,7 @@ Output goes to `$TMPDIR/md-eval/<ref>-<time>/`: `table.md`, `results.json`, and 
 2. `lib/repo.mjs` makes a small git repo (branch `stable`) as the agent's cwd.
 3. The fixture's memory, inbox, `.done`, `tasks.json` and `fleet.json` are
    written, then `claude -p "<inbox nudge>" --output-format stream-json
-   --permission-mode bypassPermissions <harness args>` runs in the repo. The hook
+   <perm args> <harness args>` runs in the repo. The hook
    socket does not exist, so the hooks run but are no-ops. The live hive is never
    touched.
 4. `lib/checks.mjs` asserts the outcome; `lib/usage.mjs` sums tokens per API call
