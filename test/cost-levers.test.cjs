@@ -223,7 +223,14 @@ test('mechanical mail: reports wait, anything that needs god now still wakes it'
   const mech = (m) => isMechanicalMail({ requires_reply: false, ...m }, isAgent);
   assert.equal(mech({ from: 'jim-1', act: 'inform', subject: 'CLOSING-TIME-ACK' }), true);
   assert.equal(mech({ from: 'harness', act: 'inform', subject: 'CLOSING-TIME-ACK' }), true);
-  assert.equal(mech({ from: 'jim-1', act: 'done', subject: 'T-032 done' }), true);
+  assert.equal(mech({ from: 'jim-1', act: 'inform', subject: 'started T-032' }), true, 'a plain status note waits');
+  assert.equal(mech({ from: 'jim-1', act: 'done', subject: 'T-032 done' }), false, 'T-041: done wakes');
+  const godSent = (id) => id === 'god-msg';
+  const mech2 = (m) => isMechanicalMail({ requires_reply: false, ...m }, isAgent, godSent);
+  assert.equal(mech2({ from: 'jim-1', act: 'inform', subject: 're: T-9', in_reply_to: 'god-msg' }), false, 'T-041: a reply to god wakes');
+  assert.equal(mech2({ from: 'jim-1', act: 'agree', subject: 'ok', in_reply_to: 'god-msg' }), false, '...whatever its act');
+  assert.equal(mech2({ from: 'jim-1', act: 'inform', subject: 'more', in_reply_to: 'jim-msg' }), true, 'a reply to someone else waits');
+  assert.equal(mech2({ from: 'jim-1', act: 'inform', subject: 'CLOSING-TIME-ACK', in_reply_to: 'god-msg' }), true, 'an ACK waits even as a reply');
   assert.equal(mech({ from: 'jim-1', act: 'request', subject: 'please review' }), false, 'requests wake');
   assert.equal(mech({ from: 'jim-1', act: 'query', subject: 'DECISION NEEDED: x', requires_reply: true }), false);
   assert.equal(mech({ from: 'jim-1', act: 'inform', subject: 'DECISION NEEDED: x' }), false, 'decisions wake');
@@ -243,7 +250,7 @@ test('shortNudge: shorter, and still recognised as a nudge by the queue', () => 
 
 test('digestWakes + slimHeartbeat: reports do not count as actionable, and the beat lists them', async (t) => {
   const { hive } = await floor(t);
-  hive.send({ to: 'god-1', act: 'done', subject: 'T-9 done', body: 'ok', requires_reply: false }, 'jim-1');
+  hive.send({ to: 'god-1', act: 'inform', subject: 'T-9 progress', body: 'ok', requires_reply: false }, 'jim-1');
   hive.send({ to: 'god-1', act: 'request', subject: 'need a call', body: '?' }, 'jim-1');
   const msgs = hive.inbox('god-1');
   levers.setCostLeversSource(null);
@@ -252,10 +259,30 @@ test('digestWakes + slimHeartbeat: reports do not count as actionable, and the b
   withLevers(t);
   assert.deepEqual(msgs.filter((m) => mainWake.wakesGod(hive, m)).map((m) => m.subject), ['need a call']);
   const digest = mainWake.slimHeartbeatDigest(hive, 300000, 1);
-  assert.match(digest, /Reports waiting in your inbox \(1, did not wake you\): jim-1: T-9 done/);
+  assert.match(digest, /Reports waiting in your inbox \(1, did not wake you\): jim-1: T-9 progress/);
   assert.match(digest, /Recent log: .*\(full: log\.jsonl\)/);
   assert.doesNotMatch(digest, /\{"ts":/, 'no raw log JSON');
   assert.match(digest, /Re-engage anyone stalled/);
+});
+
+test('digestWakes (T-041): done and replies to god wake god; replies to own mail and ACKs wait', async (t) => {
+  withLevers(t);
+  mainWake.resetWakeCache();
+  const { hive } = await floor(t);
+  assert.equal(hive.registry().godId, 'god-1');
+  // god sends the way it really does: a file in its outbox, routed (→ outbox/.sent).
+  const outbox = path.join(hive.root(), 'agents', 'god-1', 'outbox');
+  fs.writeFileSync(path.join(outbox, 'g1.json'), JSON.stringify({ id: 'god-req-1', from: 'god-1', to: 'jim-1', act: 'request', subject: 'T-9: do it', body: 'go' }));
+  hive.routeOnce();
+  const own = hive.send({ to: 'god-1', act: 'inform', subject: 'T-9 started', body: '', requires_reply: false }, 'jim-1');
+  const send = (m) => hive.send({ to: 'god-1', body: '', requires_reply: false, ...m }, 'jim-1');
+  send({ act: 'done', subject: 'T-9 done' });
+  send({ act: 'inform', subject: 'T-9 answer', in_reply_to: 'god-req-1' });
+  send({ act: 'inform', subject: 'T-9 follow-up', in_reply_to: own.id });
+  send({ act: 'inform', subject: 'CLOSING-TIME-ACK', in_reply_to: 'god-req-1' });
+  send({ act: 'inform', subject: 'unknown ref', in_reply_to: 'no-such-id' });
+  const woke = hive.inbox('god-1').filter((m) => mainWake.wakesGod(hive, m)).map((m) => m.subject).sort();
+  assert.deepEqual(woke, ['T-9 answer', 'T-9 done']);
 });
 
 // — closing time (J5 + F18) —

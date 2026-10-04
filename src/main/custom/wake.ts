@@ -2,7 +2,9 @@
  * Main-process wake levers (T-034). Rules in src/shared/custom/wake.ts.
  *
  *  - digestWakes (J1): the heartbeat's "actionable mail" count skips mechanical
- *    mail, so a worker's ACK or done report does not re-engage god by itself.
+ *    mail, so a worker's ACK or plain inform does not re-engage god by itself.
+ *    A reply to god's own message does (T-041): in_reply_to is resolved against
+ *    god's sent and received mail via hive.voiceMessages.
  *    The slim heartbeat lists that mail instead, so god sees it at the next beat.
  *    Seam: godActionableInboxCount() in index.ts.
  *  - shortNudge (F15): the watchdog's nudge text. Seam: nudgeWorker() in index.ts.
@@ -11,7 +13,7 @@
  */
 import type { HiveManager, HiveMessage } from '../hive';
 import { inboxNudgeText } from '../../shared/hiveNudge';
-import { isMechanicalMail, shortNudgeText } from '../../shared/custom/wake';
+import { isMechanicalMail, shortNudgeText, type SentByGod } from '../../shared/custom/wake';
 import { costLevers } from './levers';
 
 function agentPredicate(hive: HiveManager): (id: string) => boolean {
@@ -19,11 +21,33 @@ function agentPredicate(hive: HiveManager): (id: string) => boolean {
   return (id) => id === 'harness' || (!!reg.agents[id] && id !== reg.godId);
 }
 
+/** in_reply_to id → whether god sent it. Message ids are unique and a sent
+ *  message never changes sender, so answers are kept (bounded). */
+const sentByGodCache = new Map<string, boolean>();
+const CACHE_MAX = 500;
+
+function sentByGodLookup(hive: HiveManager): SentByGod {
+  const godId = hive.registry().godId;
+  return (id) => {
+    if (!godId || !id) return false;
+    const hit = sentByGodCache.get(id);
+    if (hit !== undefined) return hit;
+    // god's outbox/.sent holds what it sent; its inbox holds mail it sent to itself.
+    const yes = hive.voiceMessages({ agentId: godId, id }).some((v) => v.from === godId);
+    if (sentByGodCache.size >= CACHE_MAX) sentByGodCache.delete(sentByGodCache.keys().next().value as string);
+    sentByGodCache.set(id, yes);
+    return yes;
+  };
+}
+
 /** True when this message in god's inbox should count as a reason to wake god. */
 export function wakesGod(hive: HiveManager, m: HiveMessage): boolean {
   if (!costLevers().digestWakes) return true;
-  return !isMechanicalMail(m, agentPredicate(hive));
+  return !isMechanicalMail(m, agentPredicate(hive), sentByGodLookup(hive));
 }
+
+/** Test hook. */
+export function resetWakeCache(): void { sentByGodCache.clear(); }
 
 export function nudgeText(ids: string[]): string {
   return costLevers().shortNudge ? shortNudgeText(ids) : inboxNudgeText(ids);
@@ -34,7 +58,8 @@ function waitingReports(hive: HiveManager): HiveMessage[] {
   const godId = hive.registry().godId;
   if (!godId) return [];
   const isAgent = agentPredicate(hive);
-  return hive.inbox(godId).filter((m) => isMechanicalMail(m, isAgent));
+  const sentByGod = sentByGodLookup(hive);
+  return hive.inbox(godId).filter((m) => isMechanicalMail(m, isAgent, sentByGod));
 }
 
 /** One line for the last few log events: kinds with counts, plus the latest

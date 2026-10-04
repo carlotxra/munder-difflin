@@ -27,6 +27,24 @@ function leversNow(): CostLevers {
 const isAgent = (id: string): boolean =>
   id === 'harness' || useStore.getState().agents.some((a) => a.id === id);
 
+/** T-041: in_reply_to id → whether god sent it, resolved over the existing
+ *  hive:messages IPC (god's outbox/.sent and inbox). undefined = asked, no
+ *  answer yet. Ids are unique and immutable, so answers are kept (bounded). */
+const sentByGod = new Map<string, boolean | undefined>();
+const CACHE_MAX = 500;
+
+function resolveSentByGod(id: string): boolean | undefined {
+  if (sentByGod.has(id)) return sentByGod.get(id);
+  const god = useStore.getState().agents.find((a) => a.isGod);
+  if (!god || !window.cth.hiveMessages) return false;
+  if (sentByGod.size >= CACHE_MAX) sentByGod.delete(sentByGod.keys().next().value as string);
+  sentByGod.set(id, undefined);
+  window.cth.hiveMessages({ agentId: god.id, id })
+    .then((ms) => { sentByGod.set(id, ms.some((v) => v.from === god.id)); })
+    .catch(() => { sentByGod.set(id, false); });
+  return undefined;
+}
+
 /**
  * The fresh mail that should wake this agent. For god with digestWakes on,
  * mechanical mail is marked seen (so it never wakes god on its own) and left in
@@ -35,7 +53,10 @@ const isAgent = (id: string): boolean =>
 export function wakeWorthy<M extends MailLike>(agent: { isGod?: boolean }, fresh: M[], seen: Set<string>): M[] {
   if (!agent.isGod || !leversNow().digestWakes) return fresh;
   return fresh.filter((m) => {
-    if (!isMechanicalMail(m, isAgent)) return true;
+    // A reply whose target is still being looked up waits one loop tick: not
+    // woken, not marked seen, re-checked once the answer is in.
+    if (m.in_reply_to && resolveSentByGod(m.in_reply_to) === undefined) return false;
+    if (!isMechanicalMail(m, isAgent, (id) => sentByGod.get(id) === true)) return true;
     if (m.id) seen.add(m.id);
     return false;
   });
