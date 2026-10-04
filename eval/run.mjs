@@ -38,7 +38,11 @@ if (!['safe', 'live'].includes(o.perm)) { console.error('--perm must be safe or 
 // the agent dir and hive as additionalDirectories) and Bash is limited to what the
 // fixtures need; anything else is denied and logged per run, not prompted.
 const SAFE_TOOLS = ['Read', 'Write', 'Edit', 'Glob', 'Grep', 'TodoWrite',
-  ...['git', 'node', 'ls', 'mv', 'cp', 'mkdir', 'cat', 'head', 'tail', 'wc', 'grep', 'find', 'sed', 'echo', 'date', 'pwd', 'test', 'diff'].map((c) => `Bash(${c}:*)`)];
+  // Narrow forms only: no bare interpreter (`node`), no exec-capable `find`/`sed`;
+  // Glob/Grep/Edit cover search and edits. Bash also stays inside the OS sandbox the
+  // harness's own --settings turn on.
+  ...['status', 'diff', 'log', 'show', 'add', 'commit', 'checkout', 'switch', 'branch', 'rev-parse', 'stash', 'mv'].map((c) => `Bash(git ${c}:*)`),
+  ...['node --test', 'ls', 'mv', 'mkdir', 'cat', 'head', 'tail', 'wc', 'pwd', 'date'].map((c) => `Bash(${c}:*)`)];
 const PERM_ARGS = o.perm === 'live'
   ? ['--permission-mode', 'bypassPermissions']
   : ['--permission-mode', 'acceptEdits', '--allowedTools', SAFE_TOOLS.join(',')];
