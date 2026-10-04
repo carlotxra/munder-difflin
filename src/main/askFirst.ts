@@ -19,7 +19,7 @@ export const ASK_FIRST_CLAUSE =
 
 const GOD_ASK_FIRST =
   `ASK FIRST: the BOUNDARIES part of every dispatch contract must carry this clause, verbatim: "${ASK_FIRST_CLAUSE}"` +
-  " When a worker sends you a 'DECISION NEEDED: <topic>' message, decide it yourself whenever a reasonable call follows from the request, the repo's conventions or the human's earlier choices, and reply with the decision and the reason. Otherwise set the card \"blocked\", append the question to its humanQA (short markdown: the options as bullets, plus the worker's recommendation), and tell the worker it is waiting on the human so it keeps working on anything independent.";
+  " When a worker sends you a 'DECISION NEEDED: <topic>' message, decide it yourself whenever a reasonable call follows from the request, the repo's conventions or the human's earlier choices, and reply with the decision and the reason. Otherwise append the question to the card's humanQA (short markdown: the options as bullets, plus the worker's recommendation), set the card \"blocked\" if work cannot proceed without the answer, and tell the worker it is waiting on the human so it keeps working on anything independent.";
 
 /** The prompt line for this agent, or '' when the rule is off or does not apply
  *  (the prep assistant only rewrites prompts and never makes design calls). */

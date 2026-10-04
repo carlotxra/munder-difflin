@@ -7,6 +7,7 @@ import { Icon } from './Icon';
 import { useStore } from '@/store/store';
 import { MarkdownPreview } from '@/markdown/MarkdownPreview';
 import { useRtl } from '@/i18n/useDirection';
+import { openQuestion as openQuestionLike, waitsOnHuman as waitsOnHumanLike } from './askMeFilter';
 
 /** A card on the task kanban. Mirrors HiveTask in the main/preload process —
  *  re-declared locally so the renderer doesn't reach into the preload package
@@ -36,20 +37,15 @@ export interface HiveTask {
   humanQA?: HumanQA[];
 }
 
-/** The card's currently open question for the human, if any. An entry the human
- *  dismissed (dismissedAt) counts as resolved, same as an answered one. */
+/** The ASK ME predicates live in askMeFilter.ts (import-free, unit-tested, and
+ *  shared with the office floor). Re-exported so existing imports keep working. */
 export function openQuestion(t: HiveTask): HumanQA | undefined {
-  if (!Array.isArray(t.humanQA)) return undefined;
-  for (let i = t.humanQA.length - 1; i >= 0; i--) {
-    const e = t.humanQA[i];
-    if (e && typeof e.q === 'string' && !e.a && !e.dismissedAt) return e;
-  }
-  return undefined;
+  return openQuestionLike(t);
 }
 
-/** Waiting on the human = blocked with an unanswered question on the card. */
+/** Waiting on the human = an open question on a card that is not done. */
 export function waitsOnHuman(t: HiveTask): boolean {
-  return t.status === 'blocked' && !!openQuestion(t);
+  return waitsOnHumanLike(t);
 }
 
 type Status = HiveTask['status'];

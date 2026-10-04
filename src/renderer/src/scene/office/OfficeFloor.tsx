@@ -13,6 +13,7 @@ import { hexToNumber, DEFAULT_CHARACTER } from './cast';
 import { pickSoloLine, pickExchange, type BreakSpot } from './cafeteriaLines';
 import { officeSmallTalkEnabled } from './officeLinesOverride';
 import { colors } from '@/design/tokens';
+import { countWaitingOnHuman } from '@/components/askMeFilter';
 import { loadTheme, resolveThemeMap, themeTilesetUrls } from './themeLoader';
 import {
   installContextLossRecovery, planInitFailure, DEFAULT_MAX_INIT_RETRIES
@@ -1314,7 +1315,7 @@ export function OfficeFloor() {
       let firstPoll = true;
       const pollTaskBoard = async (): Promise<void> => {
         try {
-          const raw = await window.cth.hiveTasks() as { tasks?: Array<{ id?: string; status?: string; assignee?: string; humanQA?: Array<{ q?: string; a?: string }> }> } | null;
+          const raw = await window.cth.hiveTasks() as { tasks?: Array<{ id?: string; status?: string; assignee?: string; humanQA?: Array<{ q?: string; a?: string; dismissedAt?: string }> }> } | null;
           const arr = (raw && Array.isArray(raw.tasks)) ? raw.tasks : [];
           const ledger: LedgerTask[] = arr.map((t, i) => ({
             id: typeof t?.id === 'string' && t.id ? t.id : `idx-${i}`,
@@ -1322,11 +1323,8 @@ export function OfficeFloor() {
             assignee: typeof t?.assignee === 'string' && t.assignee ? t.assignee : undefined
           }));
           // tasks waiting on the HUMAN feed the ASK ME board's note count
-          const newAsk = arr.filter((t) =>
-            String(t?.status) === 'blocked'
-            && Array.isArray(t?.humanQA)
-            && t!.humanQA!.some((e) => e && typeof e.q === 'string' && !e.a)
-          ).length;
+          // (same predicate as the ASK ME tab, so dismissed asks stop counting)
+          const newAsk = countWaitingOnHuman(arr);
           if (newAsk !== askCount) {
             askCount = newAsk;
             drawAskBoard(askPulse);
