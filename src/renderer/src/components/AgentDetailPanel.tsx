@@ -76,6 +76,17 @@ export function AgentDetailPanel({ agent }: AgentDetailPanelProps) {
     return () => ro.disconnect();
   }, []);
   const archiveAgent = useStore(s => s.archiveAgent);
+  const openClone = useStore(s => s.openClone);
+  const editAgentRequest = useStore(s => s.editAgentRequest);
+  const clonedFromName = useStore(s => {
+    const src = agent.clonedFrom;
+    if (!src) return undefined;
+    return (s.agents.find((a) => a.id === src) ?? s.archivedAgents.find((a) => a.id === src))?.name ?? src;
+  });
+  // The strip's right-click "Edit…" asks for this agent's Edit dialog.
+  useEffect(() => {
+    if (editAgentRequest && editAgentRequest.id === agent.id) setEditOpen(true);
+  }, [editAgentRequest, agent.id]);
   const updateAgent = useStore(s => s.updateAgent);
   const renameAgent = useStore(s => s.renameAgent);
   const setFullscreen = useStore(s => s.setFullscreen);
@@ -169,7 +180,7 @@ export function AgentDetailPanel({ agent }: AgentDetailPanelProps) {
             <span style={{
               fontSize: 12, color: 'var(--cth-ink-500)',
               whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
-            }}>{agent.project}</span>
+            }}>{agent.project}{clonedFromName ? ` · ⧉ ${t('clone.cloneOf', { name: clonedFromName })}` : ''}</span>
           </div>
         </div>
         <PixelButton variant="secondary" size="sm" onClick={() => setEditOpen(true)}>
@@ -182,6 +193,19 @@ export function AgentDetailPanel({ agent }: AgentDetailPanelProps) {
             <Icon name="edit" />{!compactHeader && ' edit'}
           </span>
         </PixelButton>
+        {!agent.isAssistant && (
+          <PixelButton variant="secondary" size="sm" onClick={() => openClone(agent.id)}>
+            <span
+              className="cth-tip cth-tip-wrap"
+              data-tip={t('clone.tip', { name: agent.name })}
+              aria-label={t('clone.aria', { name: agent.name })}
+              data-testid="clone-button"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+            >
+              ⧉{!compactHeader && ` ${t('clone.button')}`}
+            </span>
+          </PixelButton>
+        )}
         {/* v0.3.4: the IDE lives at agent level (replaces the old files tab) —
             opens the full-window Monaco editor rooted at this agent's workspace. */}
         <PixelButton variant="secondary" size="sm" onClick={() => useStore.getState().setIdeOpen(true, agent.id)}>

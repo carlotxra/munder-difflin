@@ -44,6 +44,7 @@ import { preferredAgentRole } from '../shared/agentRole';
 import { mergeTaskLedger } from '../shared/taskLedger';
 import { expandTilde } from './fs';
 import { shortSockPath } from './sockPath';
+import { cloneInformBody, memorySnapshot } from '../shared/cloneAgent';
 import { resolveGodName } from '../shared/godIdentity';
 
 /** The subset of HarnessConfig the hive consumes for the default-MCP merge.
@@ -182,6 +183,8 @@ export interface RegistryAgent extends AgentMeta {
    *  (e.g. "ClaudeTerminalHarness") spawns into a nonexistent dir and fails; this
    *  flag makes that visible instead of letting it slip through silently. */
   cwdValid?: boolean;
+  /** The agent this one was cloned from (T-029). History only: nothing routes on it. */
+  clonedFrom?: string;
 }
 
 export interface Registry {
@@ -1996,6 +1999,37 @@ export class HiveManager {
   memory(id: string): string {
     const p = join(this.agentDir(id), 'memory.md');
     return existsSync(p) ? readFileSync(p, 'utf8') : '';
+  }
+
+  /** Finish a clone (T-029) once the new agent is provisioned: record
+   *  `clonedFrom`, optionally replace its fresh memory.md with a snapshot of the
+   *  source's, and optionally tell god. The source is never written to. */
+  cloneSetup(opts: { sourceId: string; newId: string; copyMemory?: boolean; tellGod?: boolean; date?: string }): { ok: boolean; error?: string } {
+    const root = this.root();
+    if (!root) return { ok: false, error: 'hive disabled' };
+    const reg = this.registry();
+    const src = reg.agents[opts.sourceId];
+    const clone = reg.agents[opts.newId];
+    if (!src) return { ok: false, error: `unknown source ${opts.sourceId}` };
+    if (!clone) return { ok: false, error: `clone ${opts.newId} is not registered` };
+    if (src.isGod || src.isAssistant) return { ok: false, error: 'this agent cannot be cloned' };
+    reg.agents[opts.newId] = { ...clone, clonedFrom: opts.sourceId };
+    this.atomicWriteJson(join(root, 'registry.json'), reg);
+    if (opts.copyMemory) {
+      const date = opts.date ?? new Date().toISOString().slice(0, 10);
+      writeFileSync(join(this.agentDir(opts.newId), 'memory.md'), memorySnapshot(this.memory(opts.sourceId), src.name, date), 'utf8');
+    }
+    this.appendLog({ kind: 'clone', agentId: opts.newId, sourceId: opts.sourceId, copyMemory: !!opts.copyMemory });
+    this.commit(`hive: clone ${opts.sourceId} → ${opts.newId}`);
+    if (opts.tellGod) {
+      this.send({
+        to: 'god',
+        act: 'inform',
+        subject: `New agent: ${clone.name} (clone of ${src.name})`,
+        body: cloneInformBody(clone.name, src.name)
+      }, 'human');
+    }
+    return { ok: true };
   }
   /** Whether an agent has recorded NON-TRIVIAL memory — i.e. has appended real
    *  notes beyond the boilerplate header ensureAgent seeds. Lets the voice

@@ -770,6 +770,13 @@ const api = {
    *  keep running; Michael is told to stop routing work to them. */
   hiveSetAgentHold: (id: string, hold: boolean): Promise<{ ok: boolean; onHold?: boolean; error?: string }> =>
     ipcRenderer.invoke('hive:setAgentHold', id, hold),
+  /** Finish a clone (T-029): record clonedFrom, optional memory snapshot and god
+   *  inform. `provision` registers a clone created stopped (no terminal). */
+  hiveCloneSetup: (opts: {
+    sourceId: string; newId: string; copyMemory?: boolean; tellGod?: boolean;
+    provision?: { id: string; name: string; cwd: string; provider?: AgentProvider; role?: string; capabilities?: string[] };
+  }): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('hive:cloneSetup', opts),
   hiveBoard: (): Promise<string> => ipcRenderer.invoke('hive:board'),
   hiveTasks: (): Promise<unknown> => ipcRenderer.invoke('hive:tasks'),
   hiveLog: (n?: number): Promise<unknown[]> => ipcRenderer.invoke('hive:log', n ?? 200),

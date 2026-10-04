@@ -1435,5 +1435,54 @@
       "dash": "A model id can't start with \"-\".",
       "tooLong": "That's too long for a model id (max {{max}} characters)."
     }
+  },
+  "clone": {
+    "title": "CLONE AGENT",
+    "banner": "Cloning {{name}} ({{id}}, {{engine}}). Every field below comes from {{name}}. Change anything before you hire.",
+    "section": {
+      "label": "Clone options",
+      "hint": "memory · start · tell god"
+    },
+    "tag": {
+      "copied": "copied",
+      "changed": "changed",
+      "check": "check",
+      "notCopied": "not copied"
+    },
+    "errNameTaken": "{{name}} is already on the floor. Pick another name.",
+    "errFolderMissing": "The source's folder is missing. Pick another folder.",
+    "isolationLocked": "{{name}} works in their own worktree, so the clone always gets a new one. Two agents in one checkout overwrite each other's changes.",
+    "copyMemory": "Copy {{name}}'s memory (memory.md)",
+    "copyMemoryHint": "A one-time snapshot whose first line says where it came from. After that the two memories drift apart.",
+    "copyInbox": "Copy inbox",
+    "copyInboxHint": "Not offered: messages addressed to the source would be handled twice.",
+    "afterHiring": "After hiring",
+    "startNow": "Start now",
+    "startNowHint": "Open the terminal and join the floor.",
+    "createStopped": "Create stopped",
+    "createStoppedHint": "Add it to the roster without a terminal. Start it later with Restore.",
+    "tellGod": "Tell the orchestrator",
+    "tellGodHint": "Sends an inform message so the clone can get work right away.",
+    "tokenCap": "Token cap",
+    "hire": "hire clone",
+    "toast": "⧉ {{name}} hired, cloned from {{source}}",
+    "toastWorktree": " · worktree {{branch}}",
+    "toastStopped": "⧉ {{name}} created (stopped), cloned from {{source}}. Start it with Restore.",
+    "stoppedAction": "stopped — start with Restore",
+    "cloneOf": "clone of {{name}}",
+    "tip": "Clone {{name}}: a new agent with the same engine, folder and briefing. You review every field before it is hired.",
+    "aria": "Clone {{name}}",
+    "button": "clone",
+    "blockedGod": "There is one orchestrator per floor.",
+    "blockedAssistant": "The prep assistant cannot be cloned."
+  },
+  "cardMenu": {
+    "openTerminal": "Open terminal",
+    "edit": "Edit…",
+    "clone": "Clone…",
+    "editNote": "Edit note",
+    "hold": "Hold (1:1 with me)",
+    "endHold": "End 1:1",
+    "kill": "Kill & archive"
   }
 }

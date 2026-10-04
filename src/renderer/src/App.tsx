@@ -14,6 +14,7 @@ import { MemoryPanel } from '@/components/MemoryPanel';
 import { AgentDetailPanel } from '@/components/AgentDetailPanel';
 import { AgentStrip } from '@/components/AgentStrip';
 import { AddAgentModal } from '@/components/AddAgentModal';
+import { Toast } from '@/components/Toast';
 import { MichaelBooting } from '@/components/MichaelBooting';
 import { OnboardingWizard } from '@/components/OnboardingWizard';
 import { HivePicker } from '@/components/HivePicker';
@@ -47,6 +48,8 @@ export function App() {
   const agentCount = agents.length;
   const bootingGodName = useResolvedGodName();
   const addAgentOpen = useStore(s => s.addAgentOpen);
+  const cloneSourceId = useStore(s => s.cloneSourceId);
+  const closeClone = useStore(s => s.closeClone);
   const setAddAgentOpen = useStore(s => s.setAddAgentOpen);
   const clearPendingHires = useStore(s => s.clearPendingHires);
   const godStatus = useStore(s => s.godStatus);
@@ -483,6 +486,18 @@ export function App() {
           onConfigChange={setConfig}
         />
       )}
+
+      {cloneSourceId && (
+        <AddAgentModal
+          key={cloneSourceId}
+          cloneSourceId={cloneSourceId}
+          onClose={closeClone}
+          config={config}
+          onConfigChange={setConfig}
+        />
+      )}
+
+      <Toast />
 
       {settingsOpen && (
         <SettingsModal

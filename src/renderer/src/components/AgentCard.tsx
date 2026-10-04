@@ -45,6 +45,8 @@ export interface AgentCardProps {
   /** Opens the note editor (the strip owns the editing overlay). When set, the
    *  card shows a small ✎ affordance on its note row. */
   onEditNote?: () => void;
+  /** "clone of Jim" (T-029): appended to the idle info line and the tooltip. */
+  cloneOfLabel?: string;
 }
 
 const fmtK = (n: number): string => `${Math.round(n / 1000)}k`;
@@ -57,7 +59,7 @@ const fmtK = (n: number): string => `${Math.round(n / 1000)}k`;
 export function AgentCard({
   name, character, accent, status, ptyId, project, action, progress = 0,
   contextTokens, contextLimit, selected, isGod, onClick, onRename,
-  doingCount = 0, onTaskNoteClick, draggable, note, onEditNote
+  doingCount = 0, onTaskNoteClick, draggable, note, onEditNote, cloneOfLabel
 }: AgentCardProps) {
   const { t } = useTranslation();
   const [hover, setHover] = useState(false);
@@ -125,7 +127,8 @@ export function AgentCard({
     .filter(Boolean).join(', ') || 'none';
 
   // One context line: what it's DOING while working, WHERE it lives while idle.
-  const infoLine = (status !== 'idle' && action) ? action : project;
+  const idleLine = cloneOfLabel ? `${project} · ⧉ ${cloneOfLabel}` : project;
+  const infoLine = (status !== 'idle' && action) ? action : idleLine;
   const noteFirstLine = (note ?? '').split('\n').find((l) => l.trim()) ?? '';
 
   return (
@@ -232,7 +235,7 @@ export function AgentCard({
 
             {/* Context line: action while working, repo while idle. */}
             <div
-              title={`${project}${action && status !== 'idle' ? ` — ${action}` : ''}`}
+              title={`${idleLine}${action && status !== 'idle' ? ` — ${action}` : ''}`}
               style={{
                 fontSize: 11, lineHeight: '14px',
                 color: 'var(--cth-ink-500)',

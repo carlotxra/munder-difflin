@@ -3546,6 +3546,20 @@ ipcMain.handle('hive:setArchived', (_evt, id: unknown, archived: unknown) => {
   hive.setArchived(id, archived === true);
   return { ok: true };
 });
+ipcMain.handle('hive:cloneSetup', async (_evt, opts: unknown) => {
+  if (!opts || typeof opts !== 'object') return { ok: false, error: 'invalid clone options' };
+  const o = opts as { sourceId?: unknown; newId?: unknown; copyMemory?: unknown; tellGod?: unknown; provision?: unknown };
+  if (typeof o.sourceId !== 'string' || typeof o.newId !== 'string') return { ok: false, error: 'invalid clone ids' };
+  if (!hive.enabled()) return { ok: false, error: 'hive disabled (no harnessHome)' };
+  // "Create stopped" (T-029): register the clone without a terminal so its
+  // memory, mailbox and registry entry exist before it first starts.
+  if (o.provision && typeof o.provision === 'object') {
+    const p = o.provision as Partial<AgentMeta>;
+    if (p.id !== o.newId || typeof p.name !== 'string' || typeof p.cwd !== 'string') return { ok: false, error: 'invalid provision meta' };
+    await hive.ensureAgent({ id: p.id, name: p.name, cwd: p.cwd, provider: p.provider, role: p.role, capabilities: p.capabilities });
+  }
+  return hive.cloneSetup({ sourceId: o.sourceId, newId: o.newId, copyMemory: o.copyMemory === true, tellGod: o.tellGod === true });
+});
 ipcMain.handle('hive:patchAgentRole', (_evt, id: unknown, role: unknown) => {
   if (typeof id !== 'string') return { ok: false, error: 'invalid id' };
   if (typeof role !== 'string') return { ok: false, error: 'invalid role' };

@@ -108,6 +108,11 @@ export interface Agent {
    *  positional seed. useHive types it once after boot-grace then clears it.
    *  Ephemeral spawn state — not persisted. (ondev-b) */
   seedPrompt?: string;
+  /** Id of the agent this one was cloned from (T-029); shown as "clone of X". */
+  clonedFrom?: string;
+  /** A clone created stopped from an isolated source: its first start must cut
+   *  a NEW worktree instead of running in the project folder (T-029). */
+  isolateOnStart?: boolean;
 }
 
 export interface FeedEntry {
@@ -261,6 +266,18 @@ interface State {
    *  count pill without polling the ledger again. */
   askMeCount: number;
   setAskMeCount: (n: number) => void;
+  /** Clone agent (T-029): the source being cloned, or null when the dialog is closed. */
+  cloneSourceId: string | null;
+  openClone: (id: string) => void;
+  closeClone: () => void;
+  /** Ask the agent detail panel to open its Edit dialog (from the strip menu). */
+  editAgentRequest: { id: string; seq: number } | null;
+  requestEditAgent: (id: string) => void;
+  /** One short transient notice at the bottom of the window. */
+  toast: { text: string; seq: number } | null;
+  showToast: (text: string) => void;
+  /** Add an agent that exists but has no terminal yet (a clone created stopped). */
+  addRestorableAgent: (agent: Agent) => void;
   /** Unsent composer drafts, per agent — so switching agents (which remounts the
    *  composer) doesn't eat what the user was typing. */
   drafts: Record<string, string>;
@@ -878,6 +895,20 @@ export const useStore = create<State>((set, get) => ({
     set((s) => ({ answerDrafts: { ...s.answerDrafts, [taskId]: text } })),
   askMeCount: 0,
   setAskMeCount: (n) => set((s) => (s.askMeCount === n ? s : { askMeCount: n })),
+  cloneSourceId: null,
+  openClone: (id) => set({ cloneSourceId: id }),
+  closeClone: () => set({ cloneSourceId: null }),
+  editAgentRequest: null,
+  requestEditAgent: (id) =>
+    set((s) => ({ editAgentRequest: { id, seq: (s.editAgentRequest?.seq ?? 0) + 1 } })),
+  toast: null,
+  showToast: (text) => set((s) => ({ toast: { text, seq: (s.toast?.seq ?? 0) + 1 } })),
+  addRestorableAgent: (agent) =>
+    set((s) => {
+      const restorableAgents = [...s.restorableAgents.filter((r) => r.id !== agent.id), agent];
+      persistRestorable(restorableAgents);
+      return { restorableAgents };
+    }),
   drafts: {},
   setDraft: (agentId, text) =>
     set((s) => ({ drafts: { ...s.drafts, [agentId]: text } })),

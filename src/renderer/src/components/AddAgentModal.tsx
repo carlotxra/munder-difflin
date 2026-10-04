@@ -31,6 +31,7 @@ import {
   isClaudeProvider
 } from '@/store/config';
 import { useRtl } from '@/i18n/useDirection';
+import { buildCloneDraft, nameClash, type CloneDraft, type CloneTag } from '@shared/cloneAgent';
 
 const ACCENTS: AccentColorName[] = ['coral', 'mint', 'sky', 'lemon', 'lilac', 'peach'];
 
@@ -119,13 +120,15 @@ Repos, tools, style, or constraints to respect:
 // Command (it's the spawn command assembled from provider+model+flags); Workspace
 // clusters Folder + Git isolation + Resume (all "where/how it runs"). Capabilities
 // isn't a field here — it rides an imported hire manifest (the pinned banner).
-type SectionKey = 'identity' | 'workspace' | 'engine' | 'briefing';
+type SectionKey = 'identity' | 'workspace' | 'engine' | 'briefing' | 'clone';
 const SECTIONS: { key: SectionKey; labelKey: string; hintKey: string }[] = [
   { key: 'identity',  labelKey: 'addAgent.sections.identity.label',  hintKey: 'addAgent.sections.identity.hint' },
   { key: 'workspace', labelKey: 'addAgent.sections.workspace.label', hintKey: 'addAgent.sections.workspace.hint' },
   { key: 'engine',    labelKey: 'addAgent.sections.engine.label',    hintKey: 'addAgent.sections.engine.hint' },
   { key: 'briefing',  labelKey: 'addAgent.sections.briefing.label',  hintKey: 'addAgent.sections.briefing.hint' }
 ];
+/** Clone mode only (T-029): memory · start · tell god. */
+const CLONE_SECTION = { key: 'clone' as const, labelKey: 'clone.section.label', hintKey: 'clone.section.hint' };
 
 function basename(path: string): string {
   return path.split('/').filter(Boolean).pop() ?? path;
@@ -141,9 +144,12 @@ export interface AddAgentModalProps {
   /** Lift config changes (e.g. a project registered from this modal) back up to
    *  App so the rest of the UI — and the next time this modal opens — sees them. */
   onConfigChange?: (config: HarnessConfig) => void;
+  /** Clone mode (T-029): pre-fill every field from this agent (active or
+   *  archived) and add the Clone options section. */
+  cloneSourceId?: string;
 }
 
-export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModalProps) {
+export function AddAgentModal({ onClose, config, onConfigChange, cloneSourceId }: AddAgentModalProps) {
   const { t: tr } = useTranslation();
   const rtl = useRtl();
   const addAgent = useStore(s => s.addAgent);
@@ -152,7 +158,26 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
   const hireQueue = useStore(s => s.hireQueue);
   const enqueuePendingHires = useStore(s => s.enqueuePendingHires);
   const finishPendingHire = useStore(s => s.finishPendingHire);
-  const pendingHire = hireQueue.pending[0];
+  // Clone mode wins over a queued hire: the user asked for this clone explicitly.
+  const pendingHire = cloneSourceId ? undefined : hireQueue.pending[0];
+  // Snapshot the source and the draft once, at open: later floor changes must
+  // not rewrite fields the user is editing.
+  const [cloneSrc] = useState<Agent | undefined>(() => {
+    if (!cloneSourceId) return undefined;
+    const st = useStore.getState();
+    return st.agents.find((a) => a.id === cloneSourceId) ?? st.archivedAgents.find((a) => a.id === cloneSourceId);
+  });
+  const [draft] = useState<CloneDraft | null>(() => {
+    if (!cloneSrc) return null;
+    const active = useStore.getState().agents.filter((a) => !a.archived);
+    return buildCloneDraft(cloneSrc, {
+      activeNames: active.map((a) => a.name),
+      usedAccents: active.map((a) => a.accent),
+      accents: ACCENTS,
+      tokenCap: config.agentTokenCaps?.[cloneSrc.id]
+    });
+  });
+  const cloning = !!draft && !!cloneSrc;
   const reviewProgress = hireQueueProgress(hireQueue);
 
   const knownCharacter = (c?: string): OfficeCharacterName =>
@@ -189,22 +214,25 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
   const initialProvider = inferAgentProvider(config.defaultCommand);
   const initialModel = isClaudeProvider(initialProvider) ? config.defaultModel : undefined;
 
-  const [name, setName] = useState(pendingHire?.name ?? 'Jim');
-  const [character, setCharacter] = useState<OfficeCharacterName>(knownCharacter(pendingHire?.character));
-  const [accent, setAccent] = useState<AccentColorName>(knownAccent(pendingHire?.accent));
-  const [cwd, setCwd] = useState<string>(config.registeredRepos[0] ?? '');
+  const [name, setName] = useState(draft?.name ?? pendingHire?.name ?? 'Jim');
+  const [character, setCharacter] = useState<OfficeCharacterName>(knownCharacter(draft?.character ?? pendingHire?.character));
+  const [accent, setAccent] = useState<AccentColorName>(knownAccent(draft?.accent ?? pendingHire?.accent));
+  const [cwd, setCwd] = useState<string>(draft ? draft.cwd : (config.registeredRepos[0] ?? ''));
   // Local mirror of the registered projects so one added from here shows as a
   // quick-pick immediately (the `config` prop is a snapshot taken at open time).
   const [repos, setRepos] = useState<string[]>(config.registeredRepos);
-  const [provider, setProvider] = useState<AgentProvider>(pendingHire?.provider ?? initialProvider);
+  const [provider, setProvider] = useState<AgentProvider>(
+    (draft?.provider as AgentProvider | undefined) ?? pendingHire?.provider ?? initialProvider
+  );
   const [model, setModel] = useState<string | undefined>(
-    pendingHire ? pendingHire.model : initialModel
+    draft ? draft.model : pendingHire ? pendingHire.model : initialModel
   );
   const [command, setCommand] = useState(
-    pendingHire ? hireCommand(pendingHire) : buildSpawnCommand(config, initialModel, initialProvider)
+    draft?.command
+      || (pendingHire ? hireCommand(pendingHire) : buildSpawnCommand(config, draft ? draft.model : initialModel, (draft?.provider as AgentProvider | undefined) ?? initialProvider))
   );
-  const [description, setDescription] = useState(pendingHire?.description ?? 'a fresh harness');
-  const [hireMeta, setHireMeta] = useState<HireManifest | null>(pendingHire);
+  const [description, setDescription] = useState(draft ? draft.description : (pendingHire?.description ?? 'a fresh harness'));
+  const [hireMeta, setHireMeta] = useState<HireManifest | null>(pendingHire ?? null);
 
   // Picking a model rebuilds the command; the command field stays editable for
   // power users (it's the source of truth for the actual spawn).
@@ -237,8 +265,49 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
     setCommand(buildSpawnCommand(config, nextModel, id));
   };
   const preset = providerPreset(provider);
-  const [goal, setGoal] = useState(pendingHire?.goal ?? '');
-  const [isolate, setIsolate] = useState(pendingHire?.isolate ?? false);
+  const [goal, setGoal] = useState(draft ? draft.goal : (pendingHire?.goal ?? ''));
+  const [isolate, setIsolate] = useState(draft ? draft.isolate : (pendingHire?.isolate ?? false));
+  // Clone options (T-029). Memory is opt-in; start now and tell god default on.
+  const [copyMemory, setCopyMemory] = useState(draft?.copyMemory ?? false);
+  const [startNow, setStartNow] = useState(draft?.startNow ?? true);
+  const [tellGod, setTellGod] = useState(draft?.tellGod ?? true);
+  // Registry-only facts about the source (role, capabilities, folder validity).
+  const [cloneRole, setCloneRole] = useState<string | undefined>(draft?.role);
+  const [cloneCaps, setCloneCaps] = useState<string[] | undefined>(draft?.capabilities);
+  const [cwdMissing, setCwdMissing] = useState(draft?.cwdMissing ?? false);
+  useEffect(() => {
+    if (!cloneSrc) return;
+    let alive = true;
+    window.cth.hiveRegistry?.().then((reg) => {
+      if (!alive) return;
+      const r = (reg as { agents?: Record<string, { role?: string; capabilities?: string[]; cwdValid?: boolean }> })?.agents?.[cloneSrc.id];
+      if (!r) return;
+      if (r.role) setCloneRole(r.role);
+      if (Array.isArray(r.capabilities)) setCloneCaps(r.capabilities);
+      if (r.cwdValid === false) {
+        setCwdMissing(true);
+        setCwd((c) => (c === cloneSrc.cwd ? '' : c));
+      }
+    }).catch(() => { /* no hive: the form still works from the floor record */ });
+    return () => { alive = false; };
+  }, [cloneSrc]);
+  // An isolated source RUNS in its worktree, so its cwd is that worktree. The
+  // clone must start from the PROJECT folder and cut its own worktree off the
+  // project's branch, never off the source's (approved Q3), so follow the
+  // worktree back to its main checkout.
+  useEffect(() => {
+    if (!cloneSrc?.worktreePath) return;
+    let alive = true;
+    window.cth.gitMainRepo?.(cloneSrc.worktreePath).then((main) => {
+      if (alive && main) setCwd((c) => (c === cloneSrc.cwd || c === cloneSrc.worktreePath ? main : c));
+    }).catch(() => { /* keep the recorded folder */ });
+    return () => { alive = false; };
+  }, [cloneSrc]);
+  const tagFor = (field: string): CloneTag | undefined => {
+    if (!draft) return undefined;
+    if (field === 'project' && cwdMissing && !cwd) return 'check';
+    return draft.tags[field];
+  };
   // #2 — optional Claude session id to continue. When set, the spawn seeds that
   // session's transcript into the cwd's project dir and launches `--resume`.
   const [resumeSessionId, setResumeSessionId] = useState('');
@@ -394,17 +463,71 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
     advanceHireReview();
   };
 
+  /** After a clone is registered: clonedFrom, memory snapshot, god inform, toast. */
+  const finishClone = async (id: string, newName: string, worktreePath?: string): Promise<void> => {
+    if (!cloneSrc) return;
+    try {
+      const r = await window.cth.hiveCloneSetup({ sourceId: cloneSrc.id, newId: id, copyMemory, tellGod });
+      if (!r.ok) console.warn('[clone] setup failed:', r.error);
+    } catch (e) { console.warn('[clone] setup failed:', e); }
+    const where = worktreePath ? tr('clone.toastWorktree', { branch: `agent/${basename(worktreePath)}` }) : '';
+    useStore.getState().showToast(tr('clone.toast', { name: newName, source: cloneSrc.name }) + where);
+  };
+
+  /** "Create stopped" (T-029): register the clone without a terminal and park it
+   *  on the restorable list; Restore starts it later, cutting its own worktree
+   *  first when the source had one. */
+  const submitStoppedClone = async (id: string): Promise<void> => {
+    if (!cloneSrc) return;
+    const res = await window.cth.hiveCloneSetup({
+      sourceId: cloneSrc.id, newId: id, copyMemory, tellGod,
+      provision: { id, name: name.trim(), cwd, provider, role: cloneRole ?? (description.trim() || undefined), capabilities: cloneCaps }
+    }).catch((e: unknown) => ({ ok: false, error: e instanceof Error ? e.message : String(e) }));
+    if (!res.ok) { setBusy(false); setError(res.error ?? 'clone failed'); return; }
+    const agent: Agent = {
+      id,
+      name: name.trim(),
+      character,
+      accent,
+      description: description.trim() || 'a fresh harness',
+      project: basename(cwd),
+      tmuxTarget: '',
+      cwd,
+      goal: goal.trim() || undefined,
+      status: 'idle',
+      action: tr('clone.stoppedAction'),
+      progress: 0,
+      currentStation: 'desk',
+      command: command.trim(),
+      provider,
+      model,
+      clonedFrom: cloneSrc.id,
+      isolateOnStart: isolate || undefined
+    };
+    useStore.getState().addRestorableAgent(agent);
+    if (draft?.tokenCap) {
+      try { onConfigChange?.(await window.cth.setAgentTokenCap(id, draft.tokenCap)); } catch { /* best-effort */ }
+    }
+    useStore.getState().showToast(tr('clone.toastStopped', { name: agent.name, source: cloneSrc.name }));
+    setBusy(false);
+    onClose();
+  };
+
   const submit = async () => {
     setError(undefined);
     // A required field can live in a section the user hasn't opened, so jump to
     // the offending section as we surface the error — the field is never hidden.
     if (!name.trim()) { setError(tr('addAgent.errName')); setSection('identity'); return; }
-    if (!cwd) { setError(tr('addAgent.errFolder')); setSection('workspace'); return; }
+    if (cloning && nameClash(name, useStore.getState().agents.filter((a) => !a.archived).map((a) => a.name))) {
+      setError(tr('clone.errNameTaken', { name: name.trim() })); setSection('identity'); return;
+    }
+    if (!cwd) { setError(cloning && cwdMissing ? tr('clone.errFolderMissing') : tr('addAgent.errFolder')); setSection('workspace'); return; }
     if (!command.trim()) { setError(tr('addAgent.errCommand')); setSection('engine'); return; }
 
     setBusy(true);
     const id = uniqueId(name);
     const ptyId = `pty-${id}`;
+    if (cloning && !startNow) { await submitStoppedClone(id); return; }
     // Split the editable command field into argv-style pieces for node-pty.
     // Quote-aware so an agy model label like "Gemini 3.1 Pro (High)" — or any
     // auto-mode flags appended to the command — stays one argument.
@@ -429,9 +552,10 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
         name: name.trim(),
         provider,
         cwd,
-        role: description.trim() || undefined,
-        // A hire manifest may carry validated capability tags (routing hints).
-        capabilities: hireMeta?.capabilities
+        role: (cloning ? cloneRole : undefined) ?? (description.trim() || undefined),
+        // A hire manifest may carry validated capability tags (routing hints);
+        // a clone carries its source's.
+        capabilities: cloning ? cloneCaps : hireMeta?.capabilities
       }
     });
     if (!spawnRes.ok) {
@@ -480,9 +604,11 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
       // Crush (seedDelivery:'type-into-tui') hands its hive protocol back here
       // instead of on argv; useHive types it into the TUI after boot. (ondev-b)
       seedPrompt: spawnRes.seedPrompt,
+      clonedFrom: cloneSrc?.id,
       recentTextTs: Date.now()
     };
     addAgent(agent);
+    if (cloning && cloneSrc) await finishClone(id, agent.name, spawnRes.worktreePath);
     // Remember the folder for the next hire: promote it to the front of the
     // registeredRepos quick-picks (the modal's default cwd) so back-to-back
     // hires land in the same project without re-picking.
@@ -496,9 +622,10 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
     // A hire manifest may carry a per-agent token budget — apply it to the
     // latest agentTokenCaps map in main. Await it before advancing a batch: the
     // next hire reuses this mounted modal and must not race a stale config write.
-    if (hireMeta?.tokenCap) {
+    const tokenCap = cloning ? draft?.tokenCap : hireMeta?.tokenCap;
+    if (tokenCap) {
       try {
-        const updated = await window.cth.setAgentTokenCap(id, hireMeta.tokenCap);
+        const updated = await window.cth.setAgentTokenCap(id, tokenCap);
         onConfigChange?.(updated);
       } catch { /* best-effort */ }
     }
@@ -525,7 +652,7 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
       <div onClick={(e) => e.stopPropagation()} style={{ width: 940, maxWidth: '95vw' }}>
         <PixelPanel
           variant="dialog"
-          title={tr('addAgent.title')}
+          title={cloning ? tr('clone.title') : tr('addAgent.title')}
           style={{ padding: 16 }}
           noPadding
         >
@@ -536,6 +663,16 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
               around the section pane. maxHeight keeps the dialog within the
               viewport (title bar stays pinned). */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 16, maxHeight: '86vh', overflowY: 'auto' }}>
+            {cloning && cloneSrc && (
+              <div data-testid="clone-banner" style={{
+                padding: '6px 10px',
+                background: 'var(--cth-lilac-light)',
+                boxShadow: 'inset 0 0 0 1px var(--cth-lilac)',
+                fontSize: 12, color: 'var(--cth-ink-900)'
+              }}>
+                ⧉ {tr('clone.banner', { name: cloneSrc.name, id: cloneSrc.id, engine: [cloneSrc.provider, cloneSrc.model].filter(Boolean).join(' · ') || '—' })}
+              </div>
+            )}
             {hireMeta && (
               <div style={{
                 padding: '6px 10px',
@@ -640,7 +777,7 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
               {/* LEFT — section index. Capabilities isn't a nav item: it isn't a
                   user field, it rides the imported hire manifest (banner above). */}
               <nav style={{ width: 168, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {SECTIONS.map((s, i) => {
+                {(cloning ? [...SECTIONS, CLONE_SECTION] : SECTIONS).map((s, i) => {
                   const active = section === s.key;
                   return (
                     <button
@@ -675,7 +812,7 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
               <div style={{ flex: 1, minWidth: 0, minHeight: 260, display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {section === 'identity' && (
                   <>
-                    <Row label={tr('addAgent.name')}>
+                    <Row label={tr('addAgent.name')} tag={tagFor('name')}>
                       <input
                         value={name}
                         onChange={(e) => {
@@ -689,7 +826,7 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
                       />
                     </Row>
 
-                    <Row label={tr('addAgent.character')}>
+                    <Row label={tr('addAgent.character')} tag={tagFor('character')}>
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                         {OFFICE_CAST.map(c => (
                           <button
@@ -716,7 +853,7 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
                       </div>
                     </Row>
 
-                    <Row label={tr('addAgent.color')}>
+                    <Row label={tr('addAgent.color')} tag={tagFor('color')}>
                       <div style={{ display: 'flex', gap: 6 }}>
                         {ACCENTS.map(a => (
                           <button
@@ -741,7 +878,7 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
 
                 {section === 'workspace' && (
                   <>
-                    <Row label={tr('addAgent.project')}>
+                    <Row label={tr('addAgent.project')} tag={tagFor('project')}>
                       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
                         <span style={{ fontSize: 12, color: 'var(--cth-ink-500)' }}>
                           {repos.length > 0 ? tr('addAgent.pickProject') : tr('addAgent.noProjects')}
@@ -846,16 +983,22 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
                       <input
                         type="checkbox"
                         checked={resuming ? false : isolate}
-                        disabled={resuming}
+                        disabled={resuming || !!draft?.isolateLocked}
                         onChange={(e) => setIsolate(e.target.checked)}
                         style={{ width: 16, height: 16, cursor: resuming ? 'not-allowed' : 'pointer' }}
                       />
                       <span style={{ fontFamily: 'var(--cth-font-ui)', fontSize: 13, color: 'var(--cth-ink-900)' }}>
                         {tr('addAgent.gitIsolation')}
                       </span>
+                      {tagFor('isolation') && <CloneTagPill tag={tagFor('isolation')!} />}
                     </label>
+                    {draft?.isolateLocked && (
+                      <span style={{ fontSize: 12, color: 'var(--cth-ink-500)', lineHeight: '16px' }}>
+                        {tr('clone.isolationLocked', { name: cloneSrc?.name ?? '' })}
+                      </span>
+                    )}
 
-                    <Row label={tr('addAgent.resumeSession')}>
+                    <Row label={tr('addAgent.resumeSession')} tag={tagFor('resumeSession')}>
                       <input
                         value={resumeSessionId}
                         onChange={(e) => { setResumeSessionId(e.target.value); setFolderNote(undefined); }}
@@ -879,7 +1022,7 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
 
                 {section === 'engine' && (
                   <>
-                    <Row label={tr('addAgent.provider')}>
+                    <Row label={tr('addAgent.provider')} tag={tagFor('provider')}>
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                         {AGENT_PROVIDER_PRESETS.map((p) => {
                           const active = provider === p.id;
@@ -915,7 +1058,7 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
                       </div>
                     </Row>
 
-                    {preset.supportsModel && <Row label={tr('addAgent.model')}>
+                    {preset.supportsModel && <Row label={tr('addAgent.model')} tag={tagFor('model')}>
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                         {(() => {
                           // An imported hire may name a model newer than this picker's
@@ -1043,7 +1186,7 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
                       </div>
                     )}
 
-                    <Row label={config.autoMode && preset.autoFlag ? tr('addAgent.commandAuto') : tr('addAgent.command')}>
+                    <Row label={config.autoMode && preset.autoFlag ? tr('addAgent.commandAuto') : tr('addAgent.command')} tag={tagFor('command')}>
                       <input
                         value={command}
                         onChange={(e) => setCommand(e.target.value)}
@@ -1085,7 +1228,7 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
                       </div>
                     </Row>
 
-                    <Row label={tr('addAgent.description')}>
+                    <Row label={tr('addAgent.description')} tag={tagFor('description')}>
                       <input
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
@@ -1094,7 +1237,7 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
                       />
                     </Row>
 
-                    <Row label={tr('addAgent.goal')}>
+                    <Row label={tr('addAgent.goal')} tag={tagFor('goal')}>
                       <textarea
                         dir={rtl ? 'auto' : undefined}
                         value={goal}
@@ -1104,6 +1247,29 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
                         style={{ ...inputStyle, fontFamily: 'var(--cth-font-ui)', resize: 'none' }}
                       />
                     </Row>
+                  </>
+                )}
+                {section === 'clone' && cloning && (
+                  <>
+                    <CloneOption
+                      checked={copyMemory}
+                      onChange={setCopyMemory}
+                      title={tr('clone.copyMemory', { name: cloneSrc?.name ?? '' })}
+                      hint={tr('clone.copyMemoryHint', { name: cloneSrc?.name ?? '' })}
+                    />
+                    <CloneOption checked={false} disabled title={tr('clone.copyInbox')} hint={tr('clone.copyInboxHint')} />
+                    <Row label={tr('clone.afterHiring')}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <CloneOption radio checked={startNow} onChange={() => setStartNow(true)} title={tr('clone.startNow')} hint={tr('clone.startNowHint')} />
+                        <CloneOption radio checked={!startNow} onChange={() => setStartNow(false)} title={tr('clone.createStopped')} hint={tr('clone.createStoppedHint')} />
+                      </div>
+                    </Row>
+                    <CloneOption checked={tellGod} onChange={setTellGod} title={tr('clone.tellGod')} hint={tr('clone.tellGodHint')} />
+                    {draft?.tokenCap ? (
+                      <Row label={tr('clone.tokenCap')} tag="copied">
+                        <span style={{ fontSize: 13, color: 'var(--cth-ink-900)' }}>{draft.tokenCap.toLocaleString()}</span>
+                      </Row>
+                    ) : null}
                   </>
                 )}
               </div>
@@ -1122,7 +1288,7 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
             )}
 
             {/* Import-hire explainer + AI prompt generator (item 7) */}
-            <div style={{
+            {!cloning && <div style={{
               padding: '8px 10px',
               background: 'var(--cth-cream-100)',
               boxShadow: 'inset 0 0 0 1px var(--cth-ink-300)',
@@ -1169,10 +1335,10 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
                   </div>
                 </div>
               )}
-            </div>
+            </div>}
 
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
-              <PixelButton
+              {!cloning && <PixelButton
                 variant="secondary"
                 size="md"
                 onClick={importHire}
@@ -1180,14 +1346,14 @@ export function AddAgentModal({ onClose, config, onConfigChange }: AddAgentModal
                 title={tr('addAgent.importHireBtnTitle')}
               >
                 {tr('addAgent.importHireBtn')}
-              </PixelButton>
+              </PixelButton>}
               <div style={{ flex: 1 }} />
               {pendingHire && (
                 <PixelButton variant="secondary" size="md" onClick={skipHire} disabled={busy}>{tr('addAgent.skipHire')}</PixelButton>
               )}
               <PixelButton variant="ghost" size="md" onClick={onClose} disabled={busy}>{tr('common.cancel')}</PixelButton>
               <PixelButton variant="primary" size="md" onClick={submit} disabled={busy}>
-                {busy ? tr('addAgent.spawning') : tr('addAgent.spawn')}
+                {busy ? tr('addAgent.spawning') : cloning ? tr('clone.hire') : tr('addAgent.spawn')}
               </PixelButton>
             </div>
           </div>
@@ -1209,16 +1375,58 @@ const inputStyle: React.CSSProperties = {
   outline: 'none'
 };
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
+function Row({ label, tag, children }: { label: string; tag?: CloneTag; children: React.ReactNode }) {
   return (
     <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <span style={{
         fontFamily: 'var(--cth-font-display)',
         fontSize: 8, lineHeight: '12px',
         color: 'var(--cth-ink-700)',
-        textTransform: 'uppercase'
-      }}>{label}</span>
+        textTransform: 'uppercase',
+        display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap'
+      }}>{label}{tag && <CloneTagPill tag={tag} />}</span>
       {children}
+    </label>
+  );
+}
+
+/** Clone mode (T-029): what happened to a pre-filled field. */
+const CLONE_TAG_BG: Record<CloneTag, string> = {
+  copied: 'var(--cth-mint-light)',
+  changed: 'var(--cth-sky-light)',
+  check: 'var(--cth-lemon)',
+  notCopied: 'var(--cth-ink-100)'
+};
+function CloneTagPill({ tag }: { tag: CloneTag }) {
+  const { t } = useTranslation();
+  return (
+    <span data-clone-tag={tag} style={{
+      fontFamily: 'var(--cth-font-display)', fontSize: 6, lineHeight: '10px',
+      padding: '1px 4px', background: CLONE_TAG_BG[tag], color: 'var(--cth-on-accent)'
+    }}>{t(`clone.tag.${tag}`)}</span>
+  );
+}
+
+function CloneOption({ checked, onChange, title, hint, disabled, radio }: {
+  checked: boolean; onChange?: (v: boolean) => void; title: string; hint: string; disabled?: boolean; radio?: boolean;
+}) {
+  return (
+    <label style={{
+      display: 'flex', gap: 10, alignItems: 'flex-start', padding: '8px 10px',
+      background: 'var(--cth-cream-50)', boxShadow: 'inset 0 0 0 1px var(--cth-ink-100)',
+      cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.6 : 1
+    }}>
+      <input
+        type={radio ? 'radio' : 'checkbox'}
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange?.(e.target.checked)}
+        style={{ width: 16, height: 16, marginTop: 2 }}
+      />
+      <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <span style={{ fontFamily: 'var(--cth-font-ui)', fontSize: 13, fontWeight: 600, color: 'var(--cth-ink-900)' }}>{title}</span>
+        <span style={{ fontSize: 12, color: 'var(--cth-ink-500)', lineHeight: '16px' }}>{hint}</span>
+      </span>
     </label>
   );
 }

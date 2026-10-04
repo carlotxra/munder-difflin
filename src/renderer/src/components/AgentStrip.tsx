@@ -8,6 +8,7 @@ import { type HarnessConfig } from '@/store/config';
 import { useRestoreTeam } from '@/hooks/useRestoreTeam';
 import { useRtl } from '@/i18n/useDirection';
 import { countWaitingOnHuman } from './askMeFilter';
+import { AgentCardMenu } from './AgentCardMenu';
 
 export interface AgentStripProps {
   /** Needed to rebuild a spawn command when a restorable agent predates the
@@ -58,6 +59,8 @@ export function AgentStrip({ config }: AgentStripProps) {
   // The editor is a fixed popover ABOVE the card (anchored off its rect): the
   // strip clips overflow and the compact cards have no room for an inline box.
   const [noteEditId, setNoteEditId] = useState<string | null>(null);
+  // Right-click menu on a card (T-029): which agent, anchored at the pointer.
+  const [cardMenu, setCardMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
   // Each worker's actively-DOING ledger tasks, polled from hive/tasks.json —
   // rendered as a sticky note on the avatar card (click → task detail).
@@ -100,6 +103,18 @@ export function AgentStrip({ config }: AgentStripProps) {
       minHeight: 112,
       alignItems: 'center'
     }}>
+      {cardMenu && (() => {
+        const target = agents.find((x) => x.id === cardMenu.id);
+        return target ? (
+          <AgentCardMenu
+            agent={target}
+            x={cardMenu.x}
+            y={cardMenu.y}
+            onClose={() => setCardMenu(null)}
+            onEditNote={() => setNoteEditId(target.id)}
+          />
+        ) : null;
+      })()}
       {agents.map(a => (
         // Draggable wrapper: reorder the roster by dragging one card onto another.
         // Native HTML5 DnD (no dep). A plain click still selects — a drag only
@@ -116,6 +131,7 @@ export function AgentStrip({ config }: AgentStripProps) {
             if (overId !== a.id) setOverId(a.id);
           }}
           onDragLeave={() => { if (overId === a.id) setOverId(null); }}
+          onContextMenu={(e) => { e.preventDefault(); setCardMenu({ id: a.id, x: e.clientX, y: e.clientY }); }}
           onDrop={(e) => {
             e.preventDefault();
             if (dragId && dragId !== a.id) reorderAgents(dragId, a.id);
@@ -158,6 +174,9 @@ export function AgentStrip({ config }: AgentStripProps) {
             }}
             note={a.note}
             onEditNote={a.isGod ? undefined : () => setNoteEditId(a.id)}
+            cloneOfLabel={a.clonedFrom
+              ? t('clone.cloneOf', { name: agents.find((x) => x.id === a.clonedFrom)?.name ?? a.clonedFrom })
+              : undefined}
           />
           {/* The note itself lives INSIDE the card (its own row above the gauge).
               This is the transient EDITOR: a fixed popover ABOVE the card —

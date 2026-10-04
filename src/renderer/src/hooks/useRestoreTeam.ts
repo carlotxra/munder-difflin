@@ -139,8 +139,10 @@ export function useRestoreTeam(config?: HarnessConfig | null): RestoreTeamState 
             rows: 30,
             // Worktree (if any) already exists on disk — cd into it, don't create a
             // new one (re-isolating would conflict on the existing path/branch and
-            // lose its uncommitted work).
-            isolate: false,
+            // lose its uncommitted work). The exception is a clone created
+            // stopped from an isolated source (T-029): it has no worktree yet, so
+            // its first start cuts a NEW one instead of sharing the project folder.
+            isolate: a.isolateOnStart === true && !a.worktreePath,
             // Continue the worker's prior CLI session if one was recorded — the
             // main process picks the provider's resume flag (Claude --resume,
             // agy --conversation) and for Claude reattaches the transcript. The
@@ -162,7 +164,9 @@ export function useRestoreTeam(config?: HarnessConfig | null): RestoreTeamState 
                 // The worktree is no longer on disk — drop it so this agent is treated
                 // as a plain base-cwd agent going forward (a future restore won't keep
                 // re-probing a dead path).
-                worktreePath: worktreeGone ? undefined : a.worktreePath,
+                worktreePath: worktreeGone ? undefined : (a.worktreePath ?? res.worktreePath),
+                // A stopped clone's first start cut its worktree just now (T-029).
+                isolateOnStart: undefined,
                 // Crush spawns bare (no positional protocol) and hands the seed back
                 // here; useHive types it after boot. Re-seeding a resumed worker is
                 // idempotent (it just re-reads its inbox per protocol). (ondev-b)

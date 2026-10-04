@@ -1435,5 +1435,54 @@
       "dash": "模型 ID 不能以 \"-\" 开头。",
       "tooLong": "模型 ID 过长（最多 {{max}} 个字符）。"
     }
+  },
+  "clone": {
+    "title": "克隆智能体",
+    "banner": "正在克隆 {{name}}（{{id}}，{{engine}}）。下面所有字段都来自 {{name}}。招聘前可修改任何内容。",
+    "section": {
+      "label": "克隆选项",
+      "hint": "记忆 · 启动 · 通知协调者"
+    },
+    "tag": {
+      "copied": "已复制",
+      "changed": "已调整",
+      "check": "请检查",
+      "notCopied": "未复制"
+    },
+    "errNameTaken": "{{name}} 已在办公室中。请换一个名字。",
+    "errFolderMissing": "源智能体的文件夹不存在。请选择其他文件夹。",
+    "isolationLocked": "{{name}} 在自己的工作树中工作，因此克隆体总会获得一个新的工作树。两个智能体共用一个检出会互相覆盖更改。",
+    "copyMemory": "复制 {{name}} 的记忆（memory.md）",
+    "copyMemoryHint": "一次性快照，第一行注明来源。之后两份记忆各自发展。",
+    "copyInbox": "复制收件箱",
+    "copyInboxHint": "不提供：发给源智能体的消息会被处理两次。",
+    "afterHiring": "招聘之后",
+    "startNow": "立即启动",
+    "startNowHint": "打开终端并加入办公室。",
+    "createStopped": "创建为停止状态",
+    "createStoppedHint": "加入名册但不打开终端。之后用“恢复”启动。",
+    "tellGod": "通知协调者",
+    "tellGodHint": "发送一条通知消息，让克隆体立即可以接活。",
+    "tokenCap": "令牌上限",
+    "hire": "招聘克隆体",
+    "toast": "⧉ 已招聘 {{name}}，克隆自 {{source}}",
+    "toastWorktree": " · 工作树 {{branch}}",
+    "toastStopped": "⧉ 已创建 {{name}}（停止状态），克隆自 {{source}}。用“恢复”启动它。",
+    "stoppedAction": "已停止 — 用“恢复”启动",
+    "cloneOf": "{{name}} 的克隆",
+    "tip": "克隆 {{name}}：一个使用相同引擎、文件夹和简报的新智能体。招聘前你会检查每个字段。",
+    "aria": "克隆 {{name}}",
+    "button": "克隆",
+    "blockedGod": "每个办公室只有一个协调者。",
+    "blockedAssistant": "准备助手不能被克隆。"
+  },
+  "cardMenu": {
+    "openTerminal": "打开终端",
+    "edit": "编辑…",
+    "clone": "克隆…",
+    "editNote": "编辑便签",
+    "hold": "暂停（与我一对一）",
+    "endHold": "结束一对一",
+    "kill": "结束并归档"
   }
 }

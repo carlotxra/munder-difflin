@@ -1122,6 +1122,18 @@ function ArchivedSection() {
             <div style={{ fontFamily: 'var(--cth-font-ui)', fontSize: 12, color: 'var(--cth-ink-700)' }}>{a.name}</div>
             <div style={{ fontSize: 11, color: 'var(--cth-ink-500)', wordBreak: 'break-all' }}>{a.cwd}</div>
           </div>
+          {!a.isGod && !a.isAssistant && (
+            <button
+              onClick={() => useStore.getState().openClone(a.id)}
+              title={t('clone.tip', { name: a.name })}
+              data-testid="archived-clone"
+              style={{
+                border: 'none', cursor: 'pointer', flexShrink: 0, padding: '2px 8px 1px',
+                background: 'var(--cth-cream-200)', boxShadow: 'inset 0 0 0 1px var(--cth-ink-100)',
+                fontFamily: 'var(--cth-font-ui)', fontSize: 12, color: 'var(--cth-ink-900)'
+              }}
+            >⧉ {t('clone.button')}</button>
+          )}
           <button
             onClick={() => removeArchivedAgent(a.id)}
             style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--cth-ink-500)', flexShrink: 0 }}
