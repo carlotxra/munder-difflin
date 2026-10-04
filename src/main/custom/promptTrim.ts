@@ -36,7 +36,7 @@ export const PROMPT_OVERRIDES: TextOverride[] = [
   {
     id: 'F14-guardrails',
     find: 'Guardrails: a circuit breaker watches the floor — a "Circuit breaker: steer/constrain" message means you are looping or overspending, so STOP repeating, summarize what you tried, and follow it. Be token-frugal (a floor-wide or per-agent token budget can pause you). The shared plan has two parts: board.md (freeform; god is the sole scribe) and tasks.json (structured kanban — todo/doing/blocked/done).',
-    replace: 'Guardrails: a circuit breaker watches the floor. A "Circuit breaker: steer/constrain" message means you are looping or overspending: STOP repeating, summarize what you tried, and follow it. Be token-frugal (a floor-wide or per-agent token budget can pause you). The shared plan is board.md (freeform) and tasks.json (kanban); god is the sole writer of both.'
+    replace: 'Guardrails: a circuit breaker watches the floor. A "Circuit breaker: steer/constrain" message means you are looping or overspending: STOP repeating, summarize what you tried, and follow it. Be token-frugal (a floor-wide or per-agent token budget can pause you). The shared plan is board.md (freeform) and tasks.json (kanban, status todo/doing/blocked/done); god is the sole writer of both.'
   },
   {
     id: 'F9-knowledge-graph',
