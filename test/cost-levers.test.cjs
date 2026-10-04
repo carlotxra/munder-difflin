@@ -130,6 +130,41 @@ test('rosterOnChange: start, then only on a change god routes by, and on a new s
   assert.match(ctx(await fire('UserPromptSubmit', 's2')), /LIVE ROSTER/, 'off = every prompt (upstream)');
 });
 
+test('rosterKey (T-042): god\'s own row, live/idle and inbox within a bucket are not changes', async (t) => {
+  withLevers(t);
+  const { hive, home } = await floor(t);
+  const root = path.join(home, 'hive');
+  const key = (god = {}, jim = {}, more = []) => {
+    hive.writeFleetSnapshot({ ts: Date.now(), agents: [
+      { id: 'god-1', name: 'Michael', isGod: true, lastActiveSecAgo: 900, inboxBacklog: 0, ...god },
+      { id: 'jim-1', name: 'Jim', role: 'engineer', lastActiveSecAgo: 900, inboxBacklog: 0, ...jim },
+      ...more
+    ] });
+    return roster.rosterKey(root, () => ({ tokens: 50000, limit: 200000 }));
+  };
+  const base = key();
+  assert.equal(key({ inboxBacklog: 1 }), base, 'god inbox 0->1');
+  assert.equal(key({ lastActiveSecAgo: 2 }), base, 'god idle->live');
+  assert.equal(key({ inboxBacklog: 7, lastActiveSecAgo: 1 }), base, 'god row ignored entirely');
+  assert.equal(key({}, { lastActiveSecAgo: 2 }), base, 'worker idle->live');
+  assert.equal(key({}, { tokens: 99000, usd: 3 }), base, 'spend');
+  const some = key({}, { inboxBacklog: 1 });
+  assert.notEqual(some, base, 'worker inbox 0 -> 1-4');
+  assert.equal(key({}, { inboxBacklog: 4 }), some, 'within 1-4');
+  assert.notEqual(key({}, { inboxBacklog: 5 }), some, '1-4 -> 5+');
+  assert.notEqual(key({}, {}, [{ id: 'pam-1', name: 'Pam', role: 'designer' }]), base, 'a hire');
+  assert.notEqual(key({}, { onHold: true }), base, 'a hold');
+  assert.notEqual(key({}, { breaker: 'steering' }), base, 'an armed breaker');
+  assert.equal(key({}, { breaker: 'healthy' }), base, 'a healthy breaker is not news');
+});
+
+test('renderer wake levers (T-042) start from the fork defaults, not upstream', () => {
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src/renderer/src/custom/wake.ts'), 'utf8');
+  assert.match(src, /let levers: CostLevers = COST_LEVERS_ON;/, 'first wake after a start uses the levers');
+  assert.doesNotMatch(src, /COST_LEVERS_OFF/);
+  assert.equal(COST_LEVERS_ON.shortNudge && COST_LEVERS_ON.digestWakes, true);
+});
+
 test('rosterOnChange (T-040): a non-Claude or unknown god keeps the roster on every prompt', async (t) => {
   withLevers(t);
   roster.resetRosterGate();

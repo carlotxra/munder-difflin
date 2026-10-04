@@ -7,13 +7,14 @@
  */
 import { useStore } from '@/store/store';
 import { inboxNudgeText } from '../../../shared/hiveNudge';
-import { resolveCostLevers, COST_LEVERS_OFF, type CostLevers } from '../../../shared/custom/costLevers';
+import { resolveCostLevers, COST_LEVERS_ON, type CostLevers } from '../../../shared/custom/costLevers';
 import { isMechanicalMail, shortNudgeText, type MailLike } from '../../../shared/custom/wake';
 
 /** The levers, refreshed from config at most every 15s. The wake loop runs in
  *  a long-lived interval whose closure would otherwise keep the config it
- *  started with. Until the first read lands, levers are off (upstream). */
-let levers: CostLevers = COST_LEVERS_OFF;
+ *  started with. Until the first read lands, the fork defaults apply, as in
+ *  main (T-042): the first wake after a start must not run as upstream. */
+let levers: CostLevers = COST_LEVERS_ON;
 let readAt = 0;
 function leversNow(): CostLevers {
   const now = Date.now();

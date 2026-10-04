@@ -92,21 +92,25 @@ export function customRosterContext(root: string | null, ctxOf?: CtxOf): string 
   return costLevers().rosterToon ? toonRoster(root, ctxOf) : undefined;
 }
 
+/** Unread mail in routing-sized steps: none, a few, a pile-up. */
+const inboxBucket = (n: number | undefined): string => (!n ? '0' : n < 5 ? '1-4' : '5+');
+
 /**
  * What god routes by: who is on the floor, names, roles, holds, an armed
- * breaker, unread inbox, recent activity, and ctx in 10% steps. Token and
- * dollar counters and "seconds ago" are left out, or the key would change on
- * every 8s snapshot and the roster would go out every prompt again.
+ * breaker, unread mail in buckets (0 / 1-4 / 5+), and ctx in 10% steps (T-042).
+ * Left out, or the key would change on almost every wake and the roster would
+ * go out every prompt again: token and dollar counters, "seconds ago" and
+ * live/idle, exact inbox counts, and god's own row (god is woken because its
+ * inbox moved, and it knows its own state).
  */
 export function rosterKey(root: string | null, ctxOf?: CtxOf): string | null {
   const snap = readFleet(root);
   if (!snap) return null;
-  return snap.agents.map((a) => {
+  return snap.agents.filter((a) => !a.isGod).map((a) => {
     const pct = ctxPct(ctxOf, a.id);
     return [a.id, a.name ?? '', roleOf(a), a.onHold ? 1 : 0,
       breakerArmed(a.breaker) ? a.breaker : '',
-      a.inboxBacklog ? 1 : 0,
-      typeof a.lastActiveSecAgo === 'number' ? (a.lastActiveSecAgo < 300 ? 'live' : 'idle') : 'never',
+      inboxBucket(a.inboxBacklog),
       pct === null ? '' : Math.floor(pct / 10)].join('|');
   }).join(';');
 }
