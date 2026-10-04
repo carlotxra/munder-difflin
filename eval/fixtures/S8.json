@@ -1,0 +1,95 @@
+{
+  "id": "S8",
+  "title": "God dispatch to a worker",
+  "agent": {
+    "id": "god",
+    "name": "Michael",
+    "isGod": true
+  },
+  "extraAgents": [
+    {
+      "id": "w1",
+      "name": "Kevin",
+      "isGod": false
+    }
+  ],
+  "memory": "# Memory — Michael (god)\n",
+  "tasks": {
+    "tasks": [
+      {
+        "id": "T-906",
+        "title": "Add a currency formatter to lib/price.js",
+        "status": "todo",
+        "priority": "med",
+        "assignee": null,
+        "deps": []
+      }
+    ]
+  },
+  "fleet": {
+    "agents": {
+      "w1": {
+        "name": "Kevin",
+        "status": "idle",
+        "tokens": 12000,
+        "costUsd": 0.4,
+        "breaker": null,
+        "inbox": 0
+      }
+    }
+  },
+  "inbox": [
+    {
+      "id": "2026-10-01T-hum007",
+      "conversation": "eval-2026-10-01T-hum007",
+      "in_reply_to": null,
+      "from": "human",
+      "to": "god",
+      "act": "request",
+      "subject": "Please get T-906 done",
+      "body": "Please get T-906 (currency formatter in lib/price.js, repo {{REPO}}) done. Kevin is idle — give it to him. Use the normal dispatch contract.",
+      "hops": 0,
+      "requires_reply": true,
+      "needs_human": false,
+      "created_at": "2026-10-01T09:00:00.000Z"
+    }
+  ],
+  "checks": [
+    {
+      "type": "outbox",
+      "where": {
+        "to": "w1"
+      },
+      "count": [
+        1,
+        1
+      ]
+    },
+    {
+      "type": "outboxBodyIncludes",
+      "where": {
+        "to": "w1"
+      },
+      "text": "{{ASK_FIRST_CLAUSE}}"
+    },
+    {
+      "type": "outboxBodyIncludes",
+      "where": {
+        "to": "w1"
+      },
+      "regex": "OBJECTIVE[\\s\\S]*OUTPUT[\\s\\S]*TOOLS[\\s\\S]*BOUNDARIES"
+    },
+    {
+      "type": "taskState",
+      "id": "T-906",
+      "status": "doing",
+      "assignee": "w1"
+    },
+    {
+      "type": "inboxDone",
+      "ids": [
+        "2026-10-01T-hum007"
+      ]
+    }
+  ]
+}

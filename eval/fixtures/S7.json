@@ -1,0 +1,52 @@
+{
+  "id": "S7",
+  "title": "Empty-inbox nudge (no-op)",
+  "agent": {
+    "id": "w1",
+    "name": "Kevin",
+    "isGod": false
+  },
+  "memory": "# Memory — Kevin (w1)\n\n_Append durable facts, decisions, and context below._\n\n- 2026-10-01: T-905 done and reported.\n",
+  "done": [
+    {
+      "id": "2026-10-01T-god052",
+      "conversation": "eval-2026-10-01T-god052",
+      "in_reply_to": null,
+      "from": "god",
+      "to": "w1",
+      "act": "inform",
+      "subject": "T-905: thanks",
+      "body": "Thanks, T-905 is merged.",
+      "hops": 0,
+      "requires_reply": false,
+      "needs_human": false,
+      "created_at": "2026-10-01T09:00:00.000Z"
+    }
+  ],
+  "nudgeIds": [
+    "2026-10-01T-god052"
+  ],
+  "checks": [
+    {
+      "type": "outbox",
+      "where": {},
+      "count": [
+        0,
+        0
+      ]
+    },
+    {
+      "type": "memoryUnchanged"
+    },
+    {
+      "type": "noNewCommits"
+    },
+    {
+      "type": "repoClean"
+    },
+    {
+      "type": "maxApiCalls",
+      "max": 3
+    }
+  ]
+}

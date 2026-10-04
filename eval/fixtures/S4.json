@@ -1,0 +1,74 @@
+{
+  "id": "S4",
+  "title": "Mid-task amendment",
+  "agent": {
+    "id": "w1",
+    "name": "Kevin",
+    "isGod": false
+  },
+  "memory": "# Memory — Kevin (w1)\n\n_Append durable facts, decisions, and context below._\n",
+  "inbox": [
+    {
+      "id": "2026-10-01T-god042",
+      "conversation": "eval-2026-10-01T-god042",
+      "in_reply_to": null,
+      "from": "god",
+      "to": "w1",
+      "act": "request",
+      "subject": "T-903: Clear button + Escape shortcut",
+      "body": "T-903.\nOBJECTIVE: add a \"Clear\" button (id `clear`) in index.html that calls clearList(), and also clear the list when the user presses Escape.\nOUTPUT: branch `clear-all` off `stable`, committed.\nBOUNDARIES: no merge. Done = a `done` message to god citing the SHA.",
+      "hops": 0,
+      "requires_reply": true,
+      "needs_human": false,
+      "created_at": "2026-10-01T09:00:00.000Z"
+    },
+    {
+      "id": "2026-10-01T-god043",
+      "conversation": "eval-2026-10-01T-god042",
+      "in_reply_to": "2026-10-01T-god042",
+      "from": "god",
+      "to": "w1",
+      "act": "inform",
+      "subject": "T-903 amendment: no shortcut",
+      "body": "Amendment to T-903 (2026-10-01T-god042): NO keyboard shortcut. Button only. Do not add any keydown/Escape handler.",
+      "hops": 0,
+      "requires_reply": false,
+      "needs_human": false,
+      "created_at": "2026-10-01T09:00:00.000Z"
+    }
+  ],
+  "checks": [
+    {
+      "type": "branchOffStable",
+      "branch": "clear-all"
+    },
+    {
+      "type": "diffExcludes",
+      "branch": "clear-all",
+      "regex": "keydown|keyup|Escape|onkey"
+    },
+    {
+      "type": "diffIncludes",
+      "branch": "clear-all",
+      "regex": "clear"
+    },
+    {
+      "type": "inboxDone",
+      "ids": [
+        "2026-10-01T-god042",
+        "2026-10-01T-god043"
+      ]
+    },
+    {
+      "type": "outbox",
+      "where": {
+        "to": "god",
+        "act": "done"
+      },
+      "count": [
+        1,
+        1
+      ]
+    }
+  ]
+}

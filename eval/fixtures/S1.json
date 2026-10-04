@@ -1,0 +1,59 @@
+{
+  "id": "S1",
+  "title": "Startup check",
+  "agent": {
+    "id": "w1",
+    "name": "Kevin",
+    "isGod": false
+  },
+  "memory": "# Memory — Kevin (w1)\n\n_Append durable facts, decisions, and context below._\n",
+  "inbox": [
+    {
+      "id": "2026-10-01T-god033",
+      "conversation": "eval-2026-10-01T-god033",
+      "in_reply_to": null,
+      "from": "god",
+      "to": "w1",
+      "act": "query",
+      "subject": "Startup check: confirm you are up",
+      "body": "Quick startup check before work starts. Reply to me (in_reply_to this message) with: your name, the git branch your working directory is on, and one line on what your memory.md says. No code changes.",
+      "hops": 0,
+      "requires_reply": true,
+      "needs_human": false,
+      "created_at": "2026-10-01T09:00:00.000Z"
+    }
+  ],
+  "checks": [
+    {
+      "type": "outbox",
+      "where": {
+        "to": "god"
+      },
+      "count": [
+        1,
+        1
+      ]
+    },
+    {
+      "type": "outboxField",
+      "where": {
+        "to": "god"
+      },
+      "field": "in_reply_to",
+      "equals": "2026-10-01T-god033"
+    },
+    {
+      "type": "memoryGrew",
+      "minLines": 1
+    },
+    {
+      "type": "inboxDone",
+      "ids": [
+        "2026-10-01T-god033"
+      ]
+    },
+    {
+      "type": "noNewCommits"
+    }
+  ]
+}

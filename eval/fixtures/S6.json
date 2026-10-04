@@ -1,0 +1,61 @@
+{
+  "id": "S6",
+  "title": "Closing time with WIP",
+  "agent": {
+    "id": "w1",
+    "name": "Kevin",
+    "isGod": false
+  },
+  "memory": "# Memory — Kevin (w1)\n\n_Append durable facts, decisions, and context below._\n\n- 2026-10-01: working on T-904 (branch `totals-tax`): adding a tax option to lib/price.js total(). Half done.\n",
+  "repo": {
+    "branch": "totals-tax",
+    "wip": {
+      "lib/price.js": "function total(items, tax = 0) {\n  const sub = items.reduce((s, i) => s + i.price * i.qty, 0);\n  // TODO: rounding\n  return sub * (1 + tax);\n}\nmodule.exports = { total };\n"
+    }
+  },
+  "inbox": [
+    {
+      "id": "2026-10-01T-god051",
+      "conversation": "eval-2026-10-01T-god051",
+      "in_reply_to": null,
+      "from": "god",
+      "to": "broadcast",
+      "act": "request",
+      "subject": "CLOSING TIME",
+      "body": "{{CLOSING_TEXT}}",
+      "hops": 0,
+      "requires_reply": true,
+      "needs_human": false,
+      "created_at": "2026-10-01T09:00:00.000Z"
+    }
+  ],
+  "checks": [
+    {
+      "type": "repoClean"
+    },
+    {
+      "type": "wipParked",
+      "file": "lib/price.js"
+    },
+    {
+      "type": "outbox",
+      "where": {
+        "subjectEquals": "CLOSING-TIME-ACK"
+      },
+      "count": [
+        1,
+        1
+      ]
+    },
+    {
+      "type": "memoryMatches",
+      "regex": "next"
+    },
+    {
+      "type": "inboxDone",
+      "ids": [
+        "2026-10-01T-god051"
+      ]
+    }
+  ]
+}

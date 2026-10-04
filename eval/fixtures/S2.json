@@ -1,0 +1,70 @@
+{
+  "id": "S2",
+  "title": "Dispatch of a small UI task",
+  "agent": {
+    "id": "w1",
+    "name": "Kevin",
+    "isGod": false
+  },
+  "memory": "# Memory — Kevin (w1)\n\n_Append durable facts, decisions, and context below._\n",
+  "inbox": [
+    {
+      "id": "2026-10-01T-god040",
+      "conversation": "eval-2026-10-01T-god040",
+      "in_reply_to": null,
+      "from": "god",
+      "to": "w1",
+      "act": "request",
+      "subject": "T-901: add a Clear button",
+      "body": "T-901.\nOBJECTIVE: add a \"Clear\" button (id `clear`) next to Add in index.html that calls clearList() from app.js.\nOUTPUT: branch `clear-button` off `stable`, one commit, plus a test file `test/clear.test.cjs` (node --test) that asserts index.html contains a button with id `clear` and that app.js wires it to clearList.\nTOOLS: plain HTML/JS, no dependencies.\nBOUNDARIES: no merge. Done = a `done` message to god citing the commit SHA.",
+      "hops": 0,
+      "requires_reply": true,
+      "needs_human": false,
+      "created_at": "2026-10-01T09:00:00.000Z"
+    }
+  ],
+  "checks": [
+    {
+      "type": "branchOffStable",
+      "branch": "clear-button"
+    },
+    {
+      "type": "commitCount",
+      "branch": "clear-button",
+      "count": [
+        1,
+        2
+      ]
+    },
+    {
+      "type": "testPasses",
+      "branch": "clear-button",
+      "file": "test/clear.test.cjs"
+    },
+    {
+      "type": "outbox",
+      "where": {
+        "to": "god",
+        "act": "done"
+      },
+      "count": [
+        1,
+        1
+      ]
+    },
+    {
+      "type": "doneCitesSha",
+      "branch": "clear-button"
+    },
+    {
+      "type": "inboxDone",
+      "ids": [
+        "2026-10-01T-god040"
+      ]
+    },
+    {
+      "type": "memoryGrew",
+      "minLines": 1
+    }
+  ]
+}
