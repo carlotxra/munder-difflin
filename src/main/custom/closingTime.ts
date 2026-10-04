@@ -10,11 +10,18 @@
  *    turn hook, empty inbox AND outbox, clean git worktree) are parked by the harness: a
  *    dated line goes into their memory.md and the harness records their
  *    CLOSING-TIME-ACK. They take no turn.
- *  - Every other worker gets exactly ONE delivery of the short brief: a busy
- *    Claude one a steer (reaches it at its next hook boundary, the graceful
- *    interrupt), anyone else an inbox message. A steer still
- *    unconsumed once its worker goes idle is withdrawn and replaced by the inbox
- *    message, so it is never lost and never doubled. Each must ACK itself.
+ *  - Every other worker gets exactly ONE delivery of the short brief: a Claude
+ *    worker mid-turn (hooks seen, no turn end since) a steer (reaches it at its
+ *    next hook boundary, the graceful interrupt), anyone else an inbox message.
+ *    A steer still unconsumed once its worker reaches a turn end, or after
+ *    STEER_DEADLINE_MS, is withdrawn and replaced by the inbox message, so it is
+ *    never lost and never doubled. Each must ACK itself.
+ *  - T-044/T-045: PTY quiet only gates PARKING. An idle Claude TUI can keep
+ *    printing (the 11:40 incident: three idle workers were steered and never
+ *    re-briefed because their PTYs never read 12s quiet), so the steer/inbox
+ *    choice and the steer fallback read the turn-end hook, not PTY output.
+ *  - Every decision is logged to log.jsonl (kind closing-facts, closing-convert)
+ *    so a failed closing can be diagnosed from the log alone.
  *  - god is told who was parked and who was briefed, must NOT broadcast, and
  *    is woken once when the last ACK is in. (Worker ACKs are mechanical mail
  *    under digestWakes, so they don't wake god one by one.)
@@ -42,6 +49,8 @@ import { isClaudeProvider } from '../../shared/agentProvider';
 /** No PTY output for this long = idle (the worker-wake watchdog's threshold). */
 export const CLOSING_IDLE_MS = 12_000;
 const POLL_MS = 5_000;
+/** A steer still pending this long is replaced by the inbox brief regardless. */
+export const STEER_DEADLINE_MS = 30_000;
 
 /** F18: the one delivery a worker gets. Same steps, same exact ACK subject. */
 export const WORKER_BRIEF =
@@ -121,7 +130,7 @@ export interface ClosingRun {
 }
 
 /** Workers briefed in the current run, and how each was reached. */
-let briefed = new Map<string, { via: 'steer' | 'inbox'; pendingAfter: number }>();
+let briefed = new Map<string, { via: 'steer' | 'inbox'; pendingAfter: number; at: number }>();
 let timer: ReturnType<typeof setInterval> | null = null;
 let allAckedSent = false;
 
@@ -134,6 +143,11 @@ const label = (hive: HiveManager, id: string): string => `${hive.registry().agen
 
 function inboxBrief(run: ClosingRun, id: string): void {
   run.hive.send({ to: id, act: 'request', subject: 'CLOSING TIME', body: WORKER_BRIEF }, 'harness');
+}
+
+function logFacts(run: ClosingRun, id: string, f: WorkerFacts, via: 'parked' | 'steer' | 'inbox'): void {
+  run.hive.appendLog({ kind: 'closing-facts', agentId: id, via, quietMs: f.outputQuietMs, turnEnded: f.turnEnded,
+    inbox: f.inbox, outbox: f.outbox, clean: f.clean, provider: run.hive.registry().agents[id]?.provider ?? null });
 }
 
 /**
@@ -156,18 +170,23 @@ export function customClosingStart(run: ClosingRun, now = Date.now()): boolean {
         appendFileSync(join(root, 'agents', id, 'memory.md'),
           `\n- ${stamp}Z closing time: idle with a clean worktree and no pending mail, so the harness parked it. No WIP to save; resume from the notes above.\n`, 'utf8');
       } catch { /* an unwritable memory is not idle-safe: brief it instead */
-        inboxBrief(run, id); briefed.set(id, { via: 'inbox', pendingAfter: 0 }); continue;
+        inboxBrief(run, id); briefed.set(id, { via: 'inbox', pendingAfter: 0, at: now }); logFacts(run, id, f, 'inbox'); continue;
       }
+      logFacts(run, id, f, 'parked');
       run.acked.add(id);
       parked.push(id);
       run.hive.send({ to: run.godId, act: 'inform', subject: 'CLOSING-TIME-ACK',
         body: `${label(run.hive, id)} parked by the harness: idle, clean worktree, no pending mail. Its memory.md has the closing line.` }, 'harness');
-    } else if (steerable(run.hive, id) && (f.outputQuietMs < CLOSING_IDLE_MS || !f.turnEnded)) {
+    } else if (steerable(run.hive, id) && !f.turnEnded) {
       run.control?.steer(id, WORKER_BRIEF);
-      briefed.set(id, { via: 'steer', pendingAfter: run.control?.snapshot(id).pendingSteers ?? 0 });
+      briefed.set(id, { via: 'steer', pendingAfter: run.control?.snapshot(id).pendingSteers ?? 0, at: now });
+      logFacts(run, id, f, 'steer');
     } else {
+      // At a turn end (or not steerable): a steer would wait for a hook that
+      // never comes, the inbox wake reaches an idle worker.
       inboxBrief(run, id);
-      briefed.set(id, { via: 'inbox', pendingAfter: 0 });
+      briefed.set(id, { via: 'inbox', pendingAfter: 0, at: now });
+      logFacts(run, id, f, 'inbox');
     }
   }
 
@@ -199,20 +218,22 @@ export function customClosingStart(run: ClosingRun, now = Date.now()): boolean {
   return true;
 }
 
-/** Withdraw an unconsumed steer from a worker that went idle (inbox brief
- *  instead), and wake god once when every worker has acked. */
+/** Withdraw an unconsumed steer from a worker that reached a turn end, or whose
+ *  steer passed STEER_DEADLINE_MS (inbox brief instead), and wake god once when
+ *  every worker has acked. No PTY gate: an idle TUI may never read quiet. */
 export function poll(run: ClosingRun, now = Date.now()): void {
   if (!run.isActive()) { stopTimer(); return; }
   for (const [id, b] of briefed) {
     if (b.via !== 'steer' || run.acked.has(id) || !run.control) continue;
     const pending = run.control.snapshot(id).pendingSteers;
-    const quiet = now - lastOutputAt(id);
-    if (pending > 0 && pending === b.pendingAfter && quiet >= CLOSING_IDLE_MS && atTurnEnd(id)) {
+    const reason = atTurnEnd(id) ? 'turn-end' : now - b.at >= STEER_DEADLINE_MS ? 'deadline' : null;
+    if (pending > 0 && pending === b.pendingAfter && reason) {
       run.control.clearSteers(id);
       inboxBrief(run, id);
-      briefed.set(id, { via: 'inbox', pendingAfter: 0 });
+      briefed.set(id, { via: 'inbox', pendingAfter: 0, at: now });
+      run.hive.appendLog({ kind: 'closing-convert', agentId: id, reason, steerAgeMs: now - b.at });
     } else if (pending < b.pendingAfter) {
-      briefed.set(id, { via: 'steer', pendingAfter: -1 }); // consumed: delivered
+      briefed.set(id, { via: 'steer', pendingAfter: -1, at: b.at }); // consumed: delivered
     }
   }
   if (!allAckedSent && run.workers.size > 0 && [...run.workers].every((id) => run.acked.has(id))) {

@@ -498,3 +498,61 @@ test('harnessClosingTime (T-040): telemetry after a tool call does not count as 
   assert.equal(control.snapshot('busy-1').pendingSteers, 0, 'turn ended: withdrawn');
   assert.equal(hive.inbox('busy-1').length, 1, 'inbox brief instead');
 });
+
+// — T-045: the closing-time choice reads the turn-end hook, not PTY quiet (T-044 incident) —
+
+const closingLog = (hive, kind) => fs.readFileSync(path.join(hive.root(), 'log.jsonl'), 'utf8')
+  .split('\n').filter(Boolean).map((l) => JSON.parse(l)).filter((e) => e.kind === kind);
+
+test('harnessClosingTime (T-045): an idle Claude worker with a chatty PTY gets the inbox brief, not a steer', async (t) => {
+  const { hive, control, ct } = await closingFloor(t);
+  const now = Date.now();
+  closing.setClosingFacts({ lastOutputAt: () => now - 1000 }); // the 11:40 case: idle at a prompt, PTY never reads quiet
+  ct.start();
+  for (const id of ['idle-1', 'dirty-1']) {
+    assert.ok(!/parked it/.test(fs.readFileSync(path.join(hive.root(), 'agents', id, 'memory.md'), 'utf8')), `${id}: PTY quiet still gates parking`);
+    assert.equal(control.snapshot(id).pendingSteers, 0, `${id}: no steer at a turn end`);
+    assert.equal(hive.inbox(id).filter((m) => m.subject === 'CLOSING TIME').length, 1, `${id}: one inbox brief`);
+  }
+  assert.equal(control.snapshot('busy-1').pendingSteers, 1, 'mid-turn: still one steer');
+  assert.equal(hive.inbox('busy-1').length, 0);
+});
+
+test('harnessClosingTime (T-045): a steered worker that reaches a turn end is re-briefed even if its PTY is chatty', async (t) => {
+  const { hive, control, ct } = await closingFloor(t);
+  ct.start();
+  closing.setClosingFacts({ lastOutputAt: () => Date.now() - 500 });
+  closing.noteHookForClosing('busy-1', 'Stop');
+  const run = { hive, control, godId: 'god-1', workers: new Set(['busy-1']), acked: new Set(), isActive: () => true, progress: () => {} };
+  closing.poll(run);
+  assert.equal(control.snapshot('busy-1').pendingSteers, 0, 'steer withdrawn');
+  assert.equal(hive.inbox('busy-1').length, 1, 'one inbox brief instead');
+  closing.poll(run);
+  assert.equal(hive.inbox('busy-1').length, 1, 'never doubled');
+  assert.deepEqual(closingLog(hive, 'closing-convert').map((e) => [e.agentId, e.reason]), [['busy-1', 'turn-end']]);
+});
+
+test('harnessClosingTime (T-045): a steer still pending after the deadline becomes the inbox brief', async (t) => {
+  const { hive, control, ct } = await closingFloor(t);
+  ct.start();
+  const run = { hive, control, godId: 'god-1', workers: new Set(['busy-1']), acked: new Set(), isActive: () => true, progress: () => {} };
+  closing.poll(run, Date.now() + closing.STEER_DEADLINE_MS - 5_000);
+  assert.equal(control.snapshot('busy-1').pendingSteers, 1, 'before the deadline: the steer stays');
+  closing.poll(run, Date.now() + closing.STEER_DEADLINE_MS + 1_000);
+  assert.equal(control.snapshot('busy-1').pendingSteers, 0);
+  assert.equal(hive.inbox('busy-1').length, 1);
+  assert.equal(closingLog(hive, 'closing-convert')[0].reason, 'deadline');
+});
+
+test('harnessClosingTime (T-045): one closing-facts line per worker in log.jsonl', async (t) => {
+  const { hive, ct } = await closingFloor(t);
+  ct.start();
+  const facts = closingLog(hive, 'closing-facts');
+  assert.deepEqual(facts.map((e) => [e.agentId, e.via]).sort(), [['busy-1', 'steer'], ['dirty-1', 'inbox'], ['idle-1', 'parked']]);
+  const idle = facts.find((e) => e.agentId === 'idle-1');
+  assert.equal(idle.turnEnded, true);
+  assert.equal(idle.clean, true);
+  assert.equal(idle.provider, 'claude');
+  assert.ok(idle.quietMs >= closing.CLOSING_IDLE_MS);
+  assert.equal(facts.find((e) => e.agentId === 'dirty-1').clean, false);
+});
