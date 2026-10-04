@@ -30,7 +30,7 @@ estimate.
 
 | `--perm` | Agent runs with | Child env |
 |---|---|---|
-| `safe` (default) | `--permission-mode acceptEdits` and `--allowedTools` Read/Write/Edit/Glob/Grep/TodoWrite and `Bash(git <sub>:*)` for status, diff, log, show, add, commit, checkout, switch, branch, rev-parse, stash, mv, plus `Bash(<cmd>:*)` for `node --test`, ls, mv, mkdir, cat, head, tail, wc, pwd, date (no bare `node`, `find` or `sed`) | allowlist: `PATH HOME USER LOGNAME SHELL TMPDIR TERM LANG LC_* ANTHROPIC_* CLAUDE_CONFIG_DIR` + the harness's `AGENT_*`/`HIVE_*` |
+| `safe` (default) | `--permission-mode acceptEdits` and `--allowedTools` Read/Write/Edit/Glob/Grep/TodoWrite and `Bash(git <sub>:*)` for status, diff, log, show, add, commit, checkout, switch, branch, rev-parse, stash, mv, plus `Bash(<cmd>:*)` for cd, `node --test`, ls, mv, mkdir, cat, head, tail, wc, pwd, date, echo, printf (no bare `node`, `find` or `sed`) | allowlist: `PATH HOME USER LOGNAME SHELL TMPDIR TERM LANG LC_* ANTHROPIC_* CLAUDE_CONFIG_DIR` + the harness's `AGENT_*`/`HIVE_*` |
 | `live` | `--permission-mode bypassPermissions`, as the harness spawns agents. **For the human only** | the full parent env |
 
 In `safe` mode a tool outside the list is denied rather than prompted. Each run
