@@ -20,6 +20,7 @@ function setup(fx) {
   mkdirSync(join(agentDir, 'outbox'), { recursive: true });
   writeFileSync(join(agentDir, 'memory.md'), fx.memory ?? '');
   for (const m of fx.inbox ?? []) writeFileSync(join(agentDir, 'inbox', `${m.id}.json`), JSON.stringify(m));
+  for (const m of fx.done ?? []) writeFileSync(join(agentDir, 'inbox', '.done', `${m.id}.json`), JSON.stringify(m));
   if (fx.tasks) writeFileSync(join(root, 'tasks.json'), JSON.stringify(fx.tasks));
   const ctx = { dir, repo, root, agentDir, usage: { calls: 2 } };
   ctx.before = snapshot(ctx);
@@ -78,11 +79,19 @@ test('S6 WIP committed + ACK passes; WIP discarded fails', () => {
   assert.ok(failing(bad, fx).some((f) => f.startsWith('wipParked')));
 });
 
-test('S7 doing nothing passes; replying or too many calls fails', () => {
+test('S7 doing nothing or a one-line note passes; replying, a longer note or too many calls fails', () => {
   const fx = FIX('S7');
   const ctx = setup(fx);
   assert.deepStrictEqual(failing(ctx, fx), []);
-  ctx.usage.calls = 5;
+  appendFileSync(join(ctx.agentDir, 'memory.md'), '- woke for god052; nothing pending\n');
+  assert.deepStrictEqual(failing(ctx, fx), []);
+  appendFileSync(join(ctx.agentDir, 'memory.md'), '- another line\n');
+  assert.ok(failing(ctx, fx).some((x) => x.startsWith('memoryGrew')));
+  ctx.usage.calls = 6;
+  ctx.usage.denials = ['Bash for f in inbox/*'];
+  assert.ok(!failing(ctx, fx).some((x) => x.startsWith('maxApiCalls')), 'a denial buys one call back');
+  ctx.usage.denials = [];
+  ctx.usage.calls = 6;
   send(ctx, { to: 'god', act: 'inform', subject: 'nothing to do', body: '' });
   const f = failing(ctx, fx);
   assert.ok(f.some((x) => x.startsWith('outbox')) && f.some((x) => x.startsWith('maxApiCalls')));

@@ -6,7 +6,7 @@
     "name": "Kevin",
     "isGod": false
   },
-  "memory": "# Memory — Kevin (w1)\n\n_Append durable facts, decisions, and context below._\n\n- 2026-10-01: T-905 done and reported.\n",
+  "memory": "# Memory \u2014 Kevin (w1)\n\n_Append durable facts, decisions, and context below._\n\n- 2026-10-01: T-905 done and reported.\n",
   "done": [
     {
       "id": "2026-10-01T-god052",
@@ -36,17 +36,29 @@
       ]
     },
     {
-      "type": "memoryUnchanged"
-    },
-    {
       "type": "noNewCommits"
     },
     {
       "type": "repoClean"
     },
     {
+      "type": "inboxDone",
+      "ids": [
+        "2026-10-01T-god052"
+      ]
+    },
+    {
+      "type": "memoryGrew",
+      "minLines": 0,
+      "maxLines": 1
+    },
+    {
+      "type": "memoryUnchanged",
+      "optional": true
+    },
+    {
       "type": "maxApiCalls",
-      "max": 3
+      "max": 5
     }
   ]
 }

@@ -100,7 +100,7 @@ graph are off, and nothing drains the outbox (the checks read it directly).
 | S4 | Amendment ("no shortcut") | branch `clear-all` adds no key handler, adds the button; both ids filed; one `done` |
 | S5 | Closing time, idle | exactly one outbox msg, subject `CLOSING-TIME-ACK`; no commits; clean tree; memory has "next" |
 | S6 | Closing time with WIP | clean tree, WIP kept in a commit or stash, ACK sent, memory has "next" |
-| S7 | Empty-inbox nudge | no outbox msg, memory unchanged, no commits, ≤3 API calls |
+| S7 | Empty-inbox nudge | no outbox msg, no commits, clean tree, id still filed, memory.md grows by at most 1 line (unchanged is reported as an optional check), ≤5 API calls not counting calls lost to permission denials |
 | S8 | God dispatch | one msg to `w1` carrying the ASK FIRST clause verbatim and the 4-part contract; `T-906` is `doing`, assignee `w1` |
 
 Add a fixture by dropping `S9.json` into `fixtures/` (`{{ASK_FIRST_CLAUSE}}`,

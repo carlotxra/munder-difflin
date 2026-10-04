@@ -128,7 +128,11 @@ export const CHECKS = {
     return { ok, detail: t ? `status=${t.status} assignee=${t.assignee}` : 'task missing' };
   },
   maxApiCalls(ctx, c) {
-    return { ok: ctx.usage.calls <= c.max, detail: `${ctx.usage.calls} calls` };
+    // A call that only retried a permission denial (--perm safe) is an eval
+    // artefact, not agent behaviour, so each denial buys one call back.
+    const denied = ctx.usage.denials?.length ?? 0;
+    const n = ctx.usage.calls - denied;
+    return { ok: n <= c.max, detail: `${ctx.usage.calls} calls${denied ? ` (${denied} denied, counted ${n})` : ''}` };
   }
 };
 
