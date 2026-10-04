@@ -33,6 +33,12 @@ export interface CostLevers {
   slimHeartbeat: boolean;
   /** F13: PROTOCOL.md says god is the sole writer of tasks.json. */
   tasksOwnerProtocol: boolean;
+  /** J4 (T-035): hive Claude agents start with a trimmed static prefix:
+   *  `--strict-mcp-config` and unused plugins off (shared/custom/leanContext.ts). */
+  trimPrefix: boolean;
+  /** J2 (T-035): on restart, start fresh with an inbox handoff instead of
+   *  resuming a big session or one on another model (shared/custom/resumePolicy.ts). */
+  freshStartOnResume: boolean;
 }
 
 export type CostLeverKey = keyof CostLevers;
@@ -46,7 +52,9 @@ export const COST_LEVERS_ON: CostLevers = {
   promptTrim: true,
   shortNudge: true,
   slimHeartbeat: true,
-  tasksOwnerProtocol: true
+  tasksOwnerProtocol: true,
+  trimPrefix: true,
+  freshStartOnResume: true
 };
 
 /** Upstream behaviour: everything off. What code sees before the app has

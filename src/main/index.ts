@@ -34,6 +34,7 @@ import { KnowledgeManager } from './knowledge';
 import { MemoryReflector, type ReflectSettings } from './reflect';
 import { PersistStore } from './db';
 import { readAgentUsage, readContextTokens, seedSessionTranscript, resolveSessionCwd } from './transcript';
+import { keepResume, trimPrefixArgs } from './custom/sessionLevers';
 import { listIssues, listCIRuns } from './github';
 import { SlackWebhookServer, SlackReplyServer, postSlackReply, type SlackEventFile } from './slack';
 import {
@@ -2884,7 +2885,7 @@ async function spawnAgentCore(opts: AgentSpawnOptions, owner: Electron.WebConten
     const explicitSid = typeof opts.resumeSessionId === 'string' ? opts.resumeSessionId.trim() : '';
     const sid = explicitSid || (opts.resume === true ? hive.lastSession(opts.hive.id) : undefined);
     if (sid && !args.includes('--resume')) {
-      if (seedSessionTranscript(opts.cwd, sid)) {
+      if (seedSessionTranscript(opts.cwd, sid) && keepResume({ agentId: opts.hive.id, sessionId: sid, cwd: opts.cwd, explicit: !!explicitSid || opts.requireResume === true, args, send: (m) => hive.send(m, 'harness') })) {
         args.push('--resume', sid);
         didResume = true;
       } else if (explicitSid) {
@@ -2896,7 +2897,7 @@ async function spawnAgentCore(opts: AgentSpawnOptions, owner: Electron.WebConten
         resumeNotFound = true;
       }
     }
-    opts.args = args;
+    opts.args = trimPrefixArgs(args);
   }
   // Idempotent session resume on respawn (#6.6a) — provider-aware: Claude
   // `--resume <sid>`, Grok `--resume <sid>`, Antigravity `--conversation <id>`.
