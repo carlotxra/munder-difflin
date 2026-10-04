@@ -11,8 +11,8 @@ const path = require('node:path');
 const loadTs = require('./load-ts.cjs');
 
 const { transcriptStats, decideResume, handoffBody, DEFAULT_RESUME_MAX_CONTEXT_TOKENS } = loadTs('src/shared/custom/resumePolicy.ts');
-const { leanPluginOverrides, withLeanArgs, LEAN_DISABLED_PLUGINS } = loadTs('src/shared/custom/leanContext.ts');
-const { COST_LEVERS_ON } = loadTs('src/shared/custom/costLevers.ts');
+const { leanPluginOverrides, withLeanArgs, DEFAULT_LEAN_DISABLED_PLUGINS } = loadTs('src/shared/custom/leanContext.ts');
+const { COST_LEVERS_ON, COST_LEVERS_OFF, resolveCostLevers } = loadTs('src/shared/custom/costLevers.ts');
 const { setCostLeversSource } = loadTs('src/main/custom/levers.ts');
 const levers = loadTs('src/main/custom/sessionLevers.ts');
 const read = (p) => fs.readFileSync(path.resolve(__dirname, '..', p), 'utf8');
@@ -66,9 +66,11 @@ test('only listed plugins the user has ON are switched off, keeping their market
     'superpowers@claude-plugins-official': true, 'hookify@other-market': true, 'typescript-lsp@claude-plugins-official': true,
     'security-guidance@claude-plugins-official': true, 'feature-dev@claude-plugins-official': false
   });
-  assert.deepEqual(o, { 'superpowers@claude-plugins-official': false, 'hookify@other-market': false });
+  assert.deepEqual(o, { 'hookify@other-market': false }, 'superpowers is kept by default (T-038)');
   assert.deepEqual(leanPluginOverrides(undefined), {});
-  for (const keep of ['typescript-lsp', 'security-guidance', 'lavish']) assert.ok(!LEAN_DISABLED_PLUGINS.includes(keep), keep);
+  for (const keep of ['superpowers', 'typescript-lsp', 'security-guidance', 'lavish']) assert.ok(!DEFAULT_LEAN_DISABLED_PLUGINS.includes(keep), keep);
+  assert.deepEqual(leanPluginOverrides({ 'superpowers@x': true, 'hookify@x': true }, ['superpowers']), { 'superpowers@x': false }, 'a custom list is honoured');
+  assert.deepEqual(leanPluginOverrides({ 'superpowers@x': true, 'hookify@x': true }, []), {}, 'an empty list trims nothing');
 });
 
 test('withLeanArgs adds --strict-mcp-config once and leaves explicit MCP config alone', () => {
@@ -95,7 +97,7 @@ test('levers default ON in this fork', () => {
 test('trimPrefix: off = args untouched; on = strict MCP + plugin overrides merged into the session settings', (t) => {
   const home = sandboxHome(t);
   const user = path.join(home, 'user-settings.json');
-  fs.writeFileSync(user, JSON.stringify({ enabledPlugins: { 'superpowers@claude-plugins-official': true, 'typescript-lsp@claude-plugins-official': true } }));
+  fs.writeFileSync(user, JSON.stringify({ enabledPlugins: { 'superpowers@claude-plugins-official': true, 'hookify@claude-plugins-official': true, 'typescript-lsp@claude-plugins-official': true } }));
   levers.setUserSettingsPathForTest(() => user);
   const settings = path.join(home, 'settings.json');
   fs.writeFileSync(settings, JSON.stringify({ hooks: { Stop: [] } }));
@@ -108,7 +110,7 @@ test('trimPrefix: off = args untouched; on = strict MCP + plugin overrides merge
   setCostLeversSource(() => ({}));
   assert.deepEqual(levers.trimPrefixArgs(args), [...args, '--strict-mcp-config']);
   const written = JSON.parse(fs.readFileSync(settings, 'utf8'));
-  assert.deepEqual(written.enabledPlugins, { 'superpowers@claude-plugins-official': false });
+  assert.deepEqual(written.enabledPlugins, { 'hookify@claude-plugins-official': false }, 'default list: superpowers stays on');
   assert.deepEqual(written.hooks, { Stop: [] }, 'the hive settings are kept');
 });
 
@@ -141,4 +143,45 @@ test('index.ts carries only the two thin seams', () => {
   assert.match(idx, /import \{ keepResume, trimPrefixArgs \} from '\.\/custom\/sessionLevers';/);
   assert.match(idx, /if \(seedSessionTranscript\(opts\.cwd, sid\) && keepResume\(\{ agentId: opts\.hive\.id, sessionId: sid, cwd: opts\.cwd, explicit: !!explicitSid \|\| opts\.requireResume === true, args, send: \(m\) => hive\.send\(m, 'harness'\) \}\)\) \{/);
   assert.match(idx, /opts\.args = trimPrefixArgs\(args\);/);
+});
+
+// ── T-038: configurable plugin list + strictMcp ─────────────────────────────
+
+test('leanDisabledPlugins: default excludes superpowers; lists are validated; OFF = no trim', () => {
+  assert.deepEqual(COST_LEVERS_ON.leanDisabledPlugins, [...DEFAULT_LEAN_DISABLED_PLUGINS]);
+  assert.ok(!COST_LEVERS_ON.leanDisabledPlugins.includes('superpowers'));
+  assert.equal(COST_LEVERS_ON.strictMcp, true);
+  assert.deepEqual(COST_LEVERS_OFF.leanDisabledPlugins, []);
+  assert.equal(COST_LEVERS_OFF.strictMcp, false);
+  assert.deepEqual(resolveCostLevers({ costLevers: { leanDisabledPlugins: ['superpowers', 3, 'hookify'] } }).leanDisabledPlugins, ['superpowers', 'hookify']);
+  assert.deepEqual(resolveCostLevers({ costLevers: { leanDisabledPlugins: 'superpowers' } }).leanDisabledPlugins, [...DEFAULT_LEAN_DISABLED_PLUGINS], 'not an array = default');
+  assert.deepEqual(resolveCostLevers({ costLevers: { leanDisabledPlugins: [] } }).leanDisabledPlugins, []);
+  assert.equal(resolveCostLevers({ costLevers: { trimPrefix: false } }).digestWakes, true, 'boolean levers still resolve');
+});
+
+function trimSetup(t) {
+  const home = sandboxHome(t);
+  const user = path.join(home, 'user-settings.json');
+  fs.writeFileSync(user, JSON.stringify({ enabledPlugins: { 'superpowers@m': true, 'hookify@m': true } }));
+  levers.setUserSettingsPathForTest(() => user);
+  const settings = path.join(home, 'settings.json');
+  fs.writeFileSync(settings, '{}');
+  return { settings, args: ['--settings', settings] };
+}
+const pluginsIn = (f) => JSON.parse(fs.readFileSync(f, 'utf8')).enabledPlugins;
+
+test('trimPrefixArgs honours a custom list, an empty list and strictMcp=false', (t) => {
+  const { settings, args } = trimSetup(t);
+  setCostLeversSource(() => ({ costLevers: { leanDisabledPlugins: ['superpowers'] } }));
+  assert.deepEqual(levers.trimPrefixArgs(args), [...args, '--strict-mcp-config']);
+  assert.deepEqual(pluginsIn(settings), { 'superpowers@m': false });
+
+  fs.writeFileSync(settings, '{}');
+  setCostLeversSource(() => ({ costLevers: { leanDisabledPlugins: [], strictMcp: false } }));
+  assert.deepEqual(levers.trimPrefixArgs(args), args, 'no plugin trim, no strict MCP');
+  assert.equal(pluginsIn(settings), undefined);
+
+  setCostLeversSource(() => ({ costLevers: { trimPrefix: false, leanDisabledPlugins: ['hookify'] } }));
+  assert.deepEqual(levers.trimPrefixArgs(args), args, 'trimPrefix=false disables everything');
+  assert.equal(pluginsIn(settings), undefined);
 });

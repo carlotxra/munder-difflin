@@ -14,12 +14,24 @@
  * Kept on purpose: LSP plugins (edit diagnostics), security-guidance (a hook
  * that guards edits, no listing cost), user skills (lavish is used) and the
  * bundled skills (claude-api is used).
+ *
+ * Configurable (T-038), all in `<userData>/config.json` → `costLevers`:
+ *  - `trimPrefix` (default true): master switch; false = upstream, nothing trimmed.
+ *  - `strictMcp` (default true): pass `--strict-mcp-config`.
+ *  - `leanDisabledPlugins` (default DEFAULT_LEAN_DISABLED_PLUGINS): plugin names
+ *    to switch off; `[]` = no plugin trim. superpowers is kept by default (the
+ *    human wants its TDD/debugging/verification guidance). Probe with the
+ *    default: 27,314 → 23,772 tokens (-13%); trimming superpowers too gave
+ *    23,059 (it adds 15 skills, ≈713 tokens).
+ * Read live: a change applies to the next agent spawn.
  */
 
-/** Plugins with skills/agents/commands no hive agent has used. Matched by name,
- *  any marketplace. */
-export const LEAN_DISABLED_PLUGINS: readonly string[] = Object.freeze([
-  'superpowers',
+/** Default for `costLevers.leanDisabledPlugins`: plugins with skills/agents/
+ *  commands no hive agent has used, matched by name, any marketplace.
+ *  superpowers is NOT in the default (T-038, the human's call): its TDD,
+ *  debugging and verification guidance is wanted even though no hive transcript
+ *  invoked one of its skills. */
+export const DEFAULT_LEAN_DISABLED_PLUGINS: readonly string[] = Object.freeze([
   'code-review',
   'feature-dev',
   'code-simplifier',
@@ -34,10 +46,13 @@ const pluginName = (key: string): string => key.split('@')[0];
 
 /** Per-session `enabledPlugins` overrides: switch off the listed plugins the user
  *  has enabled (keeping the user's own marketplace key). Empty when none apply. */
-export function leanPluginOverrides(userEnabledPlugins: Record<string, unknown> | undefined): Record<string, boolean> {
+export function leanPluginOverrides(
+  userEnabledPlugins: Record<string, unknown> | undefined,
+  disabled: readonly string[] = DEFAULT_LEAN_DISABLED_PLUGINS
+): Record<string, boolean> {
   const out: Record<string, boolean> = {};
   for (const [key, on] of Object.entries(userEnabledPlugins ?? {})) {
-    if (on === true && LEAN_DISABLED_PLUGINS.includes(pluginName(key))) out[key] = false;
+    if (on === true && disabled.includes(pluginName(key))) out[key] = false;
   }
   return out;
 }

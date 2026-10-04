@@ -58,7 +58,8 @@ async function floor(t) {
 test('levers are all off until the app installs a source, and all on by default after', () => {
   levers.setCostLeversSource(null);
   assert.deepEqual(levers.costLevers(), COST_LEVERS_OFF);
-  assert.ok(Object.values(COST_LEVERS_ON).every((v) => v === true));
+  // Boolean levers default on; list levers (T-038 leanDisabledPlugins) default to a non-empty list.
+  assert.ok(Object.values(COST_LEVERS_ON).every((v) => v === true || (Array.isArray(v) && v.length > 0)));
   assert.deepEqual(resolveCostLevers({}), COST_LEVERS_ON);
   const r = resolveCostLevers({ costLevers: { rosterToon: false, digestWakes: 'no', bogus: true } });
   assert.equal(r.rosterToon, false, 'a boolean override wins');

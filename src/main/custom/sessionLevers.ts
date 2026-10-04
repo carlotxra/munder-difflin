@@ -27,18 +27,19 @@ export function setUserSettingsPathForTest(fn: () => string): void { userSetting
 
 /** J4 seam: returns the args to spawn with. Off → args unchanged. */
 export function trimPrefixArgs(args: string[]): string[] {
-  if (!costLevers().trimPrefix) return args;
+  const levers = costLevers();
+  if (!levers.trimPrefix) return args;
   const i = args.indexOf('--settings');
   const settingsFile = i >= 0 ? args[i + 1] : undefined;
   if (settingsFile && existsSync(settingsFile)) {
-    const overrides = leanPluginOverrides(readJson(userSettingsPath())?.enabledPlugins);
+    const overrides = leanPluginOverrides(readJson(userSettingsPath())?.enabledPlugins, levers.leanDisabledPlugins);
     const settings = readJson(settingsFile);
     if (settings && Object.keys(overrides).length) {
       settings.enabledPlugins = { ...(settings.enabledPlugins ?? {}), ...overrides };
       try { writeFileSync(settingsFile, JSON.stringify(settings, null, 2)); } catch { /* spawn anyway */ }
     }
   }
-  return withLeanArgs(args);
+  return levers.strictMcp ? withLeanArgs(args) : args;
 }
 
 export interface ResumeGateInput {

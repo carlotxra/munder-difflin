@@ -11,6 +11,8 @@
  * Owners: Jim owns this schema (T-034). Jimbo adds his T-035 keys here.
  */
 
+import { DEFAULT_LEAN_DISABLED_PLUGINS } from './leanContext';
+
 export interface CostLevers {
   /** J1: god is not woken for mechanical mail (ACKs, inform/done that need no
    *  reply, duplicate nudges); it reads them with its next real wake. */
@@ -39,6 +41,11 @@ export interface CostLevers {
   /** J2 (T-035): on restart, start fresh with an inbox handoff instead of
    *  resuming a big session or one on another model (shared/custom/resumePolicy.ts). */
   freshStartOnResume: boolean;
+  /** J4 (T-038): with trimPrefix on, also pass `--strict-mcp-config`. */
+  strictMcp: boolean;
+  /** J4 (T-038): plugins (by name, any marketplace) switched off for hive agents
+   *  while trimPrefix is on. [] = no plugin trim. Default keeps superpowers. */
+  leanDisabledPlugins: string[];
 }
 
 export type CostLeverKey = keyof CostLevers;
@@ -54,24 +61,32 @@ export const COST_LEVERS_ON: CostLevers = {
   slimHeartbeat: true,
   tasksOwnerProtocol: true,
   trimPrefix: true,
-  freshStartOnResume: true
+  freshStartOnResume: true,
+  strictMcp: true,
+  leanDisabledPlugins: [...DEFAULT_LEAN_DISABLED_PLUGINS]
 };
 
 /** Upstream behaviour: everything off. What code sees before the app has
  *  installed a config source, so upstream's own unit tests run unchanged. */
 export const COST_LEVERS_OFF: CostLevers = Object.fromEntries(
-  Object.keys(COST_LEVERS_ON).map((k) => [k, false])
+  Object.entries(COST_LEVERS_ON).map(([k, v]) => [k, Array.isArray(v) ? [] : false])
 ) as unknown as CostLevers;
 
 /** The levers for a config object: fork defaults, overridden key by key by
- *  `config.costLevers`. Anything that is not a boolean is ignored. */
+ *  `config.costLevers`. Booleans set boolean levers, string arrays set list
+ *  levers; anything else is ignored. */
 export function resolveCostLevers(config: unknown): CostLevers {
   const raw = (config as { costLevers?: unknown } | null | undefined)?.costLevers;
   const out: CostLevers = { ...COST_LEVERS_ON };
   if (raw && typeof raw === 'object') {
     for (const k of Object.keys(out) as CostLeverKey[]) {
       const v = (raw as Record<string, unknown>)[k];
-      if (typeof v === 'boolean') out[k] = v;
+      if (Array.isArray(out[k])) {
+        // List levers (leanDisabledPlugins): an array of strings replaces the default.
+        if (Array.isArray(v)) (out as unknown as Record<string, string[]>)[k] = v.filter((x): x is string => typeof x === 'string');
+      } else if (typeof v === 'boolean') {
+        (out as unknown as Record<string, boolean>)[k] = v;
+      }
     }
   }
   return out;
