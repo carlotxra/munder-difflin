@@ -15,6 +15,7 @@ import { existsSync, rmSync, statSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { Notification, type WebContents } from 'electron';
 import type { HiveManager } from './hive';
+import { SOCK_PATH_MAX } from './sockPath';
 import type { HarnessConfig } from './config';
 import type { ControlRegistry } from './control';
 import type { CircuitBreaker } from './breaker';
@@ -214,6 +215,12 @@ export class HookServer {
     this.binding = true;
     try {
       this.bindAttempts += 1;
+      // Never let libuv truncate the path: the stale-file check below and
+      // listen() must look at the same file (sockPath() keeps it short).
+      if (process.platform !== 'win32' && Buffer.byteLength(sock) > SOCK_PATH_MAX) {
+        this.fail(sock, 'ENAMETOOLONG', `socket path is longer than ${SOCK_PATH_MAX} bytes`);
+        return;
+      }
       if (process.platform !== 'win32' && existsSync(sock)) {
         // A file left by a crashed run is normal and is cleared. A file a LIVE
         // stranger accepts on is theirs: report it, never steal it.

@@ -43,6 +43,7 @@ import { selectBroadcastTargets } from '../shared/broadcast';
 import { preferredAgentRole } from '../shared/agentRole';
 import { mergeTaskLedger } from '../shared/taskLedger';
 import { expandTilde } from './fs';
+import { shortSockPath } from './sockPath';
 import { resolveGodName } from '../shared/godIdentity';
 
 /** The subset of HarnessConfig the hive consumes for the default-MCP merge.
@@ -464,15 +465,23 @@ export class HiveManager {
    *  Node's `net` IPC uses named pipes (a flat `\\.\pipe\` namespace, not the
    *  filesystem), so a raw file path fails to bind with EACCES — derive a stable,
    *  per-root pipe name instead. Both the server (`listen`) and the shim
-   *  (`createConnection`) read this same value, so they stay in sync. */
+   *  (`createConnection`) read this same value, so they stay in sync.
+   *
+   *  POSIX caps a socket path at SOCK_PATH_MAX bytes, and libuv silently
+   *  TRUNCATES a longer one: a hive under a deep root (a Dropbox CloudStorage
+   *  path is 105 bytes here) bound `hooks.soc`, while the stale-file check
+   *  looked at `hooks.sock`, so a leftover socket blocked every bind with
+   *  EADDRINUSE and no hook event reached the app. A root that is too deep gets
+   *  a short per-root path in the temp dir instead, so the path we check is
+   *  always the path we bind. */
   sockPath(): string | null {
     const root = this.root();
     if (!root) return null;
+    const id = createHash('sha1').update(root).digest('hex').slice(0, 12);
     if (process.platform === 'win32') {
-      const id = createHash('sha1').update(root).digest('hex').slice(0, 12);
       return `\\\\.\\pipe\\munder-difflin-${id}`;
     }
-    return join(root, 'hooks.sock');
+    return shortSockPath(join(root, 'hooks.sock'), id);
   }
   private shimPath(): string | null {
     const root = this.root();
