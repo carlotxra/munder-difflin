@@ -40,8 +40,8 @@ if (!['safe', 'live'].includes(o.perm)) { console.error('--perm must be safe or 
 const SAFE_TOOLS = ['Read', 'Write', 'Edit', 'Glob', 'Grep', 'TodoWrite',
   // Narrow forms only: no bare interpreter (`node`), no exec-capable `find`/`sed`;
   // Glob/Grep/Edit cover search and edits. `cd` is allowed because agents cd into
-  // AGENT_DIR for the protocol steps; compound commands are checked part by part. Bash also stays inside the OS sandbox the
-  // harness's own --settings turn on.
+  // AGENT_DIR for the protocol steps; compound commands are checked part by part.
+  // Bash also stays inside the OS sandbox the harness's own --settings turn on.
   ...['status', 'diff', 'log', 'show', 'add', 'commit', 'checkout', 'switch', 'branch', 'rev-parse', 'stash', 'mv'].map((c) => `Bash(git ${c}:*)`),
   ...['cd', 'node --test', 'ls', 'mv', 'mkdir', 'cat', 'head', 'tail', 'wc', 'pwd', 'date', 'echo', 'printf'].map((c) => `Bash(${c}:*)`)];
 const PERM_ARGS = o.perm === 'live'
