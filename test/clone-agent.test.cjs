@@ -230,3 +230,17 @@ test('every clone string exists in en, ar and zh-CN', () => {
     assert.deepEqual(want.filter((k) => !have.has(k)), [], loc);
   }
 });
+
+test('a clone card shows only the ⧉ mark; "Clone of" is the tooltip, not text (T-030)', () => {
+  const card = read('src/renderer/src/components/AgentCard.tsx');
+  // The visible idle line is the project alone — no "Clone of" text in it.
+  assert.match(card, /const idleLine = project;/);
+  assert.doesNotMatch(card, /`\$\{project\} · ⧉ \$\{cloneOfLabel\}`/);
+  // The mark carries the label as tooltip and accessible name.
+  assert.match(card, /<span role="img" title=\{cloneOfLabel\} aria-label=\{cloneOfLabel\}>⧉<\/span>/);
+  // Hovering the card (and the context line) shows it too.
+  assert.match(card, /title=\{cloneOfLabel\}\s+className="cth-titlebar-nodrag"/);
+  assert.match(card, /const lineTitle = cloneOfLabel \? `\$\{idleLine\} · \$\{cloneOfLabel\}` : idleLine;/);
+  // The label still comes from the shared i18n key.
+  assert.match(read('src/renderer/src/components/AgentStrip.tsx'), /cloneOfLabel=\{a\.clonedFrom\s*\?\s*t\('clone\.cloneOf'/);
+});

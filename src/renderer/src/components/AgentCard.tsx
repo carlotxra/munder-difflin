@@ -127,8 +127,11 @@ export function AgentCard({
     .filter(Boolean).join(', ') || 'none';
 
   // One context line: what it's DOING while working, WHERE it lives while idle.
-  const idleLine = cloneOfLabel ? `${project} · ⧉ ${cloneOfLabel}` : project;
+  // A clone shows only the ⧉ mark after the project; "Clone of <name>" lives in
+  // the tooltip (mark, line and card) so the line stays as short as the project.
+  const idleLine = project;
   const infoLine = (status !== 'idle' && action) ? action : idleLine;
+  const lineTitle = cloneOfLabel ? `${idleLine} · ${cloneOfLabel}` : idleLine;
   const noteFirstLine = (note ?? '').split('\n').find((l) => l.trim()) ?? '';
 
   return (
@@ -149,6 +152,7 @@ export function AgentCard({
       // The ring is the visual answer to "which terminal is open"; this is the
       // same answer for a screen reader. Matches SidebarRow in fullscreen.
       aria-current={selected ? 'true' : undefined}
+      title={cloneOfLabel}
       className="cth-titlebar-nodrag"
       style={{
         width, minWidth: width, height,
@@ -235,13 +239,15 @@ export function AgentCard({
 
             {/* Context line: action while working, repo while idle. */}
             <div
-              title={`${idleLine}${action && status !== 'idle' ? ` — ${action}` : ''}`}
+              title={`${lineTitle}${action && status !== 'idle' ? ` — ${action}` : ''}`}
               style={{
                 fontSize: 11, lineHeight: '14px',
                 color: 'var(--cth-ink-500)',
                 whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
               }}
-            >{infoLine}</div>
+            >{infoLine}{cloneOfLabel && infoLine === idleLine && (
+              <> · <span role="img" title={cloneOfLabel} aria-label={cloneOfLabel}>⧉</span></>
+            )}</div>
 
             {/* God: voice on its own compact row. Workers: the private note row.
                 Both sit ABOVE the gauge, so it is never covered. */}
