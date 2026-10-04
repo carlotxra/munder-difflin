@@ -42,6 +42,7 @@ shows up as a denial and not as a silent fail. Compare A/B arms in the same mode
 | `--build <dir\|ref>` | working tree | A checkout directory, or a git ref whose `src/` is taken with `git archive`. An app build is evaluated through the ref it was built from |
 | `--ref` / `--src` | | Explicit forms of `--build` |
 | `--perm safe\|live` | `safe` | See Permission modes |
+| `--levers on\|off\|<file.json>` | `on` | Cost levers (T-034/T-035) for refs that have them: `on` = the fork defaults (an empty config, as the app reads it), `off` = no source, so upstream behaviour, or a config JSON |
 | `--runs N` | 1 | Runs per fixture |
 | `--only S1,S7` | all | Subset |
 | `--model <id>` | CLI default | `--model` for the agent |
@@ -71,6 +72,20 @@ Output goes to `$TMPDIR/md-eval/<ref>-<time>/`: `table.md`, `results.json`, and 
    touched.
 4. `lib/checks.mjs` asserts the outcome; `lib/usage.mjs` sums tokens per API call
    and takes $ from the CLI's `total_cost_usd`.
+
+### Cost levers
+
+When a ref has `src/main/custom/levers.ts`, the eval installs the lever source
+(`setCostLeversSource`) the way `index.ts` does. It also applies `trimPrefixArgs`
+(`custom/sessionLevers.ts`) to the argv and takes the nudge from `nudgeText()`
+(`custom/wake.ts`, the short nudge when `shortNudge` is on). The active levers are
+printed in the header and in `table.md`. The run **aborts (exit 3)** when the ref
+has `costLevers.ts` but the levers read all OFF with `--levers on`, or when
+`index.ts` calls `trimPrefixArgs` and `sessionLevers.ts` is missing. Refs without
+these files (stable) are unaffected. With `harnessClosingTime` on, the app parks idle
+clean workers without a model turn, but S5 still delivers the closing broadcast to the
+agent, so S5 measures the agent-side ACK path either way. J2 (`freshStartOnResume`)
+cannot be exercised with `-p` fixtures.
 
 Differences from a live spawn: no proxy/OTel env, semantic memory and the knowledge
 graph are off, and nothing drains the outbox (the checks read it directly).

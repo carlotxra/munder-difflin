@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path';
 import { spawn } from 'node:child_process';
 import { tmpdir, homedir } from 'node:os';
 import { parseArgs } from 'node:util';
-import { buildHarness, closingTimeText, provision } from './lib/build.mjs';
+import { buildHarness, closingTimeText, provision, leverCheck } from './lib/build.mjs';
 import { makeRepo } from './lib/repo.mjs';
 import { runChecks, snapshot } from './lib/checks.mjs';
 import { parseStream } from './lib/usage.mjs';
@@ -26,6 +26,7 @@ const { values: o } = parseArgs({ options: {
   out: { type: 'string' },
   'dry-run': { type: 'boolean', default: false }, // set up + check, no model call
   keep: { type: 'boolean', default: false },      // keep run dirs (default keeps only logs)
+  levers: { type: 'string', default: 'on' },      // cost levers: on = fork defaults, off = upstream, or a JSON config file
   perm: { type: 'string', default: 'safe' }       // safe = tool + env allowlist; live = harness's bypassPermissions (human opt-in)
 } });
 
@@ -55,6 +56,8 @@ const childEnv = (extra) => {
   return { ...base, ...extra };
 };
 
+const LEVERS = o.levers === 'off' ? null : o.levers === 'on' ? {} : JSON.parse(readFileSync(o.levers, 'utf8'));
+
 const FIX_DIR = new URL('./fixtures/', import.meta.url).pathname;
 const stamp = new Date().toISOString().replace(/[:.]/g, '-');
 const OUT = resolve(o.out ?? join(process.env.TMPDIR ?? tmpdir(), 'md-eval', `${o.ref ?? 'worktree'}-${stamp}`.replace(/[^\w.-]/g, '_')));
@@ -62,6 +65,11 @@ const CLAUDE = o.claude ?? [join(homedir(), '.local/bin/claude'), '/opt/homebrew
 mkdirSync(OUT, { recursive: true });
 
 const mod = buildHarness({ ref: o.ref, src: o.src, out: join(OUT, 'build') });
+const LC = leverCheck(mod, LEVERS);
+if (LC.errs.length) {
+  console.error(`\nEVAL ABORTED: this build would not run as the app runs it.\n  - ${LC.errs.join('\n  - ')}\n`);
+  process.exit(3);
+}
 const subs = {
   '{{ASK_FIRST_CLAUSE}}': mod.ASK_FIRST_CLAUSE,
   '{{CLOSING_TEXT}}': closingTimeText(mod.srcRoot)
@@ -83,7 +91,7 @@ let spent = 0;
 const EST = (() => { try { return JSON.parse(readFileSync(new URL('./estimates.json', import.meta.url), 'utf8')); } catch { return {}; } })();
 const estimate = ids.reduce((s, id) => s + runs * (EST[id] ?? EST.default ?? 0.5), 0);
 const ceiling = ids.length * runs * Number(o['run-budget']);
-console.log(`perm mode: ${o.perm}`);
+console.log(`perm mode: ${o.perm}  levers (${o.levers}): ${LC.summary}${mod.trimPrefixArgs ? '  +trimPrefixArgs' : ''}`);
 console.log(`eval: ${ids.length} fixtures x ${runs} runs = ${ids.length * runs} headless runs`);
 console.log(`estimated cost $${estimate.toFixed(2)} (ceiling $${ceiling.toFixed(2)}), --max-usd $${MAX_USD.toFixed(2)}${o['dry-run'] ? ' — dry run, nothing will be spent' : ''}`);
 if (!o['dry-run'] && estimate > MAX_USD) {
@@ -120,7 +128,7 @@ async function runOne(id, n) {
   const fx = deepFill(JSON.parse(readFileSync(join(FIX_DIR, `${id}.json`), 'utf8')), { '{{REPO}}': repo });
   makeRepo(repo, fx.repo);
   const agents = [fx.agent, ...(fx.extraAgents ?? [])].map((a) => ({ ...a, cwd: repo }));
-  const { root, inj } = await provision(mod, home, agents);
+  const { root, inj } = await provision(mod, home, agents, { levers: LEVERS });
   const agentDir = join(root, 'agents', fx.agent.id);
 
   writeFileSync(join(agentDir, 'memory.md'), fx.memory ?? '');
@@ -131,7 +139,7 @@ async function runOne(id, n) {
 
   const prompt = inj[fx.agent.id].args[inj[fx.agent.id].args.indexOf('--append-system-prompt') + 1] ?? '';
   if (fx.agent.isGod === false && !prompt.includes(mod.ASK_FIRST_CLAUSE)) console.warn(`[${id}] warning: worker prompt lacks the ASK FIRST clause`);
-  const trigger = mod.inboxNudgeText(fx.nudgeIds ?? (fx.inbox ?? []).map((m) => m.id));
+  const trigger = (mod.nudgeText ?? mod.inboxNudgeText)(fx.nudgeIds ?? (fx.inbox ?? []).map((m) => m.id));
   const ctx = { dir, repo, root, agentDir };
   ctx.before = snapshot(ctx);
 
@@ -181,6 +189,7 @@ const rows = ids.map((id) => {
 
 const table = [
   `ref: ${o.ref ?? o.src ?? 'working tree'}  perm: ${o.perm}  runs: ${runs}  model: ${o.model ?? 'CLI default'}  total: $${spent.toFixed(2)}`,
+  `levers (${o.levers}): ${LC.summary}${mod.trimPrefixArgs ? '  +trimPrefixArgs' : ''}`,
   '',
   '| Fixture | Scenario | Pass | Median tokens | Median output | Median calls | Median $ | Total $ | Denied |',
   '|---|---|---|---|---|---|---|---|---|',

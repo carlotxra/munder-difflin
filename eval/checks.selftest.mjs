@@ -87,3 +87,15 @@ test('S7 doing nothing passes; replying or too many calls fails', () => {
   const f = failing(ctx, fx);
   assert.ok(f.some((x) => x.startsWith('outbox')) && f.some((x) => x.startsWith('maxApiCalls')));
 });
+
+import { leverCheck } from './lib/build.mjs';
+
+test('leverCheck fails loudly when levers read off or the argv trim is missing', () => {
+  const off = { a: false, b: false };
+  const fake = (over) => ({ expects: { levers: true, trimPrefixArgs: false }, setCostLeversSource() {}, costLevers: () => off, ...over });
+  assert.match(leverCheck(fake(), {}).errs.join(), /every lever reads OFF/);
+  assert.deepStrictEqual(leverCheck(fake(), null).errs, []);
+  assert.deepStrictEqual(leverCheck(fake({ costLevers: () => ({ a: true, b: false }) }), {}), { errs: [], summary: 'ON: a' });
+  assert.match(leverCheck(fake({ expects: { levers: false, trimPrefixArgs: true } }), {}).errs.join(), /sessionLevers/);
+  assert.deepStrictEqual(leverCheck({ expects: { levers: false, trimPrefixArgs: false } }, {}), { errs: [], summary: 'none in this ref' });
+});
