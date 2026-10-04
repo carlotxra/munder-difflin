@@ -20,6 +20,7 @@ import { bridgeOf, providerPreset } from '../../../shared/agentProvider';
 import { isDurableRole, preferredAgentRole, roleForHiveSpawn } from '../../../shared/agentRole';
 import { inboxNudgeText } from '../../../shared/hiveNudge';
 import { wakeWorthy, nudgeText } from '@/custom/wake'; // fork: T-034 cost levers
+import { typeAndSubmit } from '../../../shared/custom/ptySubmit'; // fork: T-043
 import { resolveGodName } from '../../../shared/godIdentity';
 import { acquireTerminal, resetTerminal, isTerminalAutomationSafe } from '@/components/terminalPool';
 import { canDeliverToAgent, deliverWithAcknowledgement, checkPrecondition } from './queueDelivery';
@@ -136,22 +137,17 @@ function submitToPty(
   const prev = writeChains.get(ptyId) ?? Promise.resolve();
   const next = prev.catch(() => { /* a failed prior write must not stall the chain */ }).then(async () => {
     await waitForTerminalReady(ptyId, provider);
-    // Bracketed paste (ESC[200~ … ESC[201~) only matters for MULTI-LINE text, so a
-    // stray "\n" doesn't submit early (#24). Single-line text (nudges, slash
-    // commands) is sent raw — some TUIs (Antigravity's agy) treat the paste
-    // markers as literal input and never submit, so skipping them is more robust.
-    const payload = text.includes('\n') ? `\x1b[200~${text}\x1b[201~` : text;
-    // writePty NEVER rejects for a dead pty — it resolves { ok:false, error:
-    // 'no pty: …' } — so an unchecked await here made every failed delivery look
-    // successful (the queue-drain then destroyed the message it had already
-    // popped, #36). Surface the failure as a rejection; the chain itself is
-    // immune (the prev.catch above absorbs it for the next writer).
-    const wrote = await window.cth.writePty(ptyId, payload);
-    if (!wrote?.ok) throw new Error(wrote?.error ?? `pty write failed: ${ptyId}`);
-    await new Promise((r) => setTimeout(r, 140));
-    const submitted = await window.cth.writePty(ptyId, '\r');
-    if (!submitted?.ok) throw new Error(submitted?.error ?? `pty write failed: ${ptyId}`);
-    await new Promise((r) => setTimeout(r, settleMs));
+    // fork: T-043 clear the line, wait for the echo, then Enter (custom/ptySubmit)
+    await typeAndSubmit({
+      write: (data) => window.cth.writePty(ptyId, data),
+      waitForOutput: (timeoutMs) => new Promise<boolean>((resolve) => {
+        let off = (): void => {};
+        const done = (seen: boolean): void => { off(); clearTimeout(timer); resolve(seen); };
+        const timer = setTimeout(() => done(false), timeoutMs);
+        off = window.cth.onPtyData(ptyId, () => done(true));
+      }),
+      sleep: (ms) => new Promise((r) => setTimeout(r, ms))
+    }, text, provider, settleMs);
   });
   writeChains.set(ptyId, next);
   return next;
