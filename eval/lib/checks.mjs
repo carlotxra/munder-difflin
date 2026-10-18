@@ -20,6 +20,8 @@ function matches(m, where = {}) {
   if (where.act && m.act !== where.act) return false;
   if (where.subjectEquals && (m.subject ?? '').trim() !== where.subjectEquals) return false;
   if (where.subjectPrefix && !(m.subject ?? '').trim().startsWith(where.subjectPrefix)) return false;
+  // G13: a message about one card, wherever the card id appears (subject or body).
+  if (where.mentions && !new RegExp(where.mentions).test(`${m.subject ?? ''}\n${m.body ?? ''}`)) return false;
   return true;
 }
 const valid = (m) => !m._invalid && typeof m.to === 'string' && typeof m.subject === 'string' && typeof m.body === 'string';

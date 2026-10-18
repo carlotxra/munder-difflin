@@ -358,3 +358,17 @@ test('G8 delegating after the compaction passes; doing it yourself fails', () =>
   git(bad.repo, 'commit', '--allow-empty', '-qm', 'god did it himself');
   assert.ok(failing(bad, fx).some((f) => f.startsWith('noNewCommits')));
 });
+
+test('G13: three compactions; delegating the urgent card passes, other mail to Kevin does not count, doing it yourself fails', () => {
+  const fx = FIX('G13');
+  assert.strictEqual(fx.steps.filter((s) => s.compact).length, 3);
+  const ctx = setup(fx);
+  send(ctx, { to: 'w1', act: 'request', subject: 'T-903: who has email access?', body: 'blocked card' }, 'm0.json');
+  editTask(ctx, 'T-931', (t) => { t.status = 'doing'; t.assignee = 'w1'; });
+  assert.ok(failing(ctx, fx).some((f) => f.startsWith('outbox')), 'a message about another card is not the dispatch');
+  send(ctx, { to: 'w1', act: 'request', subject: 'URGENT', body: 'T-931. OBJECTIVE: rename the button' }, 'm1.json');
+  assert.deepStrictEqual(failing(ctx, fx), []);
+  const bad = setup(fx);
+  writeFileSync(join(bad.repo, 'index.html'), readFileSync(join(bad.repo, 'index.html'), 'utf8').replace('>Add<', '>Add item<'));
+  assert.ok(failing(bad, fx).some((f) => f.startsWith('repoClean')));
+});
