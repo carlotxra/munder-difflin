@@ -284,3 +284,25 @@ test('copilot usage counts the last checkpoint once, not each repeated view of i
   const u = parseCopilotUsage([cp(50), JSON.stringify({ type: 'model.call_finished' }), JSON.stringify({ type: 'model.call_finished' }), cp(100)].join('\n'));
   assert.deepStrictEqual([u.calls, u.input, u.output, u.cacheRead, u.costUsd], [2, 100, 10, 80, null]);
 });
+
+test('copilot permission refusals are counted as denials, with the refused command', () => {
+  const ev = (o) => JSON.stringify(o);
+  const u = parseCopilotUsage([
+    ev({ type: 'tool.execution_start', data: { toolCallId: 'a', toolName: 'bash', arguments: { command: 'git show-ref --verify refs/heads/x' } } }),
+    ev({ type: 'tool.execution_complete', data: { toolCallId: 'a', success: false, error: { message: 'Permission denied because no interactive user response was available.' } } }),
+    ev({ type: 'tool.execution_start', data: { toolCallId: 'b', toolName: 'view', arguments: { path: '/nope' } } }),
+    ev({ type: 'tool.execution_complete', data: { toolCallId: 'b', success: false, error: { message: 'Path does not exist' } } })
+  ].join('\n'));
+  assert.deepStrictEqual(u.denials, ['bash git show-ref --verify refs/heads/x']);
+});
+
+test('read-only git is allowed plain and with --no-pager on both engines', () => {
+  const cp = RUNNERS.copilot.argv({ inj: { args: ['-i', 'P'] }, trigger: 'T', perm: 'safe', preset: { initialPromptFlag: '-i' }, dirs: [] });
+  const cl = RUNNERS.claude.argv({ inj: { args: [] }, trigger: 'T', perm: 'safe', budgetUsd: 1 });
+  const claudeTools = cl[cl.indexOf('--allowedTools') + 1];
+  for (const c of ['show-ref', '--no-pager show', '--no-pager log']) {
+    assert.ok(cp.includes(`shell(git ${c}:*)`), `copilot: git ${c}`);
+    assert.ok(claudeTools.includes(`Bash(git ${c}:*)`), `claude: git ${c}`);
+  }
+  assert.ok(!cp.includes('shell(git --no-pager merge:*)'), 'no-pager forms are read-only only');
+});

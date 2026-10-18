@@ -12,7 +12,8 @@ export type ReviewPolicy = 'always' | 'nontrivial' | 'tests-only';
 
 export interface OrchestratorLevers {
   /** T-052: god gets the structured prompt (custom/godPrompt.ts) instead of
-   *  upstream's. Default OFF until the eval shows it wins on two engines. */
+   *  upstream's. Default ON since the 3-run eval (eval/baselines/2026-10-18-ab-v2-x3.md):
+   *  Claude 33/33 on both prompts, Copilot 24/33 → 29/33. False = upstream's prompt. */
   godPromptV2: boolean;
   /** T-052: when orchestrator spawning is off, god's prompt says so plainly
    *  (upstream's text still points at spawning). Fixes eval G4. Default ON. */
@@ -31,7 +32,7 @@ export type OrchestratorLeverKey = keyof OrchestratorLevers;
 
 /** This fork's defaults. */
 export const ORCHESTRATOR_LEVERS_ON: OrchestratorLevers = {
-  godPromptV2: false,
+  godPromptV2: true,
   spawnOffNotice: true,
   autoMergeWhenGreen: false,
   reviewPolicy: 'nontrivial',

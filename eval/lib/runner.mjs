@@ -64,10 +64,19 @@ export function parseGenericUsage(text) {
 export function parseCopilotUsage(text) {
   const u = { calls: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, costUsd: null, turns: 0, error: null, denials: [] };
   let last = null;
+  // Tool calls by id, so a permission refusal can name what was refused.
+  const started = new Map();
   for (const line of text.split('\n')) {
     if (!line.trim()) continue;
     let ev;
     try { ev = JSON.parse(line); } catch { continue; }
+    if (ev.type === 'tool.execution_start') started.set(ev.data?.toolCallId, ev.data);
+    else if (ev.type === 'tool.execution_complete' && ev.data?.success === false && /^Permission denied/i.test(ev.data?.error?.message ?? '')) {
+      // --perm safe refusals, like Claude's permission_denials: tool + a hint of the input.
+      const st = started.get(ev.data.toolCallId) ?? {};
+      const hint = st.arguments?.command ?? st.arguments?.path ?? '';
+      u.denials.push(`${st.toolName ?? 'tool'}${hint ? ` ${String(hint).slice(0, 60)}` : ''}`);
+    }
     if (ev.type === 'model.call_finished') u.calls++;
     else if (ev.type === 'assistant.turn_end') u.turns++;
     else if (ev.type === 'session.usage_checkpoint') last = ev.data?.accountingSnapshot?.modelMetrics ?? last;
@@ -84,7 +93,11 @@ export function parseCopilotUsage(text) {
 
 // Bash commands a fixture needs, shared by every engine's safe mode. `merge` and
 // `fetch` are here for the god landing fixtures (G9-G12); the repo is a throwaway.
-export const SAFE_GIT = ['status', 'diff', 'log', 'show', 'add', 'commit', 'checkout', 'switch', 'branch', 'rev-parse', 'stash', 'mv', 'merge', 'merge-base', 'fetch'];
+// Read-only git subcommands, also allowed as `git --no-pager <sub>`: Copilot chains
+// these into one shell command, and one unlisted part refuses the whole command
+// (T-052 confirmation run: G9/G11/G12 failed on `git show-ref` and `--no-pager`).
+export const READ_GIT = ['status', 'diff', 'log', 'show', 'rev-parse', 'merge-base', 'show-ref', 'rev-list', 'ls-files', 'for-each-ref', 'cat-file'];
+export const SAFE_GIT = [...READ_GIT, 'add', 'commit', 'checkout', 'switch', 'branch', 'stash', 'mv', 'merge', 'fetch', ...READ_GIT.map((c) => `--no-pager ${c}`)];
 export const SAFE_CMDS = ['cd', 'node --test', 'ls', 'mv', 'mkdir', 'cat', 'head', 'tail', 'wc', 'pwd', 'date', 'echo', 'printf'];
 
 export const RUNNERS = {

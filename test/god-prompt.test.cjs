@@ -44,12 +44,13 @@ async function promptFor(t, meta, config, { maySpawn = false } = {}) {
   return inj.args[i + 1].split(home).join('<HOME>');
 }
 const V2 = { orchestrator: { godPromptV2: true } };
+const V1 = { orchestrator: { godPromptV2: false } };
 
 // — levers —
 
 test('levers: fork defaults, typed overrides, junk ignored', () => {
   assert.deepEqual(resolveOrchestratorLevers({}), ORCHESTRATOR_LEVERS_ON);
-  assert.equal(ORCHESTRATOR_LEVERS_ON.godPromptV2, false, 'V2 ships off until the eval shows a win');
+  assert.equal(ORCHESTRATOR_LEVERS_ON.godPromptV2, true, 'V2 is on by default since the T-052 eval');
   assert.equal(ORCHESTRATOR_LEVERS_ON.spawnOffNotice, true);
   const l = resolveOrchestratorLevers({ orchestrator: { godPromptV2: true, reviewPolicy: 'always', integrationBranch: 'stable', autoMergeWhenGreen: 'yes' } });
   assert.deepEqual([l.godPromptV2, l.reviewPolicy, l.integrationBranch, l.autoMergeWhenGreen], [true, 'always', 'stable', false]);
@@ -67,22 +68,33 @@ test('no source installed: god prompt is upstream, no fork text', async (t) => {
 });
 
 test('levers switched off read the same as no source', async (t) => {
-  const off = await promptFor(t, GOD, { orchestrator: { spawnOffNotice: false }, costLevers: Object.fromEntries(Object.keys(loadTs('src/shared/custom/costLevers.ts').COST_LEVERS_ON).map((k) => [k, k === 'leanDisabledPlugins' ? [] : false])) });
+  const off = await promptFor(t, GOD, { orchestrator: { godPromptV2: false, spawnOffNotice: false }, costLevers: Object.fromEntries(Object.keys(loadTs('src/shared/custom/costLevers.ts').COST_LEVERS_ON).map((k) => [k, k === 'leanDisabledPlugins' ? [] : false])) });
   assert.equal(off, await promptFor(t, GOD, null));
 });
 
-test('spawn-off notice (G4): only for god, only when spawning is off', async (t) => {
-  assert.ok((await promptFor(t, GOD, {}, { maySpawn: false })).includes(SPAWN_OFF_TEXT));
-  const on = await promptFor(t, GOD, {}, { maySpawn: true });
+test('spawn-off notice (G4) on upstream\'s prompt: only for god, only when spawning is off', async (t) => {
+  assert.ok((await promptFor(t, GOD, V1, { maySpawn: false })).includes(SPAWN_OFF_TEXT));
+  const on = await promptFor(t, GOD, V1, { maySpawn: true });
   assert.ok(!on.includes('SPAWNING IS OFF') && on.includes('SPAWNING A WORKER'));
-  assert.ok(!(await promptFor(t, WORKER, {})).includes('SPAWNING IS OFF'));
+  assert.ok(!(await promptFor(t, WORKER, V1)).includes('SPAWNING IS OFF'));
 });
 
 test('V2 leaves worker prompts untouched', async (t) => {
-  assert.equal(await promptFor(t, WORKER, V2), await promptFor(t, WORKER, {}));
+  assert.equal(await promptFor(t, WORKER, V2), await promptFor(t, WORKER, V1));
 });
 
 // — V2 —
+
+test('default config (no orchestrator block) gives V2', async (t) => {
+  assert.ok((await promptFor(t, GOD, {})).includes('## Hard rules'));
+});
+
+test('rule 1 says god runs the approved fast-forward himself', async (t) => {
+  const p = await promptFor(t, GOD, V2);
+  assert.ok(p.includes('you run it yourself, as `git merge --ff-only <reported SHA>`'));
+  assert.ok(p.includes('No worker or harness does it for you.'));
+  assert.ok(p.includes('read-only git (status, log, diff, show, rev-parse) is always fine'));
+});
 
 test('V2: identity first, hard rules in order, precedence, no worker protocol header', async (t) => {
   const p = await promptFor(t, GOD, V2);
@@ -143,9 +155,9 @@ test('V2 is deterministic for the same agent (prompt-cache rule)', async (t) => 
 
 // — orientation —
 
-test('orientation: null with V2 off (upstream text), engine-neutral with V2 on', () => {
-  assert.equal(godOrientation({}, 'Michael'), null);
-  assert.equal(godOrientation(null, 'Michael'), null);
+test('orientation: null with V2 off (upstream text), engine-neutral with V2 on (the default)', () => {
+  assert.equal(godOrientation(V1, 'Michael'), null);
+  assert.ok(godOrientation({}, 'Michael'), 'on by default');
   const o = godOrientation(V2, 'Dwight');
   assert.match(o, /^You're online as Dwight, the orchestrator/);
   assert.ok(!/fully autonomous|claude agents|COMMANDS\.md/.test(o));

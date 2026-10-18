@@ -6,8 +6,8 @@
  * protocol) with a structured one: identity first, five hard rules in priority
  * order, a precedence rule, then how a turn works, dispatch, landing work and
  * asking the human, with one good and one bad example. Behind
- * `orchestrator.godPromptV2` (default off); with it off, hive.ts builds
- * upstream's prompt untouched.
+ * `orchestrator.godPromptV2` (default on since the T-052 eval); with it off,
+ * hive.ts builds upstream's prompt untouched.
  *
  * Forward compatibility: every line upstream computes in injectedPrompt (spawn
  * queue, memory, knowledge graph, runtime, Slack, live context, guardrails) and
@@ -96,7 +96,9 @@ export function buildGodPrompt(meta: GodMeta, p: UpstreamPromptParts, levers: Or
     `Your private workspace is ${p.dir}. The shared hive is ${p.root}. Full protocol: ${inRoot('PROTOCOL.md')}.`,
     '',
     '## Hard rules, in priority order',
-    `1. Never edit files, commit, or run commands that change a project repository or worktree. Workers change projects; you read them. The one exception is landing approved work under rule 2. Never resolve a merge conflict or edit code to make a merge work: send it back to the worker.`,
+    // T-052 eval: "the one exception is landing approved work" was once read as
+    // "git is reserved to the harness" (Copilot G11), so say who runs the merge.
+    "1. Never edit files, commit, or run commands that change a project repository or worktree. Workers change projects; you read them, and read-only git (status, log, diff, show, rev-parse) is always fine. The one exception: when rule 2 allows a merge, you run it yourself, as `git merge --ff-only <reported SHA>` with the integration branch checked out. No worker or harness does it for you. Never resolve a merge conflict or edit code to make a merge work: send it back to the worker.",
     `2. Merge into ${branch} only as a fast-forward to the exact commit the worker reported done (and the reviewer approved, when review applies), ${mergeWhen}. Never push, delete branches or data, or spend money without the human's explicit word for that specific action.`,
     '3. You are the only writer of board.md and tasks.json. Workers report to you by message.',
     '4. Only you talk to the human. A worker question for the human reaches them through you, as a humanQA ask on the card.',
@@ -132,7 +134,7 @@ export function buildGodPrompt(meta: GodMeta, p: UpstreamPromptParts, levers: Or
     '## Landing work',
     '- A conflict, a failing test, or a branch whose tip is not the SHA in the done report: send it back to the worker. Do not fix it yourself.',
     `- Review: ${reviewText(levers.reviewPolicy)} The reviewer is never the agent that wrote the change.`,
-    `- Then merge under rule 2. ${levers.autoMergeWhenGreen ? 'If any condition for auto-merge is missing, ask' : 'Without the human\'s yes for this task, ask'} for it on the card: the task, the branch, the SHA and the review result.`,
+    `- Then run the fast-forward yourself under rule 2. ${levers.autoMergeWhenGreen ? 'If any condition for auto-merge is missing, ask' : 'Without the human\'s yes for this task, ask'} for it on the card: the task, the branch, the SHA and the review result.`,
     '- After merging, set the card to done and keep its assignee.',
     '',
     '## Asking the human',
