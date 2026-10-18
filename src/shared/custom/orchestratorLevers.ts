@@ -26,6 +26,11 @@ export interface OrchestratorLevers {
   /** T-052 (prompt V2): the branch work lands on, when every project uses the same
    *  one. '' = each project's own (god asks the human once when unclear). */
   integrationBranch: string;
+  /** T-051: engines (provider ids) whose agents get the hive prompt through the
+   *  engine's own instructions file in their per-agent home, with only a short
+   *  kick as the first message. Applies to every agent, not only god. Default:
+   *  the engines checked on this machine (copilot, opencode). [] = upstream. */
+  nativeInstructions: string[];
 }
 
 export type OrchestratorLeverKey = keyof OrchestratorLevers;
@@ -36,7 +41,8 @@ export const ORCHESTRATOR_LEVERS_ON: OrchestratorLevers = {
   spawnOffNotice: true,
   autoMergeWhenGreen: false,
   reviewPolicy: 'nontrivial',
-  integrationBranch: ''
+  integrationBranch: '',
+  nativeInstructions: ['copilot', 'opencode']
 };
 
 /** Upstream behaviour: what code sees before the app installs a config source. */
@@ -45,7 +51,8 @@ export const ORCHESTRATOR_LEVERS_OFF: OrchestratorLevers = {
   spawnOffNotice: false,
   autoMergeWhenGreen: false,
   reviewPolicy: 'nontrivial',
-  integrationBranch: ''
+  integrationBranch: '',
+  nativeInstructions: []
 };
 
 const REVIEW_POLICIES: readonly ReviewPolicy[] = ['always', 'nontrivial', 'tests-only'];
@@ -56,7 +63,7 @@ const BRANCH_RE = /^[A-Za-z0-9._/-]{1,100}$/;
  *  `config.orchestrator`. Values of the wrong type are ignored. */
 export function resolveOrchestratorLevers(config: unknown): OrchestratorLevers {
   const raw = (config as { orchestrator?: unknown } | null | undefined)?.orchestrator;
-  const out: OrchestratorLevers = { ...ORCHESTRATOR_LEVERS_ON };
+  const out: OrchestratorLevers = { ...ORCHESTRATOR_LEVERS_ON, nativeInstructions: [...ORCHESTRATOR_LEVERS_ON.nativeInstructions] };
   if (!raw || typeof raw !== 'object') return out;
   const r = raw as Record<string, unknown>;
   for (const k of ['godPromptV2', 'spawnOffNotice', 'autoMergeWhenGreen'] as const) {
@@ -65,6 +72,9 @@ export function resolveOrchestratorLevers(config: unknown): OrchestratorLevers {
   if (REVIEW_POLICIES.includes(r.reviewPolicy as ReviewPolicy)) out.reviewPolicy = r.reviewPolicy as ReviewPolicy;
   if (typeof r.integrationBranch === 'string' && (r.integrationBranch === '' || BRANCH_RE.test(r.integrationBranch))) {
     out.integrationBranch = r.integrationBranch;
+  }
+  if (Array.isArray(r.nativeInstructions)) {
+    out.nativeInstructions = r.nativeInstructions.filter((x): x is string => typeof x === 'string' && /^[a-z][a-z0-9-]{0,30}$/.test(x));
   }
   return out;
 }

@@ -49,6 +49,7 @@ import { resolveGodName } from '../shared/godIdentity';
 import { customRosterContext } from './custom/roster'; // fork: T-034 cost levers
 import { trimPrompt, customDoc } from './custom/promptTrim'; // fork: T-034 cost levers
 import { godPromptV2, spawnOffLine } from './custom/godPrompt'; // fork: T-052 orchestrator prompt
+import { nativeInstructions } from './custom/instructionChannel'; // fork: T-051 native instructions
 
 /** The subset of HarnessConfig the hive consumes for the default-MCP merge.
  *  Kept as a local shape so hive.ts never imports the foundation-owned config
@@ -867,7 +868,7 @@ export class HiveManager {
     if (!isHiveAwareProvider(meta.provider)) {
       const preset = providerPreset(meta.provider ?? 'claude');
       const flag = preset.initialPromptFlag;
-      const prompt = this.injectedPrompt(meta, dir, root, opts.semanticMemory ?? false, opts.knowledgeGraph ?? false, opts.kgCliPath);
+      let prompt = this.injectedPrompt(meta, dir, root, opts.semanticMemory ?? false, opts.knowledgeGraph ?? false, opts.kgCliPath); // fork: T-051 (let: reassigned below)
       // agy, codex, and grok expose a Claude-style lifecycle-hook surface, so each
       // gets the SAME live status + Stop→inbox-drain Claude does — selected by the
       // preset's `hookBridge`. agy needs a translating shim (its hook stdin/stdout
@@ -993,6 +994,7 @@ export class HiveManager {
           }
         } catch (e) { console.error(`[hive] install ${desc.kind} bridge failed:`, e); }
       }
+      prompt = nativeInstructions(meta, env, prompt); // fork: T-051 (custom/instructionChannel.ts)
       // Inject the protocol text whichever way the CLI accepts it.
       // type-into-tui (Crush): the bare TUI reads a positional as a Cobra subcommand
       // → `Unknown command`. So DROP the positional and hand the protocol back as

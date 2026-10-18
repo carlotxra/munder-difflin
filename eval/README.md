@@ -81,7 +81,10 @@ Output goes to `$TMPDIR/md-eval/<ref>-<time>/`: `table.md`, `results.json`, and 
    user message (read back from the launch argv `ensureAgent` built for that
    provider), followed by the nudge in the same message, plus the env the harness
    set (e.g. Copilot's per-agent `COPILOT_HOME` with `copilot-instructions.md`). In
-   the app those are two turns; a one-shot run merges them. The hook
+   the app those are two turns; a one-shot run merges them.
+   With T-051's native instruction channel on for that engine, the first message is a
+   short kick and the prompt lives in the engine's instructions file in the per-agent
+   home, exactly as in the app. The hook
    socket does not exist, so the hooks run but are no-ops. The live hive is never
    touched.
 4. `lib/checks.mjs` asserts the outcome; `lib/usage.mjs` sums tokens per API call
