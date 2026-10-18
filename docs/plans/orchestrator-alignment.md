@@ -361,6 +361,10 @@ Do this only if, after Phases 1–4, one engine still lags in the matrix.
 
 ## Phase 6: Make drift visible (T-056, small)
 
+> Built on branch `t056-drift-visibility`: four on-disk checks, told to god once per breach via the
+> hook context (the heartbeat ships disabled), logged as `god-drift`, counted in the slim
+> heartbeat. No UI badge yet.
+
 - Add `god-guard`, `dispatch-missing-assignee`, `ask-too-long`, `spawn-while-idle-fit`,
   `merge` and `merge-refused` (with the reason) events to `log.jsonl`. Phases 3 and 4 already produce them.
 - Extend the slim heartbeat digest (`custom/wake.ts`) with one line, "orchestrator rule

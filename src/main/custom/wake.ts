@@ -12,6 +12,7 @@
  *    Seam: the first line of buildHeartbeatDigest() in index.ts.
  */
 import type { HiveManager, HiveMessage } from '../hive';
+import { driftDigestLine } from './drift';
 import { inboxNudgeText } from '../../shared/hiveNudge';
 import { isMechanicalMail, shortNudgeText, type SentByGod } from '../../shared/custom/wake';
 import { costLevers } from './levers';
@@ -102,6 +103,7 @@ export function slimHeartbeatDigest(hive: HiveManager, quietMs: number, actionab
       : '',
     `Board (head): ${boardHead ? `\n${boardHead}` : '(empty)'}`,
     `Recent log: ${logSummary(hive.logTail(8))} (full: log.jsonl)`,
+    driftDigestLine(hive), // T-056: god's open rule breaches (custom/drift.ts)
     'Re-engage anyone stalled or blocked and keep the board accurate — or rest if the work is genuinely done.'
   ].filter(Boolean).join('\n');
 }

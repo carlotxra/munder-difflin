@@ -22,6 +22,8 @@ import { resolve, join, sep, dirname, basename } from 'node:path';
 import { tmpdir } from 'node:os';
 import { realpathSync, existsSync } from 'node:fs';
 import { orchestratorLevers } from './orchestrator';
+// T-056: re-exported so hooks.ts keeps one fork import line for both.
+export { driftNotice } from './drift';
 
 export interface GuardInput {
   hiveRoot: string;
