@@ -20,6 +20,7 @@ npm run build:eval -- --runs 3 --max-usd 15                # build, then eval th
 npm run eval -- --only S5,S7 --dry-run                     # set up + check, no model call
 npm run eval -- --provider copilot --only G1,G5 --accept-uncapped   # another engine (T-050)
 npm run eval -- --matrix eval/matrix.example.json --only G1,G5 --dry-run  # several engines, one table
+npm run eval -- --matrix eval/matrix.v2-ab.json --only G4,G5 --accept-uncapped   # god prompt V1 vs V2 (T-052)
 node --test eval/checks.selftest.mjs                       # offline test of the checks
 ```
 
@@ -52,6 +53,7 @@ shows up as a denial and not as a silent fail. Compare A/B arms in the same mode
 | `--provider <id>` | `claude` | Engine for the agent under test (T-050): `claude`, `copilot`, `opencode`. See Engines |
 | `--model <id>` | CLI default | `--model` for the agent |
 | `--matrix <file.json>` | | One arm per `{ "provider", "model"? }` entry, all in one table (overrides `--provider`/`--model`); example: `eval/matrix.example.json` |
+| `--orchestrator on\|off\|<file.json>` | `on` | Orchestrator levers (T-052): `on` = the fork defaults (spawn-off notice on, god prompt V2 off), `off` = no source, so upstream behaviour, or a JSON file of `config.orchestrator` keys. A `--matrix` entry may add its own `"orchestrator": {…}` on top, for an A/B in one table (`eval/matrix.v2-ab.json`) |
 | `--accept-uncapped` | off | Required for a real run on an engine that reports no $ (Copilot, OpenCode): `--max-usd` cannot cap it |
 | `--max-usd $` | 8 | Total cap: refuses to start if the estimate is over it, skips remaining runs once reached (`--budget` is the old name) |
 | `--run-budget $` | 1.5 | `--max-budget-usd` per run |

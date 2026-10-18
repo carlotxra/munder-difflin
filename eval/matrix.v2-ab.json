@@ -1,0 +1,6 @@
+[
+  { "provider": "claude" },
+  { "provider": "claude", "orchestrator": { "godPromptV2": true } },
+  { "provider": "copilot" },
+  { "provider": "copilot", "orchestrator": { "godPromptV2": true } }
+]

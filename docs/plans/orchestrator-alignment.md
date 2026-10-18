@@ -170,6 +170,9 @@ The pattern already exists: Copilot writes `copilot-instructions.md` into a per-
 
 ## Phase 2: Give god his own structured prompt (T-052)
 
+> Built on branch `t052-god-prompt`; see CUSTOMIZATIONS.md. Added from the T-050 baseline: a
+> separate `spawnOffNotice` lever (default on) that fixes G4 without switching V2 on.
+
 **Problems P2, P3, P4.**
 
 ### 2a. A separate god prompt builder

@@ -28,7 +28,9 @@ export function buildHarness({ ref, src, out }) {
   const optional = [
     ['src/main/custom/levers.ts', `export { setCostLeversSource, costLevers } from ${from('src/main/custom/levers')};`],
     ['src/main/custom/wake.ts', `export { nudgeText } from ${from('src/main/custom/wake')};`],
-    ['src/main/custom/sessionLevers.ts', `export { trimPrefixArgs } from ${from('src/main/custom/sessionLevers')};`]
+    ['src/main/custom/sessionLevers.ts', `export { trimPrefixArgs } from ${from('src/main/custom/sessionLevers')};`],
+    // T-052: orchestrator levers (god prompt V2, spawn-off notice).
+    ['src/main/custom/orchestrator.ts', `export { setOrchestratorLeversSource, orchestratorLevers } from ${from('src/main/custom/orchestrator')};`]
   ].filter(([f]) => existsSync(join(root, f))).map(([, line]) => line);
   writeFileSync(entry, [
     `export { HiveManager } from ${from('src/main/hive')};`,
@@ -81,10 +83,13 @@ export function closingTimeText(srcRoot) {
 }
 
 /** Provision a throwaway hive under `home` and return the claude argv + env for each agent. */
-export async function provision(mod, home, agents, { askFirst = true, maySpawn = false, version = 'eval', levers = {}, provider = 'claude' } = {}) {
+export async function provision(mod, home, agents, { askFirst = true, maySpawn = false, version = 'eval', levers = {}, orchestrator = {}, provider = 'claude' } = {}) {
   // Cost levers: `{}` = the fork's defaults (all ON), as the app reads an empty
   // config; null = no source installed, so every lever reads OFF (upstream).
   mod.setCostLeversSource?.(levers === null ? null : () => levers);
+  // T-052: orchestrator levers, same convention: `{}` = fork defaults (as
+  // install.ts reads config.orchestrator), null = no source (upstream).
+  mod.setOrchestratorLeversSource?.(orchestrator === null ? null : () => ({ orchestrator }));
   const hive = new mod.HiveManager(() => home);
   hive.setRuntimeInfo?.({ version, packaged: false });
   for (const k of Object.getOwnPropertyNames(Object.getPrototypeOf(hive))) {

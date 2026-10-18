@@ -21,6 +21,7 @@ import { isDurableRole, preferredAgentRole, roleForHiveSpawn } from '../../../sh
 import { inboxNudgeText } from '../../../shared/hiveNudge';
 import { wakeWorthy, nudgeText } from '@/custom/wake'; // fork: T-034 cost levers
 import { typeAndSubmit } from '../../../shared/custom/ptySubmit'; // fork: T-043
+import { godOrientation } from '../../../shared/custom/godOrientation'; // fork: T-052
 import { resolveGodName } from '../../../shared/godIdentity';
 import { acquireTerminal, resetTerminal, isTerminalAutomationSafe } from '@/components/terminalPool';
 import { canDeliverToAgent, deliverWithAcknowledgement, checkPrecondition } from './queueDelivery';
@@ -462,7 +463,7 @@ export function useHive(config: HarnessConfig | null): void {
             // main process hands it back as seedPrompt — type it FIRST (identity), then
             // the orientation kick. Serialized via writeChains so they can't jam. (ondev-b)
             if (res.seedPrompt) await submitToPty(GOD_PTY, res.seedPrompt, godProvider);
-            await submitToPty(GOD_PTY, INITIAL_GOD_PROMPT, godProvider);
+            await submitToPty(GOD_PTY, godOrientation(config, godName) ?? INITIAL_GOD_PROMPT, godProvider); // fork: T-052
           }
         } catch { /* PTY may have died during startup */ }
         finally { bootGraceUntil.current[GOD_ID] = 0; }

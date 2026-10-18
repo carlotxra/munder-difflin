@@ -48,6 +48,7 @@ import { cloneInformBody, memorySnapshot } from '../shared/cloneAgent';
 import { resolveGodName } from '../shared/godIdentity';
 import { customRosterContext } from './custom/roster'; // fork: T-034 cost levers
 import { trimPrompt, customDoc } from './custom/promptTrim'; // fork: T-034 cost levers
+import { godPromptV2, spawnOffLine } from './custom/godPrompt'; // fork: T-052 orchestrator prompt
 
 /** The subset of HarnessConfig the hive consumes for the default-MCP merge.
  *  Kept as a local shape so hive.ts never imports the foundation-owned config
@@ -1623,6 +1624,7 @@ export class HiveManager {
     const slackLine = meta.isGod
       ? 'SLACK REPLIES: When composing a Slack reply (or writing the `result` field of a Slack-origin kanban card), you MUST: (1) directly address what the user asked — never a bare "done"; (2) include the relevant specifics, outcome, and details; (3) format for Slack mrkdwn — open with a short *bold* headline, use bullet points for multiple items, wrap code/paths in `backtick` blocks, keep it concise (no walls of text). When finishing a Slack-origin task, always write a complete, user-facing, well-formatted `result` on the kanban card — the system posts it verbatim to Slack as the done reply.'
       : `SLACK REPLIES: If god dispatches you a task that came from Slack, it will include an exact \`"${hiveNode}" "<helper>" --channel … --thread … --text "…"\` reply command — when you finish, run it VERBATIM to post your result back to that thread yourself. The reply must be SUBSTANTIVE Slack mrkdwn (a short *bold* headline + the actual outcome/specifics/links), NEVER a bare "done".`;
+    const v2 = godPromptV2(meta, { dir, root, maySpawn: this.orchestratorMaySpawn(), askFirst: this._askFirst, guardrailsLine, memoryLine, knowledgeLine, spawnQueueLine, runtimeLine, slackLine, ctxLine }); if (v2 !== null) return v2; // fork: T-052 (custom/godPrompt.ts)
     return trimPrompt([ // fork: T-034 cost levers (custom/promptTrim.ts)
       `You are "${meta.name}" (${meta.id}), an autonomous agent in a collaborating hive of Claude agents.`,
       `Your private workspace is ${dir}. The shared hive is ${root}. Full protocol: ${inRoot('PROTOCOL.md')}.`,
@@ -1638,6 +1640,7 @@ export class HiveManager {
       godLine,
       askFirstPromptLine(meta, this._askFirst),
       spawnQueueLine,
+      spawnOffLine(meta, this.orchestratorMaySpawn()), // fork: T-052 (custom/godPrompt.ts)
       runtimeLine,
       slackLine,
       ctxLine,

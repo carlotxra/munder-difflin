@@ -31,6 +31,7 @@ const { values: o } = parseArgs({ options: {
   'dry-run': { type: 'boolean', default: false }, // set up + check, no model call
   keep: { type: 'boolean', default: false },      // keep run dirs (default keeps only logs)
   levers: { type: 'string', default: 'on' },      // cost levers: on = fork defaults, off = upstream, or a JSON config file
+  orchestrator: { type: 'string', default: 'on' }, // T-052: on = fork defaults, off = upstream, or a JSON file of config.orchestrator keys
   perm: { type: 'string', default: 'safe' }       // safe = tool + env allowlist; live = harness's bypassPermissions (human opt-in)
 } });
 
@@ -41,7 +42,7 @@ if (!['safe', 'live'].includes(o.perm)) { console.error('--perm must be safe or 
 
 // One arm per engine/model pair: --matrix, or the single --provider/--model.
 const ARMS = (o.matrix ? JSON.parse(readFileSync(o.matrix, 'utf8')) : [{ provider: o.provider, model: o.model }])
-  .map((a) => ({ provider: a.provider ?? 'claude', model: a.model ?? null }));
+  .map((a) => ({ provider: a.provider ?? 'claude', model: a.model ?? null, orchestrator: a.orchestrator ?? null }));
 for (const a of ARMS) {
   const r = RUNNERS[a.provider];
   if (!r) { console.error(`unknown or unverified provider "${a.provider}" (have: ${Object.keys(RUNNERS).join(', ')})`); process.exit(2); }
@@ -53,7 +54,9 @@ for (const a of ARMS) {
     process.exit(2);
   }
 }
-const armLabel = (a) => `${a.provider}${a.model ? `:${a.model}` : ''}`;
+// An arm may set its own orchestrator levers (e.g. { "godPromptV2": true }) for a
+// side-by-side A/B in one table; the label shows which keys it set.
+const armLabel = (a) => `${a.provider}${a.model ? `:${a.model}` : ''}${a.orchestrator ? ` ${Object.entries(a.orchestrator).map(([k, v]) => `${k}=${v}`).join(',')}` : ''}`;
 
 // Child env for --perm safe: an allowlist, never the parent's whole environment.
 // Each engine adds the keys its own login needs (runner.envKeep).
@@ -65,6 +68,8 @@ const childEnv = (extra, keep) => {
 };
 
 const LEVERS = o.levers === 'off' ? null : o.levers === 'on' ? {} : JSON.parse(readFileSync(o.levers, 'utf8'));
+const ORCH = o.orchestrator === 'off' ? null : o.orchestrator === 'on' ? {} : JSON.parse(readFileSync(o.orchestrator, 'utf8'));
+const orchFor = (arm) => (arm.orchestrator ? { ...(ORCH ?? {}), ...arm.orchestrator } : ORCH);
 
 const FIX_DIR = new URL('./fixtures/', import.meta.url).pathname;
 const stamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -103,6 +108,8 @@ const usdArms = ARMS.filter((a) => RUNNERS[a.provider].reportsUsd).length;
 const estimate = usdArms * ids.reduce((s, id) => s + runs * (EST[id] ?? EST.default ?? 0.5), 0);
 const ceiling = usdArms * ids.length * runs * Number(o['run-budget']);
 console.log(`perm mode: ${o.perm}  levers (${o.levers}): ${LC.summary}${mod.trimPrefixArgs ? '  +trimPrefixArgs' : ''}`);
+const orchSummary = !mod.setOrchestratorLeversSource ? 'none in this ref' : ORCH === null ? 'off (upstream)' : JSON.stringify(ORCH) === '{}' ? 'fork defaults' : JSON.stringify(ORCH);
+console.log(`orchestrator (${o.orchestrator}): ${orchSummary}`);
 console.log(`engines: ${ARMS.map(armLabel).join(', ')}`);
 console.log(`eval: ${ids.length} fixtures x ${runs} runs x ${ARMS.length} engines = ${ids.length * runs * ARMS.length} headless runs`);
 console.log(`estimated cost $${estimate.toFixed(2)} (ceiling $${ceiling.toFixed(2)}), --max-usd $${MAX_USD.toFixed(2)}${o['dry-run'] ? ' — dry run, nothing will be spent' : ''}`);
@@ -145,7 +152,7 @@ async function runOne(id, n, arm, ai) {
   makeRepo(repo, fx.repo);
   fx = fillShas(fx, repo);
   const agents = [fx.agent, ...(fx.extraAgents ?? [])].map((a) => ({ ...a, cwd: repo }));
-  const { root, inj } = await provision(mod, home, agents, { levers: LEVERS, provider: arm.provider, maySpawn: !!fx.hive?.maySpawn });
+  const { root, inj } = await provision(mod, home, agents, { levers: LEVERS, orchestrator: orchFor(arm), provider: arm.provider, maySpawn: !!fx.hive?.maySpawn });
   const agentDir = join(root, 'agents', fx.agent.id);
 
   writeFileSync(join(agentDir, 'memory.md'), fx.memory ?? '');
@@ -220,6 +227,7 @@ const rows = ARMS.flatMap((arm) => ids.map((id) => {
 const table = [
   `ref: ${o.ref ?? o.src ?? 'working tree'}  perm: ${o.perm}  runs: ${runs}  engines: ${ARMS.map(armLabel).join(', ')}  total: $${spent.toFixed(2)}`,
   `levers (${o.levers}): ${LC.summary}${mod.trimPrefixArgs ? '  +trimPrefixArgs' : ''}`,
+  `orchestrator (${o.orchestrator}): ${orchSummary}`,
   '',
   '| Engine | Fixture | Scenario | Pass | Median tokens | Median output | Median calls | Median $ | Total $ | Denied |',
   '|---|---|---|---|---|---|---|---|---|---|',

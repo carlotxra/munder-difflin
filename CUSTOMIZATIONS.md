@@ -53,6 +53,7 @@ git diff --stat main..stable       # files touched
 | Hive protocol eval | Opt-in only (spends money; never in build/test/CI/release): 8 headless fixtures (S1–S8) run against a throwaway hive with the prompt/hooks built from a given ref or checkout; file-system/git checks plus tokens, $ and tool denials per fixture, for A/B testing prompt and hook changes. Installs the ref's cost-lever source, `trimPrefixArgs` and lever-aware nudge like `index.ts`, and aborts if a ref with levers would run them OFF. Prints the estimated $ first and enforces `--max-usd`. `--perm safe` (default: acceptEdits + tool allowlist + env allowlist) or `--perm live` (bypassPermissions, human only) | `npm run eval -- --build <dir\|ref> --runs N --max-usd <$> [--perm safe\|live] [--levers on\|off\|<json>]`; `npm run build:eval` | `eval/` (`run.mjs`, `lib/`, `fixtures/S*.json`, `estimates.json`, `README.md`, `checks.selftest.mjs`); test `test/eval-opt-in.test.cjs` | branch `eval-harness` (T-036) | pending merge |
 | Clean-line automated typing | Every automated submission (boot `/remote-control`, god's orientation prompt, inbox nudges, queue drains and, since T-047, the main-process worker-wake nudge) first clears the input line with Ctrl+U, types the text, waits for the TUI to echo it (any pty output, capped at 1s), then sends Enter exactly once. A lost Enter no longer glues the next submission onto the same line (the boot bug: "Args from unknown skill: MichaelYou're online…"). Enter is never re-sent, because a second Enter could answer a permission prompt. T-047: Ctrl+U goes only to providers verified to treat it as "kill to line start" (claude, kimi, crush); every other provider gets no clear, only the echo wait, because an Ink-style input (copilot, grok, cursor, pi, opencode) may type a literal `u`. codex, gemini and qwen are not verified yet (check: type `ab`, Ctrl+U, `c`, Enter → submits `c`). Side effect: a half-typed human draft in that agent's terminal gets wiped by the next automated submission (it used to be glued onto it) | none | logic `src/shared/custom/ptySubmit.ts` (`typeAndSubmit`, `clearInputSequence`); `src/main/custom/ptySubmit.ts` (`submitLine`, echo wait polls `PtyManager.lastOutputAt`); **upstream seams:** `src/renderer/src/hooks/useHive.ts:23` (import), `:140` (`submitToPty` body calls `typeAndSubmit`); `src/main/index.ts:73` (import), `nudgeWorker` body (`submitLine(...)`) and its call in `runWorkerWakeBeat` (passes the registry provider); test `test/pty-submit.test.cjs` | `fb086c40` (T-043), branch `t047-ctrlu-allowlist` (T-047) | T-043 merged, T-047 pending merge |
 | Eval: engines + god fixtures | Extends the opt-in hive eval to other engines and to Michael's orchestrator behaviour, as the baseline for the orchestrator alignment work (T-050 to T-056). Runners for `claude`, `copilot` and `opencode` deliver the hive prompt the way the app does (Claude: `--append-system-prompt`; others: first user message from the launch argv `ensureAgent` built). `--matrix` runs several engine/model arms into one table. 11 god fixtures (G1–G7, G9–G12) for delegation, reuse-before-spawn, the spawn toggle, humanQA shape, heartbeat re-engagement and landing work on `stable` (conflicts back to the author, independent review, human OK, fast-forward only). An engine without a $ figure needs `--accept-uncapped`; OpenCode runs only with `--perm live`. No `src/` change | `npm run eval -- --provider <claude\|copilot\|opencode> [--model <id>]`, `--matrix <file.json>`, `--accept-uncapped` | `eval/lib/runner.mjs` (new), `eval/run.mjs`, `eval/lib/{build,checks,repo}.mjs`, `eval/fixtures/G*.json`, `eval/matrix.example.json`, `eval/README.md`, `eval/checks.selftest.mjs` | branch `t050-eval-matrix` (T-050) | pending merge |
+| God prompt V2 + spawn-off notice | Michael's structured prompt (T-052, plan Phase 2): identity first, five hard rules in priority order, a precedence rule, then each turn / dispatch / landing work / asking the human, with a good and a bad ask example; engine-aware (Claude-only advice only on Claude); upstream's spawn, memory, KG, runtime, Slack, live-context, guardrail and ask-first text passed through verbatim. Plus an engine-neutral orientation prompt. Separately, the spawn-off notice: when orchestrator spawning is off, god is told plainly not to file spawn requests (eval G4) | `config.orchestrator`: `godPromptV2` (default **off**), `spawnOffNotice` (default on), `autoMergeWhenGreen` (off), `reviewPolicy` (`nontrivial`), `integrationBranch` (`''` = each project's). Config file only. Read at spawn: applies to agents spawned after a change | logic `src/main/custom/godPrompt.ts`, `src/main/custom/orchestrator.ts`, `src/shared/custom/orchestratorLevers.ts`, `src/shared/custom/godOrientation.ts`; wiring `src/main/custom/install.ts`; **upstream seams:** `src/main/hive.ts` import (`// fork: T-052`), the V2 switch before `return trimPrompt([`, the `spawnOffLine(...)` entry after `spawnQueueLine`; `src/renderer/src/hooks/useHive.ts` import + `godOrientation(config, godName) ?? INITIAL_GOD_PROMPT`; test `test/god-prompt.test.cjs` (incl. drift hashes) | branch `t052-god-prompt` (T-052) | pending merge |
 
 ## Copilot CLI harness (T-002, T-003)
 
@@ -281,6 +282,47 @@ the eval's esbuild bundle.
   runner helpers); `test/eval-opt-in.test.cjs` still keeps the eval out of build, test, CI and
   release.
 
+## God prompt V2 and spawn-off notice (T-052)
+
+Phase 2 of `docs/plans/orchestrator-alignment.md`. Two independent switches under
+`config.orchestrator` (schema `src/shared/custom/orchestratorLevers.ts`, installed by
+`custom/install.ts` from the same config reader as the cost levers, so `index.ts` gets no new
+seam). Before install every key reads OFF, so upstream's tests see upstream prompts.
+
+- **Spawn-off notice** (`spawnOffNotice`, default **on**): when Settings has orchestrator spawning
+  off, god's upstream prompt gains one line saying he cannot spawn, that spawn requests will not
+  run and hire manifests wait on the human, and to ask on the card instead. Fixes eval G4 (both
+  engines filed a spawn request with spawning off, because PROTOCOL.md/COMMANDS.md still describe
+  the queue). Like upstream's own spawn line it is fixed at spawn: toggling spawning later does
+  not change a running god's prompt.
+- **God prompt V2** (`godPromptV2`, default **off** until the eval shows a win on two engines):
+  `custom/godPrompt.ts` builds god's whole prompt: identity first; five hard rules in priority
+  order (no project edits, merge only a fast-forward of the reported and reviewed SHA with the
+  human's yes, sole writer of board/tasks, only god talks to the human, report faithfully); a
+  precedence rule; each turn by message kind; dispatch (roster first, spawn line or refusal,
+  4-part contract, a standard definition of done, ask-first, assignee); landing work (conflicts
+  back to the author, review by a different agent, ask for the merge); asking the human with a
+  good/bad example. Claude-only advice (`claude agents`, COMMANDS.md) only on Claude. The text
+  is passed through `trimPrompt`, so the T-034 cost levers still apply. Worker prompts are
+  unchanged. Size is about the same as upstream's god prompt (8.3 KB vs 8.0 KB).
+- **Merge and review settings** used by V2: `autoMergeWhenGreen` (default off: every merge needs
+  the human's yes), `reviewPolicy` (`always` | `nontrivial` (default: more than one file, or any
+  config, schema or interface change) | `tests-only`), `integrationBranch` (`''` = each
+  project's own; a name is validated before it reaches the prompt).
+- **Orientation:** with V2 on, the first message typed into a fresh god is
+  `shared/custom/godOrientation.ts` (no "fully autonomous", no Claude-only advice); with V2 off,
+  upstream's `INITIAL_GOD_PROMPT`.
+- **Forward compatibility:** V2 reuses upstream's computed lines verbatim and rewrites only
+  `godLine`, the worker-protocol header/steps and `INITIAL_GOD_PROMPT`.
+  `test/god-prompt.test.cjs` hashes those three (whitespace-normalised) and fails, naming them,
+  when upstream edits them: port the change into `godPrompt.ts`/`godOrientation.ts`, then update
+  the hash.
+- **Eval:** `--orchestrator on|off|<file.json>` and per-arm `"orchestrator"` in a `--matrix`
+  file (`eval/matrix.v2-ab.json` runs V1 vs V2 on Claude and Copilot). Note the T-050 baseline ran
+  with no orchestrator source, so its G4 had no spawn-off notice.
+- **Tests:** `test/god-prompt.test.cjs` (14). The full suite's 34 failures in this sandbox are the
+  same on the T-050 base (sockets, `~` paths, home-dir writes).
+
 ## User-editable files (macOS)
 
 `<userData>` is Electron's `app.getPath('userData')`, the folder that holds `config.json`.
@@ -322,3 +364,4 @@ item.
 | `src/main/index.ts` (`nudgeWorker`) | T-047 seam (`// fork: T-047`): the nudge is one `submitLine(...)` call; the caller passes the agent's provider | An upstream change to the watchdog nudge's write/Enter timing is ported into `src/shared/custom/ptySubmit.ts`; `test/pty-submit.test.cjs` passes |
 | `src/main/closingTime.ts` (`cancel`), `src/main/control.ts` | T-048 seam (`// fork: T-048`): cancel calls `withdrawClosingSteers(...)` instead of `clearSteers` per agent, so only queued notes starting `CLOSING TIME` are dropped and an operator/voice steer survives; `ControlRegistry.withdrawSteers(id, match)` is fork-added. The harness closing-time convert uses it too | An upstream rewrite of `cancel` still withdraws through the seam; `test/cost-levers.test.cjs` T-048 tests pass |
 | `src/shared/agentProvider.ts` (`providerPreset`, `initialPromptFlag`, `positionalInitialPrompt`), `src/main/hive.ts` (`ensureAgent` argv, `setOrchestratorMaySpawn`, `spawn-requests/`), `tasks.json` `humanQA`, `fleet.json` shape | Read by the T-050 eval (no seam) | `node eval/run.mjs --dry-run --provider copilot --only G1` prints no "no hive prompt found" warning; `node --test eval/checks.selftest.mjs` passes |
+| `src/main/hive.ts` (`injectedPrompt`), `src/renderer/src/hooks/useHive.ts` (`INITIAL_GOD_PROMPT` submit) | T-052 seams (`// fork: T-052`): V2 switch before `return trimPrompt([`, `spawnOffLine(...)` after `spawnQueueLine`, orientation call | `test/god-prompt.test.cjs` passes; a drift-hash failure means upstream changed god text: port it into `custom/godPrompt.ts` / `shared/custom/godOrientation.ts`, then update the hash |
