@@ -432,6 +432,10 @@ the fallback.
   `"orchestrator": { "hiveCli": true }`.
 - **With the T-053 guard:** god runs the CLI as `<hive-node> <cli> …`, which the guard allows; the
   CLI's own git calls are only the fast-forward forms.
+- **Eval results** (`eval/baselines/2026-10-18-hive-cli-ab.md`): Claude 24/24 with or without it, and
+  it used the CLI in 20/24 runs (35 calls, none refused). Copilot could not be tested in `--perm safe`:
+  its `--allow-tool` cannot approve an absolute-path command (checked with six rule forms), so the
+  eval now refuses a Copilot `hiveCli` arm in safe mode and points to `--perm live`.
 - **Tests:** `test/hive-cli.test.cjs` (11) installs the CLI through a real god spawn and runs every
   command as its own process, including merges against real git repos. Full suite: same 34 sandbox
   failures as the base.

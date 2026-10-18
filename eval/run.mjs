@@ -48,6 +48,13 @@ for (const a of ARMS) {
   if (!r) { console.error(`unknown or unverified provider "${a.provider}" (have: ${Object.keys(RUNNERS).join(', ')})`); process.exit(2); }
   // --perm safe needs a tool allowlist the engine itself enforces.
   if (o.perm === 'safe' && !r.safe) { console.error(`${a.provider} has no enforceable safe mode; rerun with --perm live (human opt-in)`); process.exit(2); }
+  // T-054: an engine whose allowlist cannot approve the hive CLI's absolute-path
+  // command would score the CLI as refused, not as used (Copilot; see runner.mjs).
+  const cliOn = (a.orchestrator?.hiveCli ?? JSON.parse(o.orchestrator === 'on' || o.orchestrator === 'off' ? 'null' : readFileSync(o.orchestrator, 'utf8'))?.hiveCli) === true;
+  if (o.perm === 'safe' && cliOn && r.allowsAbsoluteCommands === false) {
+    console.error(`${a.provider} with hiveCli on cannot be tested under --perm safe: its allowlist cannot approve the hive CLI command, so every call would be refused. Use --perm live (human opt-in) for that arm.`);
+    process.exit(2);
+  }
   // --max-usd only caps engines that report $. Spending on any other engine must be explicit.
   if (!r.reportsUsd && !o['dry-run'] && !o['accept-uncapped']) {
     console.error(`${a.provider} reports no $ cost, so --max-usd cannot cap it (it bills its own units, e.g. premium requests). Rerun with --accept-uncapped to accept that.`);

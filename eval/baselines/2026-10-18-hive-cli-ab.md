@@ -37,6 +37,13 @@ The CLI-off Copilot arm (23/24; one G7 run without a card ask) is consistent wit
 
 - **Keep `hiveCli` off by default for now.** On Claude it is used readily and behaves, but these
   fixtures can't show a gain; on Copilot it has not been tested yet.
-- **Next:** make the eval allow the CLI in a form Copilot matches (check the command-stem rule, e.g.
-  `shell(hive-node:*)`), then re-run the Copilot arms. A gain would most likely show on engines that
-  fumble hand-written JSON (Copilot's card asks in G4, G5 and G7).
+- **Follow-up check (two single-request Copilot runs):** no `--allow-tool` form approves a command
+  started by an absolute path on Copilot CLI 1.0.98. `shell(/abs/nodeA:*)`, `shell(nodeB:*)` and
+  `shell(/abs/nodeC /abs/script:*)` were all refused, with and without `--add-dir` for the folder.
+  Its rules match command names (`git`, `npm`), and the CLI must be run by absolute path (the
+  bundled `hive-node` is not on PATH). This only affects the eval's restricted mode: in the app,
+  Copilot agents run with `--allow-all-tools` (the floor's auto mode).
+- **So the CLI can be tested on Copilot only with `--perm live`** (the human's opt-in; full
+  permissions in a throwaway repo). The eval now refuses a Copilot `hiveCli` arm under
+  `--perm safe` with that explanation, instead of silently scoring every call as refused.
+  A gain would most likely show there, on Copilot's card asks in G4, G5 and G7.

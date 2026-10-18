@@ -134,6 +134,12 @@ export const RUNNERS = {
     // premium requests), so --max-usd cannot cap it: see --accept-uncapped.
     safe: true,
     reportsUsd: false,
+    // Copilot CLI 1.0.98's --allow-tool cannot approve a command started by an
+    // absolute path (checked: `shell(/abs/bin:*)`, `shell(bin:*)` and
+    // `shell(/abs/bin /abs/script:*)` were all refused, with and without --add-dir).
+    // The hive CLI is run as `<hive>/bin/hive-node <hive>/bin/hive-cli.cjs`, so in
+    // --perm safe it would be refused every time. run.mjs refuses such an arm.
+    allowsAbsoluteCommands: false,
     envKeep: /^(GH_TOKEN|GITHUB_TOKEN|COPILOT_\w+|XDG_\w+)$/,
     argv({ inj, trigger, perm, model, preset, dirs, extraCmds = [] }) {
       const message = `${initialPrompt(inj.args, preset)}\n\n${trigger}`;
