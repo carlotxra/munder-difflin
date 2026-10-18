@@ -115,9 +115,9 @@ export const RUNNERS = {
     // Spend is capped by the CLI itself (--max-budget-usd) and reported as $.
     reportsUsd: true,
     envKeep: /^(ANTHROPIC_\w+|CLAUDE_CONFIG_DIR)$/,
-    argv({ inj, trigger, perm, budgetUsd, model }) {
+    argv({ inj, trigger, perm, budgetUsd, model, extraCmds = [] }) {
       const tools = ['Read', 'Write', 'Edit', 'Glob', 'Grep', 'TodoWrite',
-        ...SAFE_GIT.map((c) => `Bash(git ${c}:*)`), ...SAFE_CMDS.map((c) => `Bash(${c}:*)`)];
+        ...SAFE_GIT.map((c) => `Bash(git ${c}:*)`), ...[...SAFE_CMDS, ...extraCmds].map((c) => `Bash(${c}:*)`)];
       const permArgs = perm === 'live'
         ? ['--permission-mode', 'bypassPermissions']
         : ['--permission-mode', 'acceptEdits', '--allowedTools', tools.join(',')];
@@ -135,14 +135,14 @@ export const RUNNERS = {
     safe: true,
     reportsUsd: false,
     envKeep: /^(GH_TOKEN|GITHUB_TOKEN|COPILOT_\w+|XDG_\w+)$/,
-    argv({ inj, trigger, perm, model, preset, dirs }) {
+    argv({ inj, trigger, perm, model, preset, dirs, extraCmds = [] }) {
       const message = `${initialPrompt(inj.args, preset)}\n\n${trigger}`;
       const permArgs = perm === 'live'
         ? ['--allow-all-tools']
         // Same list as Claude's, command by command (`shell(git status:*)`, not
         // `shell(git:*)`), so neither engine gets a wider allowlist than the other.
         : ['--allow-tool', 'write',
-          ...[...SAFE_GIT.map((c) => `git ${c}`), ...SAFE_CMDS].flatMap((c) => ['--allow-tool', `shell(${c}:*)`]),
+          ...[...SAFE_GIT.map((c) => `git ${c}`), ...SAFE_CMDS, ...extraCmds].flatMap((c) => ['--allow-tool', `shell(${c}:*)`]),
           '--deny-tool', 'shell(git push)', '--deny-tool', 'shell(git remote)'];
       return ['-p', message, '-s', '--output-format', 'json', '--no-ask-user', ...permArgs,
         ...dirs.flatMap((d) => ['--add-dir', d]), ...(model ? ['--model', model] : [])];

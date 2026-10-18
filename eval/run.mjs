@@ -152,7 +152,7 @@ async function runOne(id, n, arm, ai) {
   makeRepo(repo, fx.repo);
   fx = fillShas(fx, repo);
   const agents = [fx.agent, ...(fx.extraAgents ?? [])].map((a) => ({ ...a, cwd: repo }));
-  const { root, inj } = await provision(mod, home, agents, { levers: LEVERS, orchestrator: orchFor(arm), provider: arm.provider, maySpawn: !!fx.hive?.maySpawn });
+  const { root, inj, hive } = await provision(mod, home, agents, { levers: LEVERS, orchestrator: orchFor(arm), provider: arm.provider, maySpawn: !!fx.hive?.maySpawn });
   const agentDir = join(root, 'agents', fx.agent.id);
 
   writeFileSync(join(agentDir, 'memory.md'), fx.memory ?? '');
@@ -178,8 +178,12 @@ async function runOne(id, n, arm, ai) {
 
   const remaining = MAX_USD - spent;
   const bin = runner.bin(o);
+  // T-054: when god's `hive` command line is installed, allow exactly that command
+  // (the hive's node launcher + the script), as the prompt writes it.
+  const cliFile = join(root, 'bin', 'hive-cli.cjs');
+  const extraCmds = existsSync(cliFile) ? [`${hive.nodeCommand()} ${cliFile}`] : [];
   const argv = runner.argv({
-    inj: me, trigger, perm: o.perm, model: arm.model, preset, repo, dirs: [agentDir, root],
+    inj: me, trigger, perm: o.perm, model: arm.model, preset, repo, dirs: [agentDir, root], extraCmds,
     budgetUsd: Math.min(Number(o['run-budget']), remaining)
   });
   writeFileSync(join(dir, 'argv.json'), JSON.stringify({ provider: arm.provider, bin, argv, env: me.env }, null, 2));

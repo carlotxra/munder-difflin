@@ -38,6 +38,10 @@ export interface OrchestratorLevers {
   /** T-053: after god's context is compacted or resumed, the SessionStart hook adds
    *  a short reminder of his role and hard rules. Default ON. */
   compactAnchor: boolean;
+  /** T-054: install the `hive` command line (custom/hiveCli.ts) and tell god to
+   *  use it instead of hand-writing outbox, tasks and spawn files. Prompt V2 only.
+   *  Default OFF until the eval shows it helps. */
+  hiveCli: boolean;
 }
 
 export type OrchestratorLeverKey = keyof OrchestratorLevers;
@@ -51,7 +55,8 @@ export const ORCHESTRATOR_LEVERS_ON: OrchestratorLevers = {
   integrationBranch: '',
   nativeInstructions: ['copilot', 'opencode'],
   godWriteGuard: true,
-  compactAnchor: true
+  compactAnchor: true,
+  hiveCli: false
 };
 
 /** Upstream behaviour: what code sees before the app installs a config source. */
@@ -63,7 +68,8 @@ export const ORCHESTRATOR_LEVERS_OFF: OrchestratorLevers = {
   integrationBranch: '',
   nativeInstructions: [],
   godWriteGuard: false,
-  compactAnchor: false
+  compactAnchor: false,
+  hiveCli: false
 };
 
 const REVIEW_POLICIES: readonly ReviewPolicy[] = ['always', 'nontrivial', 'tests-only'];
@@ -77,7 +83,7 @@ export function resolveOrchestratorLevers(config: unknown): OrchestratorLevers {
   const out: OrchestratorLevers = { ...ORCHESTRATOR_LEVERS_ON, nativeInstructions: [...ORCHESTRATOR_LEVERS_ON.nativeInstructions] };
   if (!raw || typeof raw !== 'object') return out;
   const r = raw as Record<string, unknown>;
-  for (const k of ['godPromptV2', 'spawnOffNotice', 'autoMergeWhenGreen', 'godWriteGuard', 'compactAnchor'] as const) {
+  for (const k of ['godPromptV2', 'spawnOffNotice', 'autoMergeWhenGreen', 'godWriteGuard', 'compactAnchor', 'hiveCli'] as const) {
     if (typeof r[k] === 'boolean') out[k] = r[k] as boolean;
   }
   if (REVIEW_POLICIES.includes(r.reviewPolicy as ReviewPolicy)) out.reviewPolicy = r.reviewPolicy as ReviewPolicy;

@@ -56,6 +56,7 @@ git diff --stat main..stable       # files touched
 | God prompt V2 + spawn-off notice | Michael's structured prompt (T-052, plan Phase 2): identity first, five hard rules in priority order, a precedence rule, then each turn / dispatch / landing work / asking the human, with a good and a bad ask example; engine-aware (Claude-only advice only on Claude); upstream's spawn, memory, KG, runtime, Slack, live-context, guardrail and ask-first text passed through verbatim. Plus an engine-neutral orientation prompt. Separately, the spawn-off notice: when orchestrator spawning is off, god is told plainly not to file spawn requests (eval G4) | `config.orchestrator`: `godPromptV2` (default **on**; `false` = upstream's prompt), `spawnOffNotice` (default on), `autoMergeWhenGreen` (off), `reviewPolicy` (`nontrivial`), `integrationBranch` (`''` = each project's). Config file only. Read at spawn: applies to agents spawned after a change | logic `src/main/custom/godPrompt.ts`, `src/main/custom/orchestrator.ts`, `src/shared/custom/orchestratorLevers.ts`, `src/shared/custom/godOrientation.ts`; wiring `src/main/custom/install.ts`; **upstream seams:** `src/main/hive.ts` import (`// fork: T-052`), the V2 switch before `return trimPrompt([`, the `spawnOffLine(...)` entry after `spawnQueueLine`; `src/renderer/src/hooks/useHive.ts` import + `godOrientation(config, godName) ?? INITIAL_GOD_PROMPT`; test `test/god-prompt.test.cjs` (incl. drift hashes) | branch `t052-god-prompt` (T-052) | merged |
 | Native instruction channel | Non-Claude engines get the hive prompt through their own instructions file in the agent's isolated home, and only a short kick as the first message (upstream sends the whole prompt as the first user message, which carries less weight and is lost on compaction). Applies to every agent, not only god. Copilot: confirms the prompt in `$COPILOT_HOME/copilot-instructions.md` (already written there since T-002, so Copilot no longer gets it twice). OpenCode: `hive-instructions.md` listed under `instructions` in the per-agent `opencode.json`. Codex: `AGENTS.md` in `CODEX_HOME`, user's own `~/.codex/AGENTS.md` kept first; **off by default**, not checked here. Any failure, or a symlinked target: the whole prompt as before | `config.orchestrator.nativeInstructions` (provider ids; default `["copilot", "opencode"]`; `[]` = upstream). Read at spawn | logic `src/main/custom/instructionChannel.ts`; lever in `src/shared/custom/orchestratorLevers.ts`; **upstream seams:** `src/main/hive.ts` import (`// fork: T-051`), `const prompt` → `let prompt` in the non-Claude launch path, and `prompt = nativeInstructions(meta, env, prompt)` after the bridge installs; test `test/native-instructions.test.cjs` | branch `t051-native-instructions` (T-051) | merged |
 | God write guard + compaction anchor | A PreToolUse hook denies god's edits and repository-changing commands outside the hive (file tools, `git commit/push/reset/rebase/checkout/…`, `git merge` without `--ff-only`, `rm/mv/cp/sed -i`, `>` redirects), with a reason that says what to do instead; allowed: the hive, temp files outside any repo, read-only commands, and the approved landing (`git merge --ff-only <sha>` or `git fetch . <sha>:<branch>`). Every denial logged to `log.jsonl` as `god-guard`. After god's context is compacted or resumed, SessionStart adds a short role and hard-rules reminder. Engines with a hook bridge only | `config.orchestrator.godWriteGuard`, `compactAnchor` (both default on; `false` = upstream) | logic `src/main/custom/godGuard.ts`; **upstream seams:** `src/main/hooks.ts` import, the guard line before the 7C.1 HITL gate, the anchor line merged into `steer`; V2 rule 1 also names the `git fetch . <sha>:<branch>` landing; test `test/god-guard.test.cjs` | branch `t053-god-guard` (T-053) | merged |
+| `hive` command line for god | Checked commands instead of hand-written files: `roster`, `dispatch` (4-part contract + definition of done + ASK FIRST clause; card doing with assignee), `review` (never the author), `merge` (tip = reported SHA, fast-forward only, review and the human's yes checked, `git merge --ff-only` or `git fetch . <sha>:<branch>`, card done, never pushes), `ask` (card shape checked, humanQA, blocks the card), `task add/status/done` (never clears an assignee), `spawn` (only when spawning is on; shows the roster first). Each refuses with a reason (exit 2). Written to `<hive>/bin/hive-cli.cjs` at god spawn with `hive-cli.json` settings; prompt V2 gains a Commands section | `config.orchestrator.hiveCli` (default **off** until the eval shows it helps; needs `godPromptV2`) | logic `src/main/custom/hiveCliMain.ts` (one self-contained function, written out with `toString()`), installer and prompt lines `src/main/custom/hiveCli.ts`, wired in `custom/godPrompt.ts`; **upstream seam:** the T-052 line in `src/main/hive.ts` also passes `hiveNode`; test `test/hive-cli.test.cjs` | branch `t054-hive-cli` (T-054) | pending merge |
 
 ## Copilot CLI harness (T-002, T-003)
 
@@ -399,6 +400,42 @@ PreToolUse payloads, and `cth-hook --flat` already turns a deny into Copilot's f
   (god denied and logged, worker untouched, levers off = upstream), the anchor, and seam order.
   Full suite: same 34 sandbox failures as the base.
 
+## `hive` command line for god (T-054)
+
+Phase 4 of `docs/plans/orchestrator-alignment.md`. A model picking a checked command behaves
+more consistently across engines than one writing JSON by hand, so god gets commands that check
+their inputs, refuse with a reason (exit 2) instead of guessing, and write only upstream's formats
+(outbox message JSON, `tasks.json` cards and `humanQA`, `spawn-requests/`). The harness reads the
+result as if god had written the files himself; the raw-file instructions stay in the prompt as
+the fallback.
+
+| Command | Does | Refuses when |
+|---|---|---|
+| `roster` | one line per live agent: role, breaker, last active, inbox, open cards | never |
+| `dispatch` | outbox request with OBJECTIVE / OUTPUT / TOOLS / BOUNDARIES, the definition of done (unless `--no-code`) and the ASK FIRST clause when on; card `doing`, assignee set | unknown, archived or assistant agent; dispatch to god; missing parts; unknown card without `--title`; caller is not god |
+| `review` | review request for an exact branch + SHA; records `reviewer` on the card | reviewer is the author; card has no assignee |
+| `merge` | fast-forwards the integration branch to the reported SHA (`git merge --ff-only` when checked out, else `git fetch . <sha>:<branch>`); card `done` with a `merged` record; never pushes | branch tip ≠ reported SHA ("send it back"); not a fast-forward ("send it back"); review missing or by the author when the policy needs one; no `--human` and auto-merge off |
+| `ask` | appends `{q, askedAt}` to `humanQA`, card `blocked` (unless `--no-block`) | over 700 characters, no **bold** first sentence, no listed options |
+| `task add/status/done` | card changes; never clears an assignee | bad status; duplicate id |
+| `spawn` | writes `spawn-requests/<id>.json` | spawning off; agents on the floor and no `--none-fit` |
+
+- **Install:** god's prompt build (V2 + `hiveCli`) writes `<hive>/bin/hive-cli.cjs` and
+  `hive-cli.json` (god id, spawn toggle, ask-first clause, definition of done, review policy,
+  auto-merge, integration branch), next to upstream's `cth-hook.cjs`. Nothing is added to
+  electron-builder.yml. God runs it with the hive's bundled node launcher (`bin/hive-node`),
+  as the prompt spells out.
+- **Shipping as `toString()`:** `hiveCliMain` is one self-contained function (no imports, no outer
+  references). Checked by bundling with esbuild, plain and minified, and running the written
+  script standalone.
+- **Off by default** (`hiveCli: false`) until an eval shows it helps; the eval allows exactly the
+  CLI command in `--perm safe` when it is installed. Turn it on per arm with
+  `"orchestrator": { "hiveCli": true }`.
+- **With the T-053 guard:** god runs the CLI as `<hive-node> <cli> …`, which the guard allows; the
+  CLI's own git calls are only the fast-forward forms.
+- **Tests:** `test/hive-cli.test.cjs` (11) installs the CLI through a real god spawn and runs every
+  command as its own process, including merges against real git repos. Full suite: same 34 sandbox
+  failures as the base.
+
 ## User-editable files (macOS)
 
 `<userData>` is Electron's `app.getPath('userData')`, the folder that holds `config.json`.
@@ -443,3 +480,4 @@ item.
 | `src/main/hive.ts` (`injectedPrompt`), `src/renderer/src/hooks/useHive.ts` (`INITIAL_GOD_PROMPT` submit) | T-052 seams (`// fork: T-052`): V2 switch before `return trimPrompt([`, `spawnOffLine(...)` after `spawnQueueLine`, orientation call | `test/god-prompt.test.cjs` passes; a drift-hash failure means upstream changed god text: port it into `custom/godPrompt.ts` / `shared/custom/godOrientation.ts`, then update the hash |
 | `src/main/hive.ts` (`ensureAgent`, non-Claude launch path) | T-051 seams (`// fork: T-051`): `let prompt`, and `prompt = nativeInstructions(...)` after the bridge installs and before the prompt goes on argv | `test/native-instructions.test.cjs` seam test passes (it checks the order against the Copilot install and the argv returns) |
 | `src/main/hooks.ts` (`handle`) | T-053 seams (`// fork: T-053`): the guard line before the 7C.1 HITL gate (after the HALT check), and the anchor merged into `steer` before `if (steer || roster || goal)` | `test/god-guard.test.cjs` seam test passes (it checks both positions) |
+| `src/main/hive.ts` (`injectedPrompt`, T-052 V2 line) | T-054 passes `hiveNode` through the same line (`// fork: T-052, T-054`) | `test/hive-cli.test.cjs` install test passes (the prompt names `<hive>/bin/hive-node`) |
