@@ -47,3 +47,33 @@ The CLI-off Copilot arm (23/24; one G7 run without a card ask) is consistent wit
   permissions in a throwaway repo). The eval now refuses a Copilot `hiveCli` arm under
   `--perm safe` with that explanation, instead of silently scoring every call as refused.
   A gain would most likely show there, on Copilot's card asks in G4, G5 and G7.
+
+## Copilot re-run with `--perm live` (the human's opt-in)
+
+`npm run eval -- --build t054-hive-cli --only S8,G1,…,G12 --runs 2 --perm live --matrix <copilot hiveCli false/true> --accept-uncapped`
+
+Full permissions in throwaway repos and hives, as Copilot runs in the app (`--allow-all-tools`).
+
+| Arm | Pass | Sum of median tokens | Sum of median calls |
+|---|---|---|---|
+| Copilot, CLI off | 23/24 | 3.39M | 82 |
+| Copilot, CLI on | 22/24 | 3.57M (+5%) | 86 |
+
+- **Used readily:** in 22 of 24 runs, 57 calls (`roster` 20, `help` 14, `ask` 8, `dispatch` 7, `merge` 2,
+  `spawn` 2, `task` 2, `review` 1). The CLI's own checks refused one call, and Michael corrected it.
+  `help` is called often (14), which accounts for part of the token increase.
+- **Failures, CLI on:** G10#1 stopped after one turn, claiming the worker's message was already
+  handled (it was not): a model slip, no CLI call involved. G5#2 decided the provider question
+  itself and filed only the account-setup ask with `--no-block`, so the card stayed `doing`.
+  That is the option being used for a judgement call, not a CLI fault.
+- **Failure, CLI off:** G3#2 wrote an invalid spawn request by hand (missing a required field), the
+  kind of mistake the CLI's `spawn` command prevents.
+
+## Overall conclusion (both engines)
+
+- The CLI works on both engines and is used without prompting, but **these fixtures show no pass-rate
+  gain** (Claude 24/24 → 24/24, Copilot 23/24 → 22/24, within noise) at **+5–8% tokens**.
+- Recommendation: **keep `hiveCli` off by default** and merge it as an option. Its value is
+  structural (the merge, review and ask rules become checks in code, not just prompt text), which
+  these short one-shot fixtures barely exercise. Revisit with longer sessions or fixtures that
+  need many hand-written files.
