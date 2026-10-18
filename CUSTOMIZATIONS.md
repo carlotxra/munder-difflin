@@ -276,6 +276,12 @@ the eval's esbuild bundle.
   correct outcome, e.g. G12).
 - **Copilot usage:** `parseCopilotUsage` reads the last `session.usage_checkpoint` once (its JSON
   repeats the running total under several keys).
+- **Copilot refusals (branch `eval-copilot-reads`):** across 64 refused Copilot shell calls in the
+  stored runs, the unlisted parts were mostly `test`, `npm test`, `true` and `sort`, chained into git
+  checks (`git merge --ff-only <sha> && test "$(git rev-parse HEAD)" = <sha>`). These four are now
+  allowed on both engines; `find`, `sed`, interpreters, shell loops and `git -C` stay refused. The
+  refused `view` reads were the model dropping the run folder from a long path, then retrying
+  correctly: not a permissions gap, so not changed. Check: Copilot G11 passed with no refusals.
 - **Baseline:** `eval/baselines/2026-10-18-smoke.md` (G fixtures, 1 run, Claude 10/11, Copilot 9/11;
   both fail G4, the spawn-toggle contradiction). Fixtures can set
   `repo.commits` (branches to start from), `hive.maySpawn` and `{{SHA:<rev>}}`.

@@ -98,7 +98,13 @@ export function parseCopilotUsage(text) {
 // (T-052 confirmation run: G9/G11/G12 failed on `git show-ref` and `--no-pager`).
 export const READ_GIT = ['status', 'diff', 'log', 'show', 'rev-parse', 'merge-base', 'show-ref', 'rev-list', 'ls-files', 'for-each-ref', 'cat-file'];
 export const SAFE_GIT = [...READ_GIT, 'add', 'commit', 'checkout', 'switch', 'branch', 'stash', 'mv', 'merge', 'fetch', ...READ_GIT.map((c) => `--no-pager ${c}`)];
-export const SAFE_CMDS = ['cd', 'node --test', 'ls', 'mv', 'mkdir', 'cat', 'head', 'tail', 'wc', 'pwd', 'date', 'echo', 'printf'];
+// `test`, `true`, `sort` and `npm test` since the eval-copilot-reads fix: Copilot chains
+// them into its git checks (`git merge --ff-only <sha> && test "$(git rev-parse HEAD)" = <sha>`),
+// and one unlisted part refuses the whole command. `npm test` runs the fixture repo's
+// `node --test test/`, no more than `node --test`. Still off on purpose: `find` and
+// `sed` (can run commands), interpreters, shell loops, and `git -C` (it would
+// slip past the `git push` deny rule).
+export const SAFE_CMDS = ['cd', 'node --test', 'npm test', 'ls', 'mv', 'mkdir', 'cat', 'head', 'tail', 'wc', 'pwd', 'date', 'echo', 'printf', 'test', 'true', 'sort'];
 
 export const RUNNERS = {
   claude: {
