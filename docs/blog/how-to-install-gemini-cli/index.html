@@ -197,6 +197,7 @@
 <h2 id="can-gemini-cli-use-gemini-4" tabindex="-1">Can Gemini CLI use Gemini 4? <a class="anchor" href="#can-gemini-cli-use-gemini-4" aria-hidden="true">#</a></h2>
 <p>No, not as of 2 Oct 2026. Google <a href="https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-4-argon/">announced Gemini 4 Argon</a> on 30 Sep 2026 and is rolling it out first to “a set of trusted cyber defenders” through its Fairwind Program, then to paid API customers and Google AI Ultra subscribers, with no date. There is no public model ID. The <a href="https://ai.google.dev/gemini-api/docs/models">Gemini API models page</a>, updated 1 Oct 2026, tops out at <code>gemini-3.8-flash</code>, and Gemini CLI’s main branch had no Gemini 4 entry on 2 Oct. Its <code>/model</code> dialog offers Auto and Manual.</p>
 <p>When an ID ships, you pick it with <code>gemini --model &lt;id&gt;</code>, the <code>GEMINI_MODEL</code> variable, <code>model.name</code> in <code>settings.json</code>, or Manual under <code>/model</code>. The likely path is a paid API key: Ultra is on Google’s list, but Ultra sign ins no longer work in Gemini CLI. Don’t guess the string: until a September fix (<a href="https://github.com/google-gemini/gemini-cli/issues/28859">issue #28859</a>), any <code>gemini-X.Y-flash</code> ID, real or made up, was quietly served by <code>gemini-3.5-flash</code>. Run <code>gemini -m &lt;id&gt; -p &quot;say ok&quot; --output-format json</code> and read <code>stats.models</code> to see which model actually replied.</p>
+<p>Update, 13 Oct 2026: Gemini 4 Argon is now on general release with the model ID <code>gemini-4-argon</code>. Our <a href="/blog/gemini-4-argon/">Gemini 4 Argon page</a> has the price and the access rules. Gemini CLI’s model list file still had no Gemini 4 entry on 13 Oct 2026.</p>
 <h2 id="how-do-i-install-gemini-cli-with-npm" tabindex="-1">How do I install Gemini CLI with npm? <a class="anchor" href="#how-do-i-install-gemini-cli-with-npm" aria-hidden="true">#</a></h2>
 <p>Check Node is 20 or newer, then install globally:</p>
 <pre class="language-bash"><code class="language-bash"><span class="token function">node</span> <span class="token parameter variable">--version</span>
@@ -241,7 +242,7 @@ gemini</code></pre>
 <pre class="language-bash"><code class="language-bash"><span class="token function">npm</span> <span class="token function">install</span> <span class="token parameter variable">-g</span> @google/gemini-cli@latest
 <span class="token function">npm</span> uninstall <span class="token parameter variable">-g</span> @google/gemini-cli</code></pre>
 <p>The <a href="https://geminicli.com/docs/reference/configuration/">configuration reference</a> lists <code>general.enableAutoUpdate</code>, on by default, but compare <code>gemini --version</code> with npm now and then anyway. If it still shows an old number after updating, <code>which -a gemini</code> lists every copy on your <code>PATH</code> in the order your shell tries them, which is how you spot a leftover Homebrew copy shadowing a fresh npm one.</p>
-<p>Running Codex too? <a href="/blog/how-to-install-codex-cli/">How to install Codex CLI</a> covers OpenAI’s agent and its sign in quirks.</p>
+<p>Running Codex too? <a href="/blog/how-to-install-codex-cli/">How to install Codex CLI</a> covers OpenAI’s agent and its sign in quirks. Comparing tools? See <a href="/blog/gemini-cli-vs-claude-code/">Gemini CLI vs Claude Code</a>.</p>
 
 
       
@@ -296,57 +297,57 @@ gemini</code></pre>
   </div>
 
   <footer class="post-foot wrap"><div class="prevnext">
-      <a class="pn prev" href="/blog/is-ollama-good-for-coding/"><span class="k">← Older</span><span class="t">Is Ollama Good for Coding? What Local Models Can and Can&#39;t Do</span></a>
+      <a class="pn prev" href="/blog/is-ollama-good-for-coding/"><span class="k">← Older</span><span class="t">Is Ollama Good for Coding? Yes, for Scoped Work on the Right Model</span></a>
       <a class="pn next" href="/blog/build-your-personal-agi-on-your-computer/"><span class="k">Newer →</span><span class="t">Build Your Personal AGI on Your Computer Using Claude Code and Munder Difflin</span></a>
     </div>
     <section class="related">
       <h2>Related in Guides</h2>
       <div class="post-grid">
         <article class="card t-guides">
-  <a class="thumb t-guides" href="/blog/build-your-personal-agi-on-your-computer/" aria-hidden="true" tabindex="-1"><img src="/blog/assets/media/build-your-personal-agi-on-your-computer/hero.png" alt="" loading="lazy" decoding="async" /></a>
+  <a class="thumb t-guides" href="/blog/claude-code-best-practices/" aria-hidden="true" tabindex="-1"><img src="/blog/assets/media/claude-code-best-practices/hero.png" alt="" loading="lazy" decoding="async" /></a>
   <div class="body">
     <div class="meta">
-      <time datetime="2026-09-15">Sep 15, 2026</time>
+      <time datetime="2026-10-15">Oct 15, 2026</time>
       <span class="dot" aria-hidden="true"></span>
-      <span>9 min</span>
+      <span>5 min</span>
     </div>
-    <h3><a href="/blog/build-your-personal-agi-on-your-computer/">Build Your Personal AGI on Your Computer Using Claude Code and Munder Difflin</a></h3>
-    <p class="dek">Turn Claude Code into a personal AGI on your own computer: agents with memory, schedules, Gmail, Calendar, voice and Slack, set up in Munder Difflin 0.5.2.</p>
+    <h3><a href="/blog/claude-code-best-practices/">Claude Code Best Practices: 9 Habits From Anthropic&#39;s Docs</a></h3>
+    <p class="dek">Nine Claude Code best practices from Anthropic&#39;s docs, checked 15 Oct 2026: give Claude a check, plan first, keep memory short, clear context, run in parallel.</p>
     <div class="foot">
       <span class="tag kind">Guides</span>
-      <a class="more" href="/blog/build-your-personal-agi-on-your-computer/" aria-label="Read: Build Your Personal AGI on Your Computer Using Claude Code and Munder Difflin">Read →</a>
+      <a class="more" href="/blog/claude-code-best-practices/" aria-label="Read: Claude Code Best Practices: 9 Habits From Anthropic&#39;s Docs">Read →</a>
     </div>
   </div>
 </article>
 <article class="card t-guides">
-  <a class="thumb t-guides" href="/blog/claude-code-max-plan-tips/" aria-hidden="true" tabindex="-1"><img src="/blog/assets/media/claude-code-max-plan-tips/hero.png" alt="" loading="lazy" decoding="async" /></a>
+  <a class="thumb t-guides" href="/blog/ai-agent-use-cases-our-office/" aria-hidden="true" tabindex="-1"><img src="/blog/assets/media/ai-agent-use-cases-our-office/hero.png" alt="" loading="lazy" decoding="async" /></a>
   <div class="body">
     <div class="meta">
-      <time datetime="2026-09-14">Sep 14, 2026</time>
+      <time datetime="2026-10-14">Oct 14, 2026</time>
       <span class="dot" aria-hidden="true"></span>
-      <span>5 min</span><span class="pin">Pinned</span>
+      <span>8 min</span><span class="pin">Pinned</span>
     </div>
-    <h3><a href="/blog/claude-code-max-plan-tips/">How to Get the Most Out of Your Claude Code Max Plan</a></h3>
-    <p class="dek">Stretch a Claude Code Max plan: model choice, context hygiene, prompt caching, subagents and unattended runs, checked against Anthropic&#39;s own pages.</p>
+    <h3><a href="/blog/ai-agent-use-cases-our-office/">AI Agent Use Cases From a Real Company: Every Agent on Our Floor and the Job It Does</a></h3>
+    <p class="dek">We run our company on Munder Difflin. Every seat on our floor: what each AI agent does, how its work starts, what comes out, and how to copy it.</p>
     <div class="foot">
       <span class="tag kind">Guides</span>
-      <a class="more" href="/blog/claude-code-max-plan-tips/" aria-label="Read: How to Get the Most Out of Your Claude Code Max Plan">Read →</a>
+      <a class="more" href="/blog/ai-agent-use-cases-our-office/" aria-label="Read: AI Agent Use Cases From a Real Company: Every Agent on Our Floor and the Job It Does">Read →</a>
     </div>
   </div>
 </article>
 <article class="card t-guides">
-  <a class="thumb t-guides" href="/blog/codex-max-plan-tips/" aria-hidden="true" tabindex="-1"><img src="/blog/assets/media/codex-max-plan-tips/hero.png" alt="" loading="lazy" decoding="async" /></a>
+  <a class="thumb t-guides" href="/blog/claude-code-skills/" aria-hidden="true" tabindex="-1"><img src="/blog/assets/media/claude-code-skills/hero.png" alt="" loading="lazy" decoding="async" /></a>
   <div class="body">
     <div class="meta">
-      <time datetime="2026-09-14">Sep 14, 2026</time>
+      <time datetime="2026-10-14">Oct 14, 2026</time>
       <span class="dot" aria-hidden="true"></span>
-      <span>5 min</span><span class="pin">Pinned</span>
+      <span>5 min</span>
     </div>
-    <h3><a href="/blog/codex-max-plan-tips/">How to Make the Most of Your Codex Max Plan</a></h3>
-    <p class="dek">There is no Codex Max plan. What ChatGPT Pro 5x and 20x give you in Codex, how the weekly limit works, and how to stretch it.</p>
+    <h3><a href="/blog/claude-code-skills/">Claude Code Skills: What They Are, Where They Live and How to Write One</a></h3>
+    <p class="dek">Claude Code skills, checked 14 Oct 2026: what a skill is, where skill folders live, a first skill file, how Claude picks one and how to share them.</p>
     <div class="foot">
       <span class="tag kind">Guides</span>
-      <a class="more" href="/blog/codex-max-plan-tips/" aria-label="Read: How to Make the Most of Your Codex Max Plan">Read →</a>
+      <a class="more" href="/blog/claude-code-skills/" aria-label="Read: Claude Code Skills: What They Are, Where They Live and How to Write One">Read →</a>
     </div>
   </div>
 </article>
@@ -396,9 +397,10 @@ gemini</code></pre>
       if (!btn) return;
       var box = btn.closest('.yt');
       var id = box && box.getAttribute('data-yt');
-      if (!id) return;
+      // Only an 11 character YouTube video id may reach the iframe URL.
+      if (!id || !/^[A-Za-z0-9_-]{11}$/.test(id)) return;
       var frame = document.createElement('iframe');
-      frame.src = 'https://www.youtube-nocookie.com/embed/' + id + '?autoplay=1';
+      frame.src = 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(id) + '?autoplay=1';
       frame.title = box.getAttribute('data-title') || 'YouTube video';
       frame.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
       frame.setAttribute('allowfullscreen', '');

@@ -40,6 +40,8 @@ No, not as of 2 Oct 2026. Google [announced Gemini 4 Argon](https://blog.google/
 
 When an ID ships, you pick it with `gemini --model <id>`, the `GEMINI_MODEL` variable, `model.name` in `settings.json`, or Manual under `/model`. The likely path is a paid API key: Ultra is on Google's list, but Ultra sign ins no longer work in Gemini CLI. Don't guess the string: until a September fix ([issue #28859](https://github.com/google-gemini/gemini-cli/issues/28859)), any `gemini-X.Y-flash` ID, real or made up, was quietly served by `gemini-3.5-flash`. Run `gemini -m <id> -p "say ok" --output-format json` and read `stats.models` to see which model actually replied.
 
+Update, 13 Oct 2026: Gemini 4 Argon is now on general release with the model ID `gemini-4-argon`. Our [Gemini 4 Argon page](/blog/gemini-4-argon/) has the price and the access rules. Gemini CLI's model list file still had no Gemini 4 entry on 13 Oct 2026.
+
 ## How do I install Gemini CLI with npm?
 
 Check Node is 20 or newer, then install globally:
@@ -118,4 +120,4 @@ npm uninstall -g @google/gemini-cli
 
 The [configuration reference](https://geminicli.com/docs/reference/configuration/) lists `general.enableAutoUpdate`, on by default, but compare `gemini --version` with npm now and then anyway. If it still shows an old number after updating, `which -a gemini` lists every copy on your `PATH` in the order your shell tries them, which is how you spot a leftover Homebrew copy shadowing a fresh npm one.
 
-Running Codex too? [How to install Codex CLI](/blog/how-to-install-codex-cli/) covers OpenAI's agent and its sign in quirks.
+Running Codex too? [How to install Codex CLI](/blog/how-to-install-codex-cli/) covers OpenAI's agent and its sign in quirks. Comparing tools? See [Gemini CLI vs Claude Code](/blog/gemini-cli-vs-claude-code/).

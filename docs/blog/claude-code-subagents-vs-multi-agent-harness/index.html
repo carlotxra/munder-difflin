@@ -192,11 +192,11 @@
 <h2 id="how-do-you-create-a-claude-code-subagent" tabindex="-1">How do you create a Claude Code subagent? <a class="anchor" href="#how-do-you-create-a-claude-code-subagent" aria-hidden="true">#</a></h2>
 <p>You save a Markdown file with YAML front matter in <code>.claude/agents/</code> for one project, or in <code>~/.claude/agents/</code> for every project on your machine. Only <code>name</code> and <code>description</code> are required, and the body under the front matter becomes the subagent’s system prompt. This one runs tests on Haiku and has no Edit or Write tool:</p>
 <pre class="language-markdown"><code class="language-markdown"><span class="token front-matter-block"><span class="token punctuation">---</span>
-<span class="token front-matter yaml language-yaml">name: test-runner
-description: Runs the test suite and reports only failing tests with their error messages. Use proactively after code changes.
-tools: Read, Grep, Glob, Bash
-model: haiku
-maxTurns: 20</span>
+<span class="token front-matter yaml language-yaml"><span class="token key atrule">name</span><span class="token punctuation">:</span> test<span class="token punctuation">-</span>runner
+<span class="token key atrule">description</span><span class="token punctuation">:</span> Runs the test suite and reports only failing tests with their error messages. Use proactively after code changes.
+<span class="token key atrule">tools</span><span class="token punctuation">:</span> Read<span class="token punctuation">,</span> Grep<span class="token punctuation">,</span> Glob<span class="token punctuation">,</span> Bash
+<span class="token key atrule">model</span><span class="token punctuation">:</span> haiku
+<span class="token key atrule">maxTurns</span><span class="token punctuation">:</span> <span class="token number">20</span></span>
 <span class="token punctuation">---</span></span>
 
 Run the project's test command. For each failing test, report the file,
@@ -217,7 +217,7 @@ reports only failures. No Edit or Write tools, and use Haiku.</code></pre>
 <p>It reads the <code>description</code> field. When your request matches a description, Claude hands off the task with a delegation prompt it writes itself. Put “use proactively” in the description if you want it to delegate without being asked.</p>
 <p>You can also force it: name the subagent in plain words, @-mention it with <code>@agent-test-runner</code>, or run a whole session as that agent with <code>claude --agent test-runner</code>. The subagent starts fresh: it sees its own prompt, your <code>CLAUDE.md</code> files and the delegation message, not your conversation history.</p>
 <h2 id="how-do-you-set-a-subagents-model-and-tools" tabindex="-1">How do you set a subagent’s model and tools? <a class="anchor" href="#how-do-you-set-a-subagents-model-and-tools" aria-hidden="true">#</a></h2>
-<p>Use <code>model</code> and <code>tools</code> in the front matter. The model is resolved in this order: a model Claude passes when it spawns the subagent, then the <code>model</code> field, then the <code>CLAUDE_CODE_SUBAGENT_MODEL</code> variable, then your session’s model. Since 2.1.251 that variable is only a default. To force one model on every subagent, also set <code>CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1</code> (2.1.257 and later). Run <code>/tasks</code> to see which model each subagent is on.</p>
+<p>Use <code>model</code> and <code>tools</code> in the front matter. The model is resolved in this order: a model Claude passes when it spawns the subagent, then the <code>model</code> field, then the <code>CLAUDE_CODE_SUBAGENT_MODEL</code> variable, then your session’s model. Since 2.1.251 that variable is only a default. To force one model on every subagent, also set <code>CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1</code> (2.1.257 and later). Run <code>/tasks</code> to see which model each subagent is on. The newest Haiku is <a href="/blog/claude-haiku-5-5/">Claude Haiku 5.5</a>.</p>
 <p><code>tools</code> is an allowlist and <code>disallowedTools</code> a denylist. A <code>disallowedTools</code> entry such as <code>Bash(git push *)</code> removes the whole Bash tool, so block single commands with a deny rule in settings instead. The Task tool was renamed Agent in 2.1.63, and old <code>Task(...)</code> rules still work.</p>
 <h2 id="do-claude-code-subagents-run-in-the-background" tabindex="-1">Do Claude Code subagents run in the background? <a class="anchor" href="#do-claude-code-subagents-run-in-the-background" aria-hidden="true">#</a></h2>
 <p>Yes, by default in an interactive session. Background became the default in 2.1.198, so the subagents Claude spawns run while you keep typing. Since 2.1.232 (13 Aug 2026) fork mode is on, so Claude can no longer ask for the foreground. A background subagent gets a smaller built-in tool set, and its permission prompts appear in your main session with its name on them. <code>/subtask</code> starts a fork, which is a subagent that inherits your whole conversation. Up to 20 subagents can run at once; <code>CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS</code> changes that.</p>
@@ -342,50 +342,50 @@ reports only failures. No Edit or Write tools, and use Haiku.</code></pre>
       <h2>Related in Guides</h2>
       <div class="post-grid">
         <article class="card t-guides">
-  <a class="thumb t-guides" href="/blog/build-your-personal-agi-on-your-computer/" aria-hidden="true" tabindex="-1"><img src="/blog/assets/media/build-your-personal-agi-on-your-computer/hero.png" alt="" loading="lazy" decoding="async" /></a>
+  <a class="thumb t-guides" href="/blog/claude-code-best-practices/" aria-hidden="true" tabindex="-1"><img src="/blog/assets/media/claude-code-best-practices/hero.png" alt="" loading="lazy" decoding="async" /></a>
   <div class="body">
     <div class="meta">
-      <time datetime="2026-09-15">Sep 15, 2026</time>
-      <span class="dot" aria-hidden="true"></span>
-      <span>9 min</span>
-    </div>
-    <h3><a href="/blog/build-your-personal-agi-on-your-computer/">Build Your Personal AGI on Your Computer Using Claude Code and Munder Difflin</a></h3>
-    <p class="dek">Turn Claude Code into a personal AGI on your own computer: agents with memory, schedules, Gmail, Calendar, voice and Slack, set up in Munder Difflin 0.5.2.</p>
-    <div class="foot">
-      <span class="tag kind">Guides</span>
-      <a class="more" href="/blog/build-your-personal-agi-on-your-computer/" aria-label="Read: Build Your Personal AGI on Your Computer Using Claude Code and Munder Difflin">Read →</a>
-    </div>
-  </div>
-</article>
-<article class="card t-guides">
-  <a class="thumb t-guides" href="/blog/how-to-install-gemini-cli/" aria-hidden="true" tabindex="-1"><img src="/blog/assets/media/how-to-install-gemini-cli/hero.png" alt="" loading="lazy" decoding="async" /></a>
-  <div class="body">
-    <div class="meta">
-      <time datetime="2026-09-15">Sep 15, 2026</time>
+      <time datetime="2026-10-15">Oct 15, 2026</time>
       <span class="dot" aria-hidden="true"></span>
       <span>5 min</span>
     </div>
-    <h3><a href="/blog/how-to-install-gemini-cli/">How to Install Gemini CLI, and Can It Use Gemini 4 Yet?</a></h3>
-    <p class="dek">Install Gemini CLI 0.62.0 with one npm command, see which sign ins still work after 18 Jun 2026, and why Gemini 4 Argon isn&#39;t in it yet.</p>
+    <h3><a href="/blog/claude-code-best-practices/">Claude Code Best Practices: 9 Habits From Anthropic&#39;s Docs</a></h3>
+    <p class="dek">Nine Claude Code best practices from Anthropic&#39;s docs, checked 15 Oct 2026: give Claude a check, plan first, keep memory short, clear context, run in parallel.</p>
     <div class="foot">
       <span class="tag kind">Guides</span>
-      <a class="more" href="/blog/how-to-install-gemini-cli/" aria-label="Read: How to Install Gemini CLI, and Can It Use Gemini 4 Yet?">Read →</a>
+      <a class="more" href="/blog/claude-code-best-practices/" aria-label="Read: Claude Code Best Practices: 9 Habits From Anthropic&#39;s Docs">Read →</a>
     </div>
   </div>
 </article>
 <article class="card t-guides">
-  <a class="thumb t-guides" href="/blog/claude-code-max-plan-tips/" aria-hidden="true" tabindex="-1"><img src="/blog/assets/media/claude-code-max-plan-tips/hero.png" alt="" loading="lazy" decoding="async" /></a>
+  <a class="thumb t-guides" href="/blog/ai-agent-use-cases-our-office/" aria-hidden="true" tabindex="-1"><img src="/blog/assets/media/ai-agent-use-cases-our-office/hero.png" alt="" loading="lazy" decoding="async" /></a>
   <div class="body">
     <div class="meta">
-      <time datetime="2026-09-14">Sep 14, 2026</time>
+      <time datetime="2026-10-14">Oct 14, 2026</time>
       <span class="dot" aria-hidden="true"></span>
-      <span>5 min</span><span class="pin">Pinned</span>
+      <span>8 min</span><span class="pin">Pinned</span>
     </div>
-    <h3><a href="/blog/claude-code-max-plan-tips/">How to Get the Most Out of Your Claude Code Max Plan</a></h3>
-    <p class="dek">Stretch a Claude Code Max plan: model choice, context hygiene, prompt caching, subagents and unattended runs, checked against Anthropic&#39;s own pages.</p>
+    <h3><a href="/blog/ai-agent-use-cases-our-office/">AI Agent Use Cases From a Real Company: Every Agent on Our Floor and the Job It Does</a></h3>
+    <p class="dek">We run our company on Munder Difflin. Every seat on our floor: what each AI agent does, how its work starts, what comes out, and how to copy it.</p>
     <div class="foot">
       <span class="tag kind">Guides</span>
-      <a class="more" href="/blog/claude-code-max-plan-tips/" aria-label="Read: How to Get the Most Out of Your Claude Code Max Plan">Read →</a>
+      <a class="more" href="/blog/ai-agent-use-cases-our-office/" aria-label="Read: AI Agent Use Cases From a Real Company: Every Agent on Our Floor and the Job It Does">Read →</a>
+    </div>
+  </div>
+</article>
+<article class="card t-guides">
+  <a class="thumb t-guides" href="/blog/claude-code-skills/" aria-hidden="true" tabindex="-1"><img src="/blog/assets/media/claude-code-skills/hero.png" alt="" loading="lazy" decoding="async" /></a>
+  <div class="body">
+    <div class="meta">
+      <time datetime="2026-10-14">Oct 14, 2026</time>
+      <span class="dot" aria-hidden="true"></span>
+      <span>5 min</span>
+    </div>
+    <h3><a href="/blog/claude-code-skills/">Claude Code Skills: What They Are, Where They Live and How to Write One</a></h3>
+    <p class="dek">Claude Code skills, checked 14 Oct 2026: what a skill is, where skill folders live, a first skill file, how Claude picks one and how to share them.</p>
+    <div class="foot">
+      <span class="tag kind">Guides</span>
+      <a class="more" href="/blog/claude-code-skills/" aria-label="Read: Claude Code Skills: What They Are, Where They Live and How to Write One">Read →</a>
     </div>
   </div>
 </article>
@@ -435,9 +435,10 @@ reports only failures. No Edit or Write tools, and use Haiku.</code></pre>
       if (!btn) return;
       var box = btn.closest('.yt');
       var id = box && box.getAttribute('data-yt');
-      if (!id) return;
+      // Only an 11 character YouTube video id may reach the iframe URL.
+      if (!id || !/^[A-Za-z0-9_-]{11}$/.test(id)) return;
       var frame = document.createElement('iframe');
-      frame.src = 'https://www.youtube-nocookie.com/embed/' + id + '?autoplay=1';
+      frame.src = 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(id) + '?autoplay=1';
       frame.title = box.getAttribute('data-title') || 'YouTube video';
       frame.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
       frame.setAttribute('allowfullscreen', '');

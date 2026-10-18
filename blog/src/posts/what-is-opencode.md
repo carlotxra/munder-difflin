@@ -1,6 +1,6 @@
 ---
-title: "What Is OpenCode? Install, Pricing and How It Compares"
-description: "OpenCode is Anomaly's MIT licensed coding agent for the terminal. What it is, how to install it, what it costs, and how it compares with Claude Code and Codex."
+title: "What Is OpenCode? Free, MIT Licensed, and What You Pay For"
+description: "OpenCode is a free, MIT licensed coding agent from Anomaly. The tool costs nothing; you pay for the model you connect, unless it is local or free."
 date: 2026-09-29
 category: concepts
 categoryLabel: Concepts
@@ -117,7 +117,7 @@ OpenCode if you want to choose the model, Claude Code if you want Anthropic's ow
 
 **Pick Codex CLI if** you pay for ChatGPT and want OpenAI's agent with an open source client.
 
-Our [Codex CLI vs Claude Code](/blog/codex-cli-vs-claude-code/) comparison goes further on those two, and [best AI coding agents](/blog/best-ai-coding-agents/) covers the wider field.
+Our [Codex CLI vs Claude Code](/blog/codex-cli-vs-claude-code/) comparison goes further on those two, and [best AI coding agents](/blog/best-ai-coding-agents/) covers the wider field. For the two tool version with prices, see [OpenCode vs Claude Code](/blog/opencode-vs-claude-code/).
 
 {% img "note-2" %}
 
