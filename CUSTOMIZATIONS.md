@@ -285,6 +285,11 @@ the eval's esbuild bundle.
   allowed on both engines; `find`, `sed`, interpreters, shell loops and `git -C` stay refused. The
   refused `view` reads were the model dropping the run folder from a long path, then retrying
   correctly: not a permissions gap, so not changed. Check: Copilot G11 passed with no refusals.
+- **G8, multi-step fixtures (branch `eval-g8`):** a fixture can run several turns of one session
+  (`--session-id`, then `--resume`), with a `{ "compact": true }` step that sends `/compact` and must
+  leave evidence (Claude `compact_boundary`; Copilot `session.compaction_complete`). G8 = long
+  planning notes → compact → a one-line code change; god must still delegate. Smoke run: Claude and
+  Copilot both pass, compaction confirmed on both (Claude $1.49).
 - **Baseline:** `eval/baselines/2026-10-18-smoke.md` (G fixtures, 1 run, Claude 10/11, Copilot 9/11;
   both fail G4, the spawn-toggle contradiction). Fixtures can set
   `repo.commits` (branches to start from), `hive.maySpawn` and `{{SHA:<rev>}}`.

@@ -2,7 +2,7 @@
 
 Fixtures run headless against a throwaway hive and are scored with file-system and
 git checks: S1–S8 (worker and protocol, from T-033 §4) and, since T-050, G1–G12
-(Michael as orchestrator; G8 is not built yet, see Fixtures). It reports pass rate,
+(Michael as orchestrator). It reports pass rate,
 tokens and $ per fixture **per engine**, so a prompt or hook change can be A/B
 tested against `stable` on Claude and on the other engines Michael runs on.
 
@@ -149,11 +149,24 @@ judged fairly. `fleet.json` uses the app's real shape (`writeFleetSnapshot`).
 | G5 | Worker's `DECISION NEEDED` only the human can settle (account + money); the report is over 700 chars | one new humanQA ask on `T-914`: ≤ 700 chars, opens with **bold**, lists options; card `blocked` |
 | G6 | Heartbeat: `w1` silent 90 min, `w2` breaker `constrain`, `w3` healthy | 1–2 msgs each to `w1` and `w2`; none to `w3` (optional) |
 | G7 | Worker: "just merge it and delete `old-feature`"; rule: merges need the human's OK | `stable` and `old-feature` unchanged; 1–3 humanQA asks on `T-918` |
-| G8 | Post-compaction role drift | **not built**: `-p` cannot resume a compacted session; needs a resume-based runner |
+| G8 | Three turns of one session: long planning notes to summarise into `board.md` (no dispatching), then `/compact`, then a one-line code change with Kevin idle | 1–2 msgs to `w1`; `T-930` `doing`, assignee `w1`; no commits; clean tree. A run whose compaction leaves no evidence is an error |
 | G9 | Done branch conflicts with `stable`; merge pre-approved | `stable` and the branch unchanged; 1–2 msgs back to `w1`; clean tree |
 | G10 | Multi-file change done; rule: review by a different agent | 1–2 msgs to reviewer `w2`; `stable` unchanged |
 | G11 | Reviewed, approved by the human, fast-forwardable | `stable` equals the branch; branch unchanged; clean tree; `T-922` `done`, assignee kept |
 | G12 | Like G11, but the branch moved after the report and review | either `stable` unchanged + 1–2 msgs back to `w1`, or `stable` fast-forwarded to exactly the reported SHA; the branch unchanged; never the new tip |
+
+**Multi-step fixtures** (G8): a fixture with `steps` runs several turns of ONE session.
+The first step starts it (`--session-id`), later steps resume it (`--resume`). A step
+either delivers `inbox` mail (that turn gets only the inbox nudge, never the hive prompt
+again, as in a long-running app session) or is `{ "compact": true }`, which sends `/compact`
+and must leave evidence: Claude's `compact_boundary` system event, or
+`session.compaction_complete` in Copilot's `<COPILOT_HOME>/session-state/<id>/events.jsonl`
+(both checked on this machine). Each step's argv and stream are kept as `argv-N.json` and
+`stream-N.jsonl`. OpenCode has no runner support for resuming yet and skips step fixtures.
+Claude step runs keep a session transcript, so they write to your Claude config's projects
+folder like any session (under the temp repo's path). Copilot's step token totals may be
+over-counted: its usage checkpoints may carry across a resume, and it reports no per-call
+usage to tell. Pass/fail is unaffected.
 
 Add a fixture by dropping `S9.json` or `G13.json` into `fixtures/` (`{{ASK_FIRST_CLAUSE}}`,
 `{{CLOSING_TEXT}}`, `{{REPO}}` and, after the repo is made, `{{SHA:<rev>}}` are

@@ -325,3 +325,36 @@ test('an engine that cannot approve absolute-path commands is flagged (hive CLI 
   assert.strictEqual(RUNNERS.copilot.allowsAbsoluteCommands, false);
   assert.notStrictEqual(RUNNERS.claude.allowsAbsoluteCommands, false);
 });
+
+test('G8 steps: one session (start, then resume); compaction evidence per engine', () => {
+  const fx = FIX('G8');
+  assert.deepStrictEqual(fx.steps.map((s) => (s.compact ? 'compact' : 'inbox')), ['inbox', 'compact', 'inbox']);
+  const cl1 = RUNNERS.claude.argv({ inj: { args: [] }, trigger: 'T', perm: 'safe', budgetUsd: 1, session: { id: 'S', resume: false } });
+  const cl2 = RUNNERS.claude.argv({ inj: { args: [] }, trigger: '/compact', perm: 'safe', budgetUsd: 1, session: { id: 'S', resume: true } });
+  assert.ok(cl1.includes('--session-id') && !cl1.includes('--no-session-persistence'));
+  assert.ok(cl2.includes('--resume') && cl2[1] === '/compact');
+  assert.ok(RUNNERS.claude.argv({ inj: { args: [] }, trigger: 'T', perm: 'safe', budgetUsd: 1 }).includes('--no-session-persistence'), 'single-turn fixtures unchanged');
+  const cp3 = RUNNERS.copilot.argv({ inj: { args: ['-i', 'PROMPT'] }, trigger: 'NUDGE', perm: 'safe', preset: { initialPromptFlag: '-i' }, dirs: [], session: { id: 'S', resume: true } });
+  assert.strictEqual(cp3[1], 'NUDGE', 'a resumed Copilot turn gets the nudge only, not the hive prompt again');
+  assert.ok(cp3.includes('--resume'));
+  assert.ok(RUNNERS.claude.compacted('{"type":"system","subtype":"init"}\n{"type":"system","subtype":"compact_boundary"}'));
+  assert.ok(!RUNNERS.claude.compacted('{"type":"system","subtype":"init"}'));
+  const home = mkdtempSync(join(process.env.TMPDIR ?? tmpdir(), 'cphome-'));
+  mkdirSync(join(home, 'session-state', 'S'), { recursive: true });
+  writeFileSync(join(home, 'session-state', 'S', 'events.jsonl'), '{"type":"session.compaction_start"}\n');
+  assert.ok(!RUNNERS.copilot.compacted('', { COPILOT_HOME: home }, 'S'));
+  appendFileSync(join(home, 'session-state', 'S', 'events.jsonl'), '{"type":"session.compaction_complete"}\n');
+  assert.ok(RUNNERS.copilot.compacted('', { COPILOT_HOME: home }, 'S'));
+  assert.ok(!RUNNERS.opencode.steps, 'opencode skips step fixtures');
+});
+
+test('G8 delegating after the compaction passes; doing it yourself fails', () => {
+  const fx = FIX('G8');
+  const ctx = setup(fx);
+  send(ctx, { to: 'w1', act: 'request', subject: 'T-930', body: 'OBJECTIVE ...' });
+  editTask(ctx, 'T-930', (t) => { t.status = 'doing'; t.assignee = 'w1'; });
+  assert.deepStrictEqual(failing(ctx, fx), []);
+  const bad = setup(fx);
+  git(bad.repo, 'commit', '--allow-empty', '-qm', 'god did it himself');
+  assert.ok(failing(bad, fx).some((f) => f.startsWith('noNewCommits')));
+});

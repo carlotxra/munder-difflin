@@ -5,6 +5,7 @@
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync, rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { spawn } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { parseArgs } from 'node:util';
 import { buildHarness, closingTimeText, provision, leverCheck } from './lib/build.mjs';
@@ -104,6 +105,8 @@ const fixKey = (id) => [id[0] === 'S' ? 0 : 1, Number(id.slice(1))];
 const ids = (o.only ? o.only.split(',') : readdirSync(FIX_DIR).filter((f) => /^[SG]\d+\.json$/.test(f)).map((f) => f.slice(0, -5)))
   .sort((a, b) => { const [x, y] = [fixKey(a), fixKey(b)]; return x[0] - y[0] || x[1] - y[1]; });
 const runs = Number(o.runs);
+// Fixtures that need several turns of one session (G8); engines without `steps` skip them.
+const STEP_FIXTURES = new Set(ids.filter((id) => Array.isArray(JSON.parse(readFileSync(join(FIX_DIR, `${id}.json`), 'utf8')).steps)));
 let spent = 0;
 
 // Estimate before spending anything: per-fixture $ from eval/estimates.json (each
@@ -189,14 +192,40 @@ async function runOne(id, n, arm, ai) {
   // (the hive's node launcher + the script), as the prompt writes it.
   const cliFile = join(root, 'bin', 'hive-cli.cjs');
   const extraCmds = existsSync(cliFile) ? [`${hive.nodeCommand()} ${cliFile}`] : [];
-  const argv = runner.argv({
-    inj: me, trigger, perm: o.perm, model: arm.model, preset, repo, dirs: [agentDir, root], extraCmds,
+  const argvFor = (t, session) => runner.argv({
+    inj: me, trigger: t, perm: o.perm, model: arm.model, preset, repo, dirs: [agentDir, root], extraCmds, session,
     budgetUsd: Math.min(Number(o['run-budget']), remaining)
   });
+  const argv = argvFor(trigger, null);
   writeFileSync(join(dir, 'argv.json'), JSON.stringify({ provider: arm.provider, bin, argv, env: me.env }, null, 2));
 
   let usage = { calls: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, costUsd: runner.reportsUsd ? 0 : null, turns: 0, error: null, denials: [] };
-  if (!o['dry-run']) {
+  if (fx.steps) {
+    // G8-style fixture: several turns of ONE session (the first starts it, the rest
+    // resume it). A step either delivers inbox mail (the turn gets the inbox nudge,
+    // never the hive prompt again) or compacts the session; a compaction that
+    // leaves no evidence is an error, never a silent pass.
+    const session = randomUUID();
+    const add = (u) => {
+      for (const k of ['calls', 'input', 'output', 'cacheRead', 'cacheWrite', 'turns']) usage[k] += u[k] ?? 0;
+      if (usage.costUsd !== null) usage.costUsd += u.costUsd ?? 0;
+      usage.denials.push(...(u.denials ?? []));
+      usage.error = usage.error ?? u.error;
+    };
+    const env = childEnv(me.env, runner.envKeep);
+    for (const [i, step] of fx.steps.entries()) {
+      writeMsgs(join(agentDir, 'inbox'), step.inbox);
+      const t = step.compact ? '/compact' : (mod.nudgeText ?? mod.inboxNudgeText)((step.inbox ?? []).map((m) => m.id));
+      const sargv = argvFor(t, { id: session, resume: i > 0 });
+      writeFileSync(join(dir, `argv-${i + 1}.json`), JSON.stringify({ provider: arm.provider, bin, argv: sargv, env: me.env }, null, 2));
+      if (o['dry-run']) continue;
+      const r = await runCli(bin, sargv, env, repo, join(dir, `stream-${i + 1}.jsonl`));
+      const u = runner.parse(r.out);
+      if (r.code !== 0 && !u.error) u.error = `step ${i + 1}: exit ${r.code}`;
+      if (step.compact && !runner.compacted(r.out, env, session)) u.error = u.error ?? `step ${i + 1}: no compaction happened`;
+      add(u);
+    }
+  } else if (!o['dry-run']) {
     const env = childEnv(me.env, runner.envKeep);
     const r = await runCli(bin, argv, env, repo, join(dir, 'stream.jsonl'));
     usage = runner.parse(r.out);
@@ -217,6 +246,7 @@ for (const [ai, arm] of ARMS.entries()) {
   for (const id of ids) {
     for (let n = 1; n <= runs; n++) {
       if (!o['dry-run'] && RUNNERS[arm.provider].reportsUsd && spent >= MAX_USD) { console.log(`--max-usd $${MAX_USD} reached, skipping ${armLabel(arm)} ${id}#${n}`); continue; }
+      if (STEP_FIXTURES.has(id) && !RUNNERS[arm.provider].steps) { console.log(`${armLabel(arm)} cannot resume a session headless, skipping ${id}#${n}`); continue; }
       const r = await runOne(id, n, arm, ai);
       results.push(r);
       const failed = r.checks.filter((c) => !c.ok).map((c) => `${c.type}${c.optional ? '?' : ''}: ${c.detail}`);
