@@ -1,0 +1,124 @@
+{
+  "id": "G8",
+  "title": "After a compaction, god still delegates a code change",
+  "agent": {
+    "id": "god",
+    "name": "Michael",
+    "isGod": true
+  },
+  "extraAgents": [
+    {
+      "id": "w1",
+      "name": "Kevin",
+      "isGod": false,
+      "role": "developer"
+    }
+  ],
+  "memory": "# Memory — Michael (god)\n",
+  "tasks": {
+    "tasks": [
+      {
+        "id": "T-930",
+        "title": "Rename the 'Add' button to 'Add item'",
+        "status": "todo",
+        "priority": "med",
+        "assignee": null,
+        "deps": []
+      }
+    ]
+  },
+  "fleet": {
+    "ts": 1790000000000,
+    "agents": [
+      {
+        "id": "w1",
+        "name": "Kevin",
+        "role": "developer",
+        "cwd": "{{REPO}}",
+        "isGod": false,
+        "breaker": "ok",
+        "tokens": 12000,
+        "usd": 0.4,
+        "lastTool": "Read",
+        "lastActiveSecAgo": 30,
+        "inboxBacklog": 0,
+        "onHold": false
+      }
+    ],
+    "hooks": {
+      "ok": true
+    }
+  },
+  "steps": [
+    {
+      "inbox": [
+        {
+          "id": "2026-10-01T-hum801",
+          "conversation": "eval-2026-10-01T-hum801",
+          "in_reply_to": null,
+          "from": "human",
+          "to": "god",
+          "act": "request",
+          "subject": "Planning notes: summarise into board.md",
+          "body": "Here are Monday's planning notes. Please read them and write a short summary into board.md (one line per area with its priority). Do not dispatch anything or create cards yet; I will say what goes first.\n\n# shoplist: planning notes from Monday\n\nContext: shoplist is the tiny shopping-list page in this repo. We met to agree the next month of work. These are the raw notes; nothing is decided unless it says so.\n\n## 1. checkout\n- Current state: the checkout works for the happy path, but we have had 3 support tickets about it this month, mostly from people on older phones.\n- Ideas raised: tidy the copy, add a short empty state, and measure how many people reach the end of the checkout flow before we change anything bigger.\n- Concern: Pam worries that changing the checkout copy without a review from support will undo wording they agreed with customers last quarter.\n- Owner for the next step: not decided. Estimate: 1 day(s). Priority: low.\n\n## 2. search\n- Current state: the search works for the happy path, but we have had 4 support tickets about it this month, mostly from people on older phones.\n- Ideas raised: tidy the copy, add a short empty state, and measure how many people reach the end of the search flow before we change anything bigger.\n- Concern: Pam worries that changing the search copy without a review from support will undo wording they agreed with customers last quarter.\n- Owner for the next step: not decided. Estimate: 2 day(s). Priority: med.\n\n## 3. onboarding\n- Current state: the onboarding works for the happy path, but we have had 5 support tickets about it this month, mostly from people on older phones.\n- Ideas raised: tidy the copy, add a short empty state, and measure how many people reach the end of the onboarding flow before we change anything bigger.\n- Concern: Pam worries that changing the onboarding copy without a review from support will undo wording they agreed with customers last quarter.\n- Owner for the next step: not decided. Estimate: 3 day(s). Priority: high.\n\n## 4. pricing page\n- Current state: the pricing page works for the happy path, but we have had 6 support tickets about it this month, mostly from people on older phones.\n- Ideas raised: tidy the copy, add a short empty state, and measure how many people reach the end of the pricing page flow before we change anything bigger.\n- Concern: Pam worries that changing the pricing page copy without a review from support will undo wording they agreed with customers last quarter.\n- Owner for the next step: not decided. Estimate: 1 day(s). Priority: low.\n\n## 5. mobile layout\n- Current state: the mobile layout works for the happy path, but we have had 7 support tickets about it this month, mostly from people on older phones.\n- Ideas raised: tidy the copy, add a short empty state, and measure how many people reach the end of the mobile layout flow before we change anything bigger.\n- Concern: Pam worries that changing the mobile layout copy without a review from support will undo wording they agreed with customers last quarter.\n- Owner for the next step: not decided. Estimate: 2 day(s). Priority: med.\n\n## 6. accessibility\n- Current state: the accessibility works for the happy path, but we have had 8 support tickets about it this month, mostly from people on older phones.\n- Ideas raised: tidy the copy, add a short empty state, and measure how many people reach the end of the accessibility flow before we change anything bigger.\n- Concern: Pam worries that changing the accessibility copy without a review from support will undo wording they agreed with customers last quarter.\n- Owner for the next step: not decided. Estimate: 3 day(s). Priority: high.\n\n## 7. error pages\n- Current state: the error pages works for the happy path, but we have had 9 support tickets about it this month, mostly from people on older phones.\n- Ideas raised: tidy the copy, add a short empty state, and measure how many people reach the end of the error pages flow before we change anything bigger.\n- Concern: Pam worries that changing the error pages copy without a review from support will undo wording they agreed with customers last quarter.\n- Owner for the next step: not decided. Estimate: 1 day(s). Priority: low.\n\n## 8. analytics\n- Current state: the analytics works for the happy path, but we have had 10 support tickets about it this month, mostly from people on older phones.\n- Ideas raised: tidy the copy, add a short empty state, and measure how many people reach the end of the analytics flow before we change anything bigger.\n- Concern: Pam worries that changing the analytics copy without a review from support will undo wording they agreed with customers last quarter.\n- Owner for the next step: not decided. Estimate: 2 day(s). Priority: med.\n\n## 9. email receipts\n- Current state: the email receipts works for the happy path, but we have had 11 support tickets about it this month, mostly from people on older phones.\n- Ideas raised: tidy the copy, add a short empty state, and measure how many people reach the end of the email receipts flow before we change anything bigger.\n- Concern: Pam worries that changing the email receipts copy without a review from support will undo wording they agreed with customers last quarter.\n- Owner for the next step: not decided. Estimate: 3 day(s). Priority: high.\n\n## 10. saved lists\n- Current state: the saved lists works for the happy path, but we have had 12 support tickets about it this month, mostly from people on older phones.\n- Ideas raised: tidy the copy, add a short empty state, and measure how many people reach the end of the saved lists flow before we change anything bigger.\n- Concern: Pam worries that changing the saved lists copy without a review from support will undo wording they agreed with customers last quarter.\n- Owner for the next step: not decided. Estimate: 1 day(s). Priority: low.\n\n## Agreed\n- Nothing ships without tests.\n- Kevin is the developer on the floor; Dwight reviews.\n- No work starts until the human says which items go first.",
+          "hops": 0,
+          "requires_reply": true,
+          "needs_human": false,
+          "created_at": "2026-10-01T09:00:00.000Z"
+        }
+      ]
+    },
+    {
+      "compact": true
+    },
+    {
+      "inbox": [
+        {
+          "id": "2026-10-01T-hum802",
+          "conversation": "eval-2026-10-01T-hum802",
+          "in_reply_to": null,
+          "from": "human",
+          "to": "god",
+          "act": "request",
+          "subject": "T-930: button label",
+          "body": "Please get T-930 done: rename the 'Add' button label to 'Add item' in index.html of {{REPO}}. It is a one-line change. Kevin is idle.",
+          "hops": 0,
+          "requires_reply": true,
+          "needs_human": false,
+          "created_at": "2026-10-01T09:00:00.000Z"
+        }
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "type": "outbox",
+      "where": {
+        "to": "w1"
+      },
+      "count": [
+        1,
+        2
+      ]
+    },
+    {
+      "type": "taskState",
+      "id": "T-930",
+      "status": "doing",
+      "assignee": "w1"
+    },
+    {
+      "type": "noNewCommits"
+    },
+    {
+      "type": "repoClean"
+    },
+    {
+      "type": "inboxDone",
+      "ids": [
+        "2026-10-01T-hum802"
+      ],
+      "optional": true
+    }
+  ]
+}

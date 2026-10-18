@@ -12,7 +12,7 @@
 // Only engines checked against their own `--help` on this machine are listed.
 // `codex` (vendor binary missing here) and `pi` are left out until they can be
 // checked; see eval/README.md.
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { parseStream } from './usage.mjs';
@@ -115,13 +115,18 @@ export const RUNNERS = {
     // Spend is capped by the CLI itself (--max-budget-usd) and reported as $.
     reportsUsd: true,
     envKeep: /^(ANTHROPIC_\w+|CLAUDE_CONFIG_DIR)$/,
-    argv({ inj, trigger, perm, budgetUsd, model, extraCmds = [] }) {
+    // G8: one session across steps (start with --session-id, then --resume), and
+    // `/compact` works headless; a `compact_boundary` system event proves it ran.
+    steps: true,
+    compacted: (out) => out.split('\n').some((l) => { try { const e = JSON.parse(l); return e.type === 'system' && e.subtype === 'compact_boundary'; } catch { return false; } }),
+    argv({ inj, trigger, perm, budgetUsd, model, extraCmds = [], session = null }) {
       const tools = ['Read', 'Write', 'Edit', 'Glob', 'Grep', 'TodoWrite',
         ...SAFE_GIT.map((c) => `Bash(git ${c}:*)`), ...[...SAFE_CMDS, ...extraCmds].map((c) => `Bash(${c}:*)`)];
       const permArgs = perm === 'live'
         ? ['--permission-mode', 'bypassPermissions']
         : ['--permission-mode', 'acceptEdits', '--allowedTools', tools.join(',')];
-      return ['-p', trigger, '--output-format', 'stream-json', '--verbose', '--no-session-persistence',
+      const sessionArgs = session ? (session.resume ? ['--resume', session.id] : ['--session-id', session.id]) : ['--no-session-persistence'];
+      return ['-p', trigger, '--output-format', 'stream-json', '--verbose', ...sessionArgs,
         ...permArgs, '--max-budget-usd', budgetUsd.toFixed(2), ...(model ? ['--model', model] : []), ...inj.args];
     },
     parse: parseStream
@@ -141,8 +146,14 @@ export const RUNNERS = {
     // --perm safe it would be refused every time. run.mjs refuses such an arm.
     allowsAbsoluteCommands: false,
     envKeep: /^(GH_TOKEN|GITHUB_TOKEN|COPILOT_\w+|XDG_\w+)$/,
-    argv({ inj, trigger, perm, model, preset, dirs, extraCmds = [] }) {
-      const message = `${initialPrompt(inj.args, preset)}\n\n${trigger}`;
+    // G8: --session-id then --resume; `/compact` works headless and is recorded as
+    // session.compaction_complete in <COPILOT_HOME>/session-state/<id>/events.jsonl.
+    steps: true,
+    compacted: (out, env, id) => { try { return readFileSync(`${env.COPILOT_HOME}/session-state/${id}/events.jsonl`, 'utf8').includes('"session.compaction_complete"'); } catch { return false; } },
+    argv({ inj, trigger, perm, model, preset, dirs, extraCmds = [], session = null }) {
+      // A resumed step is a later turn of the same session: only the nudge, as in
+      // the app, where the hive prompt rides on the first message alone.
+      const message = session?.resume ? trigger : `${initialPrompt(inj.args, preset)}\n\n${trigger}`;
       const permArgs = perm === 'live'
         ? ['--allow-all-tools']
         // Same list as Claude's, command by command (`shell(git status:*)`, not
@@ -150,7 +161,8 @@ export const RUNNERS = {
         : ['--allow-tool', 'write',
           ...[...SAFE_GIT.map((c) => `git ${c}`), ...SAFE_CMDS, ...extraCmds].flatMap((c) => ['--allow-tool', `shell(${c}:*)`]),
           '--deny-tool', 'shell(git push)', '--deny-tool', 'shell(git remote)'];
-      return ['-p', message, '-s', '--output-format', 'json', '--no-ask-user', ...permArgs,
+      const sessionArgs = session ? (session.resume ? ['--resume', session.id] : ['--session-id', session.id]) : [];
+      return ['-p', message, '-s', '--output-format', 'json', '--no-ask-user', ...sessionArgs, ...permArgs,
         ...dirs.flatMap((d) => ['--add-dir', d]), ...(model ? ['--model', model] : [])];
     },
     parse: parseCopilotUsage
