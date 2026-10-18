@@ -42,6 +42,10 @@ export interface OrchestratorLevers {
    *  use it instead of hand-writing outbox, tasks and spawn files. Prompt V2 only.
    *  Default OFF until the eval shows it helps. */
   hiveCli: boolean;
+  /** T-056: the harness checks god's cards, asks, spawn requests and outbox
+   *  against his rules and tells him once per breach (custom/drift.ts), counts
+   *  them in the heartbeat and logs them as god-drift. Default ON. */
+  driftNotice: boolean;
 }
 
 export type OrchestratorLeverKey = keyof OrchestratorLevers;
@@ -56,7 +60,8 @@ export const ORCHESTRATOR_LEVERS_ON: OrchestratorLevers = {
   nativeInstructions: ['copilot', 'opencode'],
   godWriteGuard: true,
   compactAnchor: true,
-  hiveCli: false
+  hiveCli: false,
+  driftNotice: true
 };
 
 /** Upstream behaviour: what code sees before the app installs a config source. */
@@ -69,7 +74,8 @@ export const ORCHESTRATOR_LEVERS_OFF: OrchestratorLevers = {
   nativeInstructions: [],
   godWriteGuard: false,
   compactAnchor: false,
-  hiveCli: false
+  hiveCli: false,
+  driftNotice: false
 };
 
 const REVIEW_POLICIES: readonly ReviewPolicy[] = ['always', 'nontrivial', 'tests-only'];
@@ -83,7 +89,7 @@ export function resolveOrchestratorLevers(config: unknown): OrchestratorLevers {
   const out: OrchestratorLevers = { ...ORCHESTRATOR_LEVERS_ON, nativeInstructions: [...ORCHESTRATOR_LEVERS_ON.nativeInstructions] };
   if (!raw || typeof raw !== 'object') return out;
   const r = raw as Record<string, unknown>;
-  for (const k of ['godPromptV2', 'spawnOffNotice', 'autoMergeWhenGreen', 'godWriteGuard', 'compactAnchor', 'hiveCli'] as const) {
+  for (const k of ['godPromptV2', 'spawnOffNotice', 'autoMergeWhenGreen', 'godWriteGuard', 'compactAnchor', 'hiveCli', 'driftNotice'] as const) {
     if (typeof r[k] === 'boolean') out[k] = r[k] as boolean;
   }
   if (REVIEW_POLICIES.includes(r.reviewPolicy as ReviewPolicy)) out.reviewPolicy = r.reviewPolicy as ReviewPolicy;

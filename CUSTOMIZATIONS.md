@@ -57,6 +57,7 @@ git diff --stat main..stable       # files touched
 | Native instruction channel | Non-Claude engines get the hive prompt through their own instructions file in the agent's isolated home, and only a short kick as the first message (upstream sends the whole prompt as the first user message, which carries less weight and is lost on compaction). Applies to every agent, not only god. Copilot: confirms the prompt in `$COPILOT_HOME/copilot-instructions.md` (already written there since T-002, so Copilot no longer gets it twice). OpenCode: `hive-instructions.md` listed under `instructions` in the per-agent `opencode.json`. Codex: `AGENTS.md` in `CODEX_HOME`, user's own `~/.codex/AGENTS.md` kept first; **off by default**, not checked here. Any failure, or a symlinked target: the whole prompt as before | `config.orchestrator.nativeInstructions` (provider ids; default `["copilot", "opencode"]`; `[]` = upstream). Read at spawn | logic `src/main/custom/instructionChannel.ts`; lever in `src/shared/custom/orchestratorLevers.ts`; **upstream seams:** `src/main/hive.ts` import (`// fork: T-051`), `const prompt` → `let prompt` in the non-Claude launch path, and `prompt = nativeInstructions(meta, env, prompt)` after the bridge installs; test `test/native-instructions.test.cjs` | branch `t051-native-instructions` (T-051) | merged |
 | God write guard + compaction anchor | A PreToolUse hook denies god's edits and repository-changing commands outside the hive (file tools, `git commit/push/reset/rebase/checkout/…`, `git merge` without `--ff-only`, `rm/mv/cp/sed -i`, `>` redirects), with a reason that says what to do instead; allowed: the hive, temp files outside any repo, read-only commands, and the approved landing (`git merge --ff-only <sha>` or `git fetch . <sha>:<branch>`). Every denial logged to `log.jsonl` as `god-guard`. After god's context is compacted or resumed, SessionStart adds a short role and hard-rules reminder. Engines with a hook bridge only | `config.orchestrator.godWriteGuard`, `compactAnchor` (both default on; `false` = upstream) | logic `src/main/custom/godGuard.ts`; **upstream seams:** `src/main/hooks.ts` import, the guard line before the 7C.1 HITL gate, the anchor line merged into `steer`; V2 rule 1 also names the `git fetch . <sha>:<branch>` landing; test `test/god-guard.test.cjs` | branch `t053-god-guard` (T-053) | merged |
 | `hive` command line for god | Checked commands instead of hand-written files: `roster`, `dispatch` (4-part contract + definition of done + ASK FIRST clause; card doing with assignee), `review` (never the author), `merge` (tip = reported SHA, fast-forward only, review and the human's yes checked, `git merge --ff-only` or `git fetch . <sha>:<branch>`, card done, never pushes), `ask` (card shape checked, humanQA, blocks the card), `task add/status/done` (never clears an assignee), `spawn` (only when spawning is on; shows the roster first). Each refuses with a reason (exit 2). Written to `<hive>/bin/hive-cli.cjs` at god spawn with `hive-cli.json` settings; prompt V2 gains a Commands section | `config.orchestrator.hiveCli` (default **off** until the eval shows it helps; needs `godPromptV2`) | logic `src/main/custom/hiveCliMain.ts` (one self-contained function, written out with `toString()`), installer and prompt lines `src/main/custom/hiveCli.ts`, wired in `custom/godPrompt.ts`; **upstream seam:** the T-052 line in `src/main/hive.ts` also passes `hiveNode`; test `test/hive-cli.test.cjs` | branch `t054-hive-cli` (T-054) | merged |
+| Drift visibility | The harness checks what god left on disk against his rules: cards doing/blocked/done with no assignee, open humanQA asks not in card shape, spawn requests filed while spawning is off, outbox messages it could not read. Each new breach is told to god once ("RULE CHECK", in the same hook context as the roster), logged as `god-drift` in `log.jsonl`, and the slim heartbeat digest gains a one-line count (open breaches + recent `god-guard` denials) | `config.orchestrator.driftNotice` (default on; `false` = upstream) | logic `src/main/custom/drift.ts`; digest line in `src/main/custom/wake.ts` (fork file); **upstream seams:** none new: the T-053 import and anchor lines in `src/main/hooks.ts` also carry `driftNotice`; test `test/god-drift.test.cjs` | branch `t056-drift-visibility` (T-056) | merged |
 
 ## Copilot CLI harness (T-002, T-003)
 
@@ -439,6 +440,33 @@ the fallback.
 - **Tests:** `test/hive-cli.test.cjs` (11) installs the CLI through a real god spawn and runs every
   command as its own process, including merges against real git repos. Full suite: same 34 sandbox
   failures as the base.
+
+## Drift visibility (T-056)
+
+Phase 6 of `docs/plans/orchestrator-alignment.md`. `custom/drift.ts` checks files the harness already
+keeps against god's rules. Only checks that cannot misfire:
+
+| Rule | Breach | Told to god as |
+|---|---|---|
+| assignee | a card `doing`, `blocked` or `done` with no `assignee` | set the assignee to the worker's id, never clear it |
+| ask | an open `humanQA` ask over 700 characters, without a **bold** first sentence, or without listed options (same rules as the prompt and `hive ask`) | add a rewritten ask in card shape |
+| spawn | a pending `spawn-requests/*.json` while orchestrator spawning is off | delete it, ask the human to hire or switch spawning on |
+| outbox | a god message the harness could not read (`outbox/.sent/bad-*`) | write it again as valid JSON |
+
+- **To god:** on his next `UserPromptSubmit`/`SessionStart`, new breaches only, each once per app
+  run, as a "RULE CHECK" block merged into the same additionalContext as the roster and steers.
+- **To the human:** each reported breach is a `{kind: "god-drift", rule, key}` line in `log.jsonl`,
+  beside T-053's `god-guard` denials.
+- **Heartbeat:** the slim digest (`custom/wake.ts`, cost lever `slimHeartbeat`) gains
+  `Rule check: N open breach(es) (…); K blocked attempt(s) to change a project in the recent log.`
+  when anything is open. The heartbeat mission ships disabled upstream, which is why the hook
+  notice is the main channel.
+- **Not checked, on purpose:** whether a message follows the 4-part contract (god also sends
+  legitimate non-dispatch requests, such as sending work back), and who moved a card (a human
+  dragging a card to doing without an assignee is reported to god too, which is still the right fix).
+- **No new upstream seam:** the two T-053 lines in `hooks.ts` carry `driftNotice` as well; the
+  digest line lives in the fork's own `custom/wake.ts`.
+- **Tests:** `test/god-drift.test.cjs` (7). Full suite: same 34 sandbox failures as the base.
 
 ## User-editable files (macOS)
 

@@ -22,7 +22,7 @@ import type { CircuitBreaker } from './breaker';
 import { estimateCostUsd } from './pricing';
 import { validateHookEvent } from '../shared/hookEvents';
 import { gateRoster, rosterKey } from './custom/roster'; // fork: T-034 cost levers
-import { godWriteGuard, compactAnchor } from './custom/godGuard'; // fork: T-053
+import { godWriteGuard, compactAnchor, driftNotice } from './custom/godGuard'; // fork: T-053, T-056
 
 /** Maximum JSON payload bytes in one newline-delimited hook frame. */
 const MAX_HOOK_FRAME_BYTES = 256 * 1024;
@@ -537,7 +537,7 @@ export class HookServer {
     if ((event === 'UserPromptSubmit' || event === 'PostToolUse') && agentId && this.control) {
       steer = this.control.takeSteer(agentId) ?? null;
     }
-    steer = [compactAnchor(this.hive, agentId, event, p.source), steer].filter(Boolean).join('\n\n') || null; // fork: T-053 (custom/godGuard.ts)
+    steer = [compactAnchor(this.hive, agentId, event, p.source), driftNotice(this.hive, agentId, event), steer].filter(Boolean).join('\n\n') || null; // fork: T-053, T-056 (custom/godGuard.ts, custom/drift.ts)
 
     // Keep god's roster CURRENT. fleet.json is always fresh on disk, but god's
     // context is not: after a restart it resumes a transcript describing the old
