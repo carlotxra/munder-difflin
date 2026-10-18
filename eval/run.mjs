@@ -163,9 +163,13 @@ async function runOne(id, n, arm, ai) {
 
   const me = inj[fx.agent.id];
   const preset = mod.providerPreset(arm.provider);
-  const prompt = arm.provider === 'claude'
+  let prompt = arm.provider === 'claude'
     ? me.args[me.args.indexOf('--append-system-prompt') + 1] ?? ''
     : initialPrompt(me.args, preset);
+  // T-051: a non-Claude first message may be a kick naming the engine's instructions
+  // file (custom/instructionChannel.ts); the prompt checks below read that file.
+  const kickFile = prompt.match(/standing instructions, from (.+?)\. Follow them/)?.[1];
+  if (kickFile && existsSync(kickFile)) prompt = readFileSync(kickFile, 'utf8');
   if (fx.agent.isGod === false && !prompt.includes(mod.ASK_FIRST_CLAUSE)) console.warn(`[${id}] warning: worker prompt lacks the ASK FIRST clause`);
   if (!prompt) console.warn(`[${id}] warning: no hive prompt found in the ${arm.provider} launch argv`);
   const trigger = (mod.nudgeText ?? mod.inboxNudgeText)(fx.nudgeIds ?? (fx.inbox ?? []).map((m) => m.id));

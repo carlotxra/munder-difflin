@@ -135,6 +135,9 @@ Budget: the eval enforces `--max-usd`; set a per-phase ceiling before running.
 
 ## Phase 1: Deliver god's instructions as real system instructions (T-051)
 
+> Built on branch `t051-native-instructions`: Copilot and OpenCode on by default, Codex written
+> but off until checked. See CUSTOMIZATIONS.md.
+
 **Problem P1.** This is the biggest lever for non-Claude models.
 
 Build `src/main/custom/instructionChannel.ts`, with one function per engine that writes the
