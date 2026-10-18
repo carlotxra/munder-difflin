@@ -306,3 +306,17 @@ test('read-only git is allowed plain and with --no-pager on both engines', () =>
   }
   assert.ok(!cp.includes('shell(git --no-pager merge:*)'), 'no-pager forms are read-only only');
 });
+
+test('chained-check helpers are allowed on both engines; command runners stay off', () => {
+  const cp = RUNNERS.copilot.argv({ inj: { args: ['-i', 'P'] }, trigger: 'T', perm: 'safe', preset: { initialPromptFlag: '-i' }, dirs: [] });
+  const cl = RUNNERS.claude.argv({ inj: { args: [] }, trigger: 'T', perm: 'safe', budgetUsd: 1 });
+  const claudeTools = cl[cl.indexOf('--allowedTools') + 1].split(',');
+  for (const c of ['test', 'true', 'sort', 'npm test']) {
+    assert.ok(cp.includes(`shell(${c}:*)`), `copilot: ${c}`);
+    assert.ok(claudeTools.includes(`Bash(${c}:*)`), `claude: ${c}`);
+  }
+  for (const c of ['find', 'sed', 'python3', 'npm', 'git -C', 'git']) {
+    assert.ok(!cp.includes(`shell(${c}:*)`), `copilot must not allow ${c}`);
+    assert.ok(!claudeTools.includes(`Bash(${c}:*)`), `claude must not allow ${c}`);
+  }
+});
