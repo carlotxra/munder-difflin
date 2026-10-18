@@ -22,6 +22,7 @@ import type { CircuitBreaker } from './breaker';
 import { estimateCostUsd } from './pricing';
 import { validateHookEvent } from '../shared/hookEvents';
 import { gateRoster, rosterKey } from './custom/roster'; // fork: T-034 cost levers
+import { godWriteGuard, compactAnchor } from './custom/godGuard'; // fork: T-053
 
 /** Maximum JSON payload bytes in one newline-delimited hook frame. */
 const MAX_HOOK_FRAME_BYTES = 256 * 1024;
@@ -507,6 +508,8 @@ export class HookServer {
       return {};
     }
 
+    const guard = godWriteGuard(this.hive, agentId, event, p); if (guard) { this.emitControl(agentId!, p.tool_name, guard.reason); this.emit(agentId, event, p); return guard.output; } // fork: T-053 (custom/godGuard.ts)
+
     // 7C.1 — HITL gate: deny a tool call at the PreToolUse boundary when the
     // agent is paused or this tool is gated. Race-free (immediate return, no
     // renderer round-trip → can't hit the shim timeout). Slow human APPROVAL is
@@ -534,6 +537,7 @@ export class HookServer {
     if ((event === 'UserPromptSubmit' || event === 'PostToolUse') && agentId && this.control) {
       steer = this.control.takeSteer(agentId) ?? null;
     }
+    steer = [compactAnchor(this.hive, agentId, event, p.source), steer].filter(Boolean).join('\n\n') || null; // fork: T-053 (custom/godGuard.ts)
 
     // Keep god's roster CURRENT. fleet.json is always fresh on disk, but god's
     // context is not: after a restart it resumes a transcript describing the old

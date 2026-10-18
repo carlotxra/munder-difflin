@@ -262,6 +262,10 @@ reach the V2 prompt instead of being silently lost.
 
 ## Phase 3: Enforce the main rule with hooks (T-053)
 
+> Built on branch `t053-god-guard`. Differences from this plan: landing also allows
+> `git fetch . <sha>:<branch>`, temp files are writable only outside git repos, and the escape
+> hatch is the `godWriteGuard` config switch (no per-session operator toggle yet).
+
 **Problem P6.** The prompt says it; the hook makes it true on every engine that has a hook
 bridge (claude, codex, agy, copilot).
 
