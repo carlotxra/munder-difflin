@@ -31,6 +31,13 @@ export interface OrchestratorLevers {
    *  kick as the first message. Applies to every agent, not only god. Default:
    *  the engines checked on this machine (copilot, opencode). [] = upstream. */
   nativeInstructions: string[];
+  /** T-053: a PreToolUse hook denies god's edits and repository-changing commands
+   *  outside the hive (custom/godGuard.ts), except the approved fast-forward.
+   *  Engines with a hook bridge only. Default ON. */
+  godWriteGuard: boolean;
+  /** T-053: after god's context is compacted or resumed, the SessionStart hook adds
+   *  a short reminder of his role and hard rules. Default ON. */
+  compactAnchor: boolean;
 }
 
 export type OrchestratorLeverKey = keyof OrchestratorLevers;
@@ -42,7 +49,9 @@ export const ORCHESTRATOR_LEVERS_ON: OrchestratorLevers = {
   autoMergeWhenGreen: false,
   reviewPolicy: 'nontrivial',
   integrationBranch: '',
-  nativeInstructions: ['copilot', 'opencode']
+  nativeInstructions: ['copilot', 'opencode'],
+  godWriteGuard: true,
+  compactAnchor: true
 };
 
 /** Upstream behaviour: what code sees before the app installs a config source. */
@@ -52,7 +61,9 @@ export const ORCHESTRATOR_LEVERS_OFF: OrchestratorLevers = {
   autoMergeWhenGreen: false,
   reviewPolicy: 'nontrivial',
   integrationBranch: '',
-  nativeInstructions: []
+  nativeInstructions: [],
+  godWriteGuard: false,
+  compactAnchor: false
 };
 
 const REVIEW_POLICIES: readonly ReviewPolicy[] = ['always', 'nontrivial', 'tests-only'];
@@ -66,7 +77,7 @@ export function resolveOrchestratorLevers(config: unknown): OrchestratorLevers {
   const out: OrchestratorLevers = { ...ORCHESTRATOR_LEVERS_ON, nativeInstructions: [...ORCHESTRATOR_LEVERS_ON.nativeInstructions] };
   if (!raw || typeof raw !== 'object') return out;
   const r = raw as Record<string, unknown>;
-  for (const k of ['godPromptV2', 'spawnOffNotice', 'autoMergeWhenGreen'] as const) {
+  for (const k of ['godPromptV2', 'spawnOffNotice', 'autoMergeWhenGreen', 'godWriteGuard', 'compactAnchor'] as const) {
     if (typeof r[k] === 'boolean') out[k] = r[k] as boolean;
   }
   if (REVIEW_POLICIES.includes(r.reviewPolicy as ReviewPolicy)) out.reviewPolicy = r.reviewPolicy as ReviewPolicy;
