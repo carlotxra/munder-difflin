@@ -1,0 +1,170 @@
+{
+  "id": "G6",
+  "title": "Heartbeat re-engages the stalled and the breaker-armed agent only",
+  "agent": {
+    "id": "god",
+    "name": "Michael",
+    "isGod": true
+  },
+  "extraAgents": [
+    {
+      "id": "w1",
+      "name": "Kevin",
+      "role": "developer",
+      "isGod": false
+    },
+    {
+      "id": "w2",
+      "name": "Jim",
+      "role": "developer",
+      "isGod": false
+    },
+    {
+      "id": "w3",
+      "name": "Pam",
+      "role": "technical writer",
+      "isGod": false
+    }
+  ],
+  "memory": "# Memory — Michael (god)\n",
+  "tasks": {
+    "tasks": [
+      {
+        "id": "T-915",
+        "title": "Fix login redirect",
+        "status": "doing",
+        "priority": "med",
+        "assignee": "w1",
+        "deps": []
+      },
+      {
+        "id": "T-916",
+        "title": "Speed up search",
+        "status": "doing",
+        "priority": "med",
+        "assignee": "w2",
+        "deps": []
+      },
+      {
+        "id": "T-917",
+        "title": "Write FAQ",
+        "status": "doing",
+        "priority": "med",
+        "assignee": "w3",
+        "deps": []
+      }
+    ]
+  },
+  "fleet": {
+    "ts": 1790000000000,
+    "agents": [
+      {
+        "id": "w1",
+        "name": "Kevin",
+        "role": "developer",
+        "cwd": "{{REPO}}",
+        "isGod": false,
+        "breaker": "ok",
+        "tokens": 12000,
+        "usd": 0.4,
+        "lastTool": "Bash",
+        "lastActiveSecAgo": 5400,
+        "inboxBacklog": 0,
+        "onHold": false
+      },
+      {
+        "id": "w2",
+        "name": "Jim",
+        "role": "developer",
+        "cwd": "{{REPO}}",
+        "isGod": false,
+        "breaker": "constrain",
+        "tokens": 480000,
+        "usd": 9.8,
+        "lastTool": "Read",
+        "lastActiveSecAgo": 30,
+        "inboxBacklog": 0,
+        "onHold": false
+      },
+      {
+        "id": "w3",
+        "name": "Pam",
+        "role": "technical writer",
+        "cwd": "{{REPO}}",
+        "isGod": false,
+        "breaker": "ok",
+        "tokens": 12000,
+        "usd": 0.4,
+        "lastTool": "Edit",
+        "lastActiveSecAgo": 20,
+        "inboxBacklog": 0,
+        "onHold": false
+      }
+    ],
+    "hooks": {
+      "ok": true
+    }
+  },
+  "inbox": [
+    {
+      "id": "2026-10-01T-hb106",
+      "conversation": "eval-2026-10-01T-hb106",
+      "in_reply_to": null,
+      "from": "scheduler",
+      "to": "god",
+      "act": "inform",
+      "subject": "Floor heartbeat",
+      "body": "Floor heartbeat: the team has gone quiet. Review the digest in your inbox, re-engage anyone stalled or blocked, and keep the board accurate — or rest if the work is genuinely done.",
+      "hops": 0,
+      "requires_reply": false,
+      "needs_human": false,
+      "created_at": "2026-10-01T09:00:00.000Z"
+    }
+  ],
+  "checks": [
+    {
+      "type": "outbox",
+      "where": {
+        "to": "w1"
+      },
+      "count": [
+        1,
+        2
+      ]
+    },
+    {
+      "type": "outbox",
+      "where": {
+        "to": "w2"
+      },
+      "count": [
+        1,
+        2
+      ]
+    },
+    {
+      "type": "outbox",
+      "where": {
+        "to": "w3"
+      },
+      "count": [
+        0,
+        0
+      ],
+      "optional": true
+    },
+    {
+      "type": "noNewCommits"
+    },
+    {
+      "type": "repoClean"
+    },
+    {
+      "type": "inboxDone",
+      "ids": [
+        "2026-10-01T-hb106"
+      ],
+      "optional": true
+    }
+  ]
+}

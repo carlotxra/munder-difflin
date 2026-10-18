@@ -1,0 +1,133 @@
+{
+  "id": "G2",
+  "title": "Named agent gets the work (no spawn)",
+  "agent": {
+    "id": "god",
+    "name": "Michael",
+    "isGod": true
+  },
+  "extraAgents": [
+    {
+      "id": "w1",
+      "name": "Kevin",
+      "role": "developer",
+      "isGod": false
+    },
+    {
+      "id": "w2",
+      "name": "Pam",
+      "role": "technical writer",
+      "isGod": false
+    }
+  ],
+  "memory": "# Memory — Michael (god)\n",
+  "hive": {
+    "maySpawn": true
+  },
+  "tasks": {
+    "tasks": [
+      {
+        "id": "T-911",
+        "title": "Release notes for v1.1",
+        "status": "todo",
+        "priority": "med",
+        "assignee": null,
+        "deps": []
+      }
+    ]
+  },
+  "fleet": {
+    "ts": 1790000000000,
+    "agents": [
+      {
+        "id": "w1",
+        "name": "Kevin",
+        "role": "developer",
+        "cwd": "{{REPO}}",
+        "isGod": false,
+        "breaker": "ok",
+        "tokens": 12000,
+        "usd": 0.4,
+        "lastTool": "Read",
+        "lastActiveSecAgo": 30,
+        "inboxBacklog": 0,
+        "onHold": false
+      },
+      {
+        "id": "w2",
+        "name": "Pam",
+        "role": "technical writer",
+        "cwd": "{{REPO}}",
+        "isGod": false,
+        "breaker": "ok",
+        "tokens": 12000,
+        "usd": 0.4,
+        "lastTool": "Read",
+        "lastActiveSecAgo": 30,
+        "inboxBacklog": 0,
+        "onHold": false
+      }
+    ],
+    "hooks": {
+      "ok": true
+    }
+  },
+  "inbox": [
+    {
+      "id": "2026-10-01T-hum102",
+      "conversation": "eval-2026-10-01T-hum102",
+      "in_reply_to": null,
+      "from": "human",
+      "to": "god",
+      "act": "request",
+      "subject": "Release notes",
+      "body": "Ask Pam to write release notes for v1.1 of {{REPO}} in RELEASE_NOTES.md (T-911).",
+      "hops": 0,
+      "requires_reply": true,
+      "needs_human": false,
+      "created_at": "2026-10-01T09:00:00.000Z"
+    }
+  ],
+  "checks": [
+    {
+      "type": "outbox",
+      "where": {
+        "to": "w2"
+      },
+      "count": [
+        1,
+        1
+      ]
+    },
+    {
+      "type": "outbox",
+      "where": {
+        "to": "w1"
+      },
+      "count": [
+        0,
+        0
+      ]
+    },
+    {
+      "type": "spawnRequests",
+      "count": [
+        0,
+        0
+      ]
+    },
+    {
+      "type": "noNewCommits"
+    },
+    {
+      "type": "repoClean"
+    },
+    {
+      "type": "inboxDone",
+      "ids": [
+        "2026-10-01T-hum102"
+      ],
+      "optional": true
+    }
+  ]
+}

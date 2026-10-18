@@ -1,0 +1,5 @@
+[
+  { "provider": "claude" },
+  { "provider": "claude", "model": "claude-sonnet-5-5" },
+  { "provider": "copilot", "model": "gpt-5.4" }
+]

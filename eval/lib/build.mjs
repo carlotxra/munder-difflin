@@ -28,12 +28,17 @@ export function buildHarness({ ref, src, out }) {
   const optional = [
     ['src/main/custom/levers.ts', `export { setCostLeversSource, costLevers } from ${from('src/main/custom/levers')};`],
     ['src/main/custom/wake.ts', `export { nudgeText } from ${from('src/main/custom/wake')};`],
-    ['src/main/custom/sessionLevers.ts', `export { trimPrefixArgs } from ${from('src/main/custom/sessionLevers')};`]
+    ['src/main/custom/sessionLevers.ts', `export { trimPrefixArgs } from ${from('src/main/custom/sessionLevers')};`],
+    // T-052: orchestrator levers (god prompt V2, spawn-off notice).
+    ['src/main/custom/orchestrator.ts', `export { setOrchestratorLeversSource, orchestratorLevers } from ${from('src/main/custom/orchestrator')};`]
   ].filter(([f]) => existsSync(join(root, f))).map(([, line]) => line);
   writeFileSync(entry, [
     `export { HiveManager } from ${from('src/main/hive')};`,
     `export { inboxNudgeText } from ${from('src/shared/hiveNudge')};`,
     `export { ASK_FIRST_CLAUSE } from ${from('src/main/askFirst')};`,
+    // T-050: how each engine takes its first prompt (flag or positional), so the
+    // runners deliver the hive prompt the way the app does.
+    `export { providerPreset } from ${from('src/shared/agentProvider')};`,
     ...optional
   ].join('\n'));
   const bundle = join(out, 'harness.cjs');
@@ -78,20 +83,27 @@ export function closingTimeText(srcRoot) {
 }
 
 /** Provision a throwaway hive under `home` and return the claude argv + env for each agent. */
-export async function provision(mod, home, agents, { askFirst = true, version = 'eval', levers = {} } = {}) {
+export async function provision(mod, home, agents, { askFirst = true, maySpawn = false, version = 'eval', levers = {}, orchestrator = {}, provider = 'claude' } = {}) {
   // Cost levers: `{}` = the fork's defaults (all ON), as the app reads an empty
   // config; null = no source installed, so every lever reads OFF (upstream).
   mod.setCostLeversSource?.(levers === null ? null : () => levers);
+  // T-052: orchestrator levers, same convention: `{}` = fork defaults (as
+  // install.ts reads config.orchestrator), null = no source (upstream).
+  mod.setOrchestratorLeversSource?.(orchestrator === null ? null : () => ({ orchestrator }));
   const hive = new mod.HiveManager(() => home);
   hive.setRuntimeInfo?.({ version, packaged: false });
   for (const k of Object.getOwnPropertyNames(Object.getPrototypeOf(hive))) {
     if (/^setAskFirst$/i.test(k)) hive[k](askFirst);
+    // T-050: the orchestrator spawn queue (Settings toggle), off unless a fixture asks.
+    if (/^setOrchestratorMaySpawn$/.test(k)) hive[k](maySpawn);
   }
   const out = {};
-  for (const a of agents) {
-    const inj = await hive.ensureAgent({ provider: 'claude', role: '', ...a }, {});
+  for (const [i, a] of agents.entries()) {
+    // T-050: the agent under test (the first) runs on `provider`; the others only
+    // populate the registry, so they stay on claude.
+    const inj = await hive.ensureAgent({ provider: i === 0 ? provider : 'claude', role: '', ...a }, {});
     // Same post-processing index.ts applies to the argv on the fork's spawn path.
-    if (mod.trimPrefixArgs) inj.args = await mod.trimPrefixArgs(inj.args);
+    if (mod.trimPrefixArgs && (i > 0 || provider === 'claude')) inj.args = await mod.trimPrefixArgs(inj.args);
     out[a.id] = inj;
   }
   return { hive, root: join(home, 'hive'), inj: out };

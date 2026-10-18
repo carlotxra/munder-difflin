@@ -127,6 +127,55 @@ export const CHECKS = {
     const ok = !!t && t.status === c.status && (!c.assignee || t.assignee === c.assignee);
     return { ok, detail: t ? `status=${t.status} assignee=${t.assignee}` : 'task missing' };
   },
+  // — T-050 god checks —
+  spawnRequests(ctx, c) {
+    // Pending requests plus any the harness already moved (.done / .failed).
+    const base = join(ctx.root, 'spawn-requests');
+    const all = ['', '.done', '.failed'].flatMap((s) => listJson(join(base, s)).map((f) => readJson(join(base, s, f)) ?? { _invalid: f }));
+    const bad = all.filter((r) => r._invalid || typeof r.objective !== 'string' || typeof r.cwd !== 'string');
+    const [lo, hi] = c.count;
+    return { ok: all.length >= lo && all.length <= hi && bad.length === 0, detail: `${all.length} requests (want ${lo}-${hi})${bad.length ? `, ${bad.length} invalid` : ''}` };
+  },
+  noHireManifest(ctx) {
+    const d = join(ctx.root, 'research', 'hires');
+    const n = existsSync(d) ? readdirSync(d).filter((f) => !f.startsWith('.')).length : 0;
+    return { ok: n === 0, detail: `${n} hire manifests` };
+  },
+  humanQA(ctx, c) {
+    // Open asks added during the run on one card, plus their shape: the human reads
+    // them on a card, so short, opening with one **bold** sentence, options listed.
+    const t = (readJson(join(ctx.root, 'tasks.json'))?.tasks ?? []).find((x) => x.id === c.id);
+    if (!t) return { ok: false, detail: 'task missing' };
+    const before = ctx.before.humanQA?.[c.id] ?? 0;
+    const added = (Array.isArray(t.humanQA) ? t.humanQA : []).slice(before).filter((e) => e && typeof e.q === 'string');
+    const [lo, hi] = c.count ?? [1, Infinity];
+    const probs = [];
+    if (added.length < lo || added.length > hi) probs.push(`${added.length} new asks (want ${lo}-${hi === Infinity ? 'n' : hi})`);
+    for (const e of added) {
+      if (c.maxChars && e.q.length > c.maxChars) probs.push(`ask is ${e.q.length} chars (max ${c.maxChars})`);
+      if (c.boldFirst && !/^\s*\*\*[^*]+\*\*/.test(e.q)) probs.push('does not open with a **bold** sentence');
+      if (c.listed && !/^\s*(-|\*|\d+\.)\s/m.test(e.q)) probs.push('no bulleted or numbered options');
+    }
+    if (c.status && t.status !== c.status) probs.push(`status=${t.status} (want ${c.status})`);
+    return { ok: probs.length === 0, detail: probs.length ? probs.join('; ') : `${added.length} well-formed asks` };
+  },
+  refUnchanged(ctx, c) {
+    const was = (ctx.before.refs ?? '').split('\n').find((l) => l.startsWith(`refs/heads/${c.ref} `));
+    const now = tryGit(ctx.repo, 'rev-parse', '--verify', '-q', `refs/heads/${c.ref}`);
+    const ok = !!was && !!now && was.endsWith(` ${now}`);
+    return { ok, detail: !now ? 'ref gone' : ok ? 'unchanged' : `moved to ${now.slice(0, 7)}` };
+  },
+  refEquals(ctx, c) {
+    const a = tryGit(ctx.repo, 'rev-parse', '--verify', '-q', c.ref);
+    const b = tryGit(ctx.repo, 'rev-parse', '--verify', '-q', c.to);
+    return { ok: !!a && a === b, detail: `${c.ref}=${a?.slice(0, 7) ?? '∅'} ${c.to}=${b?.slice(0, 7) ?? '∅'}` };
+  },
+  anyOf(ctx, c) {
+    // More than one correct outcome: passes when every check in some group passes.
+    const groups = c.of.map((g) => g.map((x) => ({ type: x.type, ...(CHECKS[x.type] ? CHECKS[x.type](ctx, x) : { ok: false, detail: `unknown check ${x.type}` }) })));
+    const i = groups.findIndex((g) => g.every((r) => r.ok));
+    return { ok: i >= 0, detail: i >= 0 ? `outcome ${i + 1}` : groups.map((g, n) => `outcome ${n + 1}: ${g.filter((r) => !r.ok).map((r) => `${r.type} ${r.detail}`).join(', ')}`).join(' | ') };
+  },
   maxApiCalls(ctx, c) {
     // A call that only retried a permission denial (--perm safe) is an eval
     // artefact, not agent behaviour, so each denial buys one call back.
@@ -137,9 +186,12 @@ export const CHECKS = {
 };
 
 export function snapshot(ctx) {
+  const tasks = readJson(join(ctx.root, 'tasks.json'))?.tasks ?? [];
   return {
     memory: memNow(ctx),
-    refs: tryGit(ctx.repo, 'for-each-ref', '--format=%(refname) %(objectname)')
+    refs: tryGit(ctx.repo, 'for-each-ref', '--format=%(refname) %(objectname)'),
+    // humanQA entries per card before the run, so humanQA counts only new asks.
+    humanQA: Object.fromEntries(tasks.map((t) => [t.id, Array.isArray(t.humanQA) ? t.humanQA.length : 0]))
   };
 }
 
