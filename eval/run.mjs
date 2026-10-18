@@ -116,7 +116,9 @@ let spent = 0;
 const EST = (() => { try { return JSON.parse(readFileSync(new URL('./estimates.json', import.meta.url), 'utf8')); } catch { return {}; } })();
 const usdArms = ARMS.filter((a) => RUNNERS[a.provider].reportsUsd).length;
 const estimate = usdArms * ids.reduce((s, id) => s + runs * (EST[id] ?? EST.default ?? 0.5), 0);
-const ceiling = usdArms * ids.length * runs * Number(o['run-budget']);
+// Each CLI call is capped at --run-budget; a step fixture makes one call per step.
+const callsPerRun = (id) => { try { return JSON.parse(readFileSync(join(FIX_DIR, `${id}.json`), 'utf8')).steps?.length || 1; } catch { return 1; } };
+const ceiling = usdArms * ids.reduce((s, id) => s + callsPerRun(id), 0) * runs * Number(o['run-budget']);
 console.log(`perm mode: ${o.perm}  levers (${o.levers}): ${LC.summary}${mod.trimPrefixArgs ? '  +trimPrefixArgs' : ''}`);
 const orchSummary = !mod.setOrchestratorLeversSource ? 'none in this ref' : ORCH === null ? 'off (upstream)' : JSON.stringify(ORCH) === '{}' ? 'fork defaults' : JSON.stringify(ORCH);
 console.log(`orchestrator (${o.orchestrator}): ${orchSummary}`);
