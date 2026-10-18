@@ -326,7 +326,9 @@ seam). Before install every key reads OFF, so upstream's tests see upstream prom
   Results: `eval/baselines/2026-10-18-ab-v2.md` (1 run) and `…-ab-v2-x3.md` (3 runs). The safe-mode
   allowlist gained read-only git (`show-ref`, `rev-list`, `ls-files`, `for-each-ref`, `cat-file`,
   and `--no-pager` forms) on both engines, and Copilot refusals now show as denials: three of V2's
-  four Copilot failures in the 3-run eval were these refusals, not orchestration. Note the T-050 baseline ran
+  four Copilot failures in the 3-run eval were these refusals, not orchestration.
+  After the rule-1 rewording and the wider allowlist, G9/G11/G12 re-ran 9/9 on both engines
+  (`eval/baselines/2026-10-18-v2-landing.md`). Note the T-050 baseline ran
   with no orchestrator source, so its G4 had no spawn-off notice.
 - **Tests:** `test/god-prompt.test.cjs` (14). The full suite's 34 failures in this sandbox are the
   same on the T-050 base (sockets, `~` paths, home-dir writes).
