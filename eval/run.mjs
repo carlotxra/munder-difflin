@@ -238,5 +238,8 @@ if (!o['dry-run'] && spent > MAX_USD) console.log(`note: spent $${spent.toFixed(
 writeFileSync(join(OUT, 'results.json'), JSON.stringify({ ref: o.ref ?? null, runs, arms: ARMS, spent, rows, results }, null, 2));
 // Fresh $ medians for eval/estimates.json: Claude-arm rows only (the only $ figures).
 const est = rows.filter((r) => r.usd !== null && r.arm.startsWith('claude'));
-if (!o['dry-run'] && est.length) writeFileSync(join(OUT, 'estimates.json'), JSON.stringify({ default: 0.5, ...Object.fromEntries(est.map((r) => [r.id, Number(r.usd.toFixed(3))])) }, null, 2) + '\n');
+// Several Claude arms (an A/B) keep the highest median per fixture, a safe estimate.
+const estMax = {};
+for (const r of est) estMax[r.id] = Math.max(estMax[r.id] ?? 0, Number(r.usd.toFixed(3)));
+if (!o['dry-run'] && est.length) writeFileSync(join(OUT, 'estimates.json'), JSON.stringify({ default: 0.5, ...estMax }, null, 2) + '\n');
 writeFileSync(join(OUT, 'table.md'), table + '\n');
