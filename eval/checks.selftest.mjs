@@ -320,3 +320,8 @@ test('chained-check helpers are allowed on both engines; command runners stay of
     assert.ok(!claudeTools.includes(`Bash(${c}:*)`), `claude must not allow ${c}`);
   }
 });
+
+test('an engine that cannot approve absolute-path commands is flagged (hive CLI arms)', () => {
+  assert.strictEqual(RUNNERS.copilot.allowsAbsoluteCommands, false);
+  assert.notStrictEqual(RUNNERS.claude.allowsAbsoluteCommands, false);
+});

@@ -310,6 +310,10 @@ on ordinary turns, and it fixes "forgets who he is after /compact" (G8).
 
 ## Phase 4: Give god commands instead of hand-written files (T-054)
 
+> Built on branch `t054-hive-cli`, off by default (`orchestrator.hiveCli`). Differences from this
+> plan: `spawn` lists the floor and needs `--none-fit` instead of judging role fit itself, and
+> `merge` takes the human's yes as `--human "<what they said>"`.
+
 **Problem P5.** This follows the firstmate lesson that a model picking a checked command behaves
 the same across models, while a model writing JSON by hand does not.
 

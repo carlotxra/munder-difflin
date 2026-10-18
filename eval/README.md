@@ -54,6 +54,7 @@ shows up as a denial and not as a silent fail. Compare A/B arms in the same mode
 | `--model <id>` | CLI default | `--model` for the agent |
 | `--matrix <file.json>` | | One arm per `{ "provider", "model"? }` entry, all in one table (overrides `--provider`/`--model`); example: `eval/matrix.example.json` |
 | `--orchestrator on\|off\|<file.json>` | `on` | Orchestrator levers (T-052): `on` = the fork defaults (god prompt V2 on, and the spawn-off notice for when V2 is off), `off` = no source, so upstream behaviour, or a JSON file of `config.orchestrator` keys. A `--matrix` entry may add its own `"orchestrator": {…}` on top, for an A/B in one table (`eval/matrix.v2-ab.json`) |
+| (T-054) | | With `"orchestrator": { "hiveCli": true }` the god's `hive` command line is installed and its exact command (`<hive>/bin/hive-node <hive>/bin/hive-cli.cjs`) is added to the safe-mode allowlist |
 | `--accept-uncapped` | off | Required for a real run on an engine that reports no $ (Copilot, OpenCode): `--max-usd` cannot cap it |
 | `--max-usd $` | 8 | Total cap: refuses to start if the estimate is over it, skips remaining runs once reached (`--budget` is the old name) |
 | `--run-budget $` | 1.5 | `--max-budget-usd` per run |

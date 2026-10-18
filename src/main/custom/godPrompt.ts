@@ -23,7 +23,8 @@
 import { join } from 'node:path';
 import { isClaudeProvider, type AgentProvider } from '../../shared/agentProvider';
 import type { OrchestratorLevers } from '../../shared/custom/orchestratorLevers';
-import { askFirstPromptLine } from '../askFirst';
+import { ASK_FIRST_CLAUSE, askFirstPromptLine } from '../askFirst';
+import { installHiveCli, hiveCliPromptLines } from './hiveCli';
 import { orchestratorLevers } from './orchestrator';
 import { trimPrompt } from './promptTrim';
 
@@ -47,6 +48,8 @@ export interface UpstreamPromptParts {
   runtimeLine: string;
   slackLine: string;
   ctxLine: string;
+  /** T-054: the hive's bundled node launcher, for the `hive` command line. */
+  hiveNode?: string;
 }
 
 /** Said when spawning is off: upstream leaves the spawn line out, but its god
@@ -69,7 +72,14 @@ export function spawnOffLine(meta: { isGod?: boolean }, maySpawn: boolean): stri
 export function godPromptV2(meta: GodMeta, parts: UpstreamPromptParts): string | null {
   const levers = orchestratorLevers();
   if (!meta.isGod || !levers.godPromptV2) return null;
-  return trimPrompt(buildGodPrompt(meta, parts, levers), meta);
+  // T-054: install the `hive` command line and advertise it (lever hiveCli).
+  const cli = levers.hiveCli && parts.hiveNode
+    ? installHiveCli(parts.root, {
+      godId: meta.id, maySpawn: parts.maySpawn, askFirstClause: parts.askFirst ? ASK_FIRST_CLAUSE : null,
+      doneClause: doneClause(levers), reviewPolicy: levers.reviewPolicy, autoMergeWhenGreen: levers.autoMergeWhenGreen, integrationBranch: levers.integrationBranch
+    })
+    : null;
+  return trimPrompt(buildGodPrompt(meta, parts, levers, cli && parts.hiveNode ? { node: parts.hiveNode, file: cli } : undefined), meta);
 }
 
 const reviewText = (p: OrchestratorLevers['reviewPolicy']): string =>
@@ -79,8 +89,12 @@ const reviewText = (p: OrchestratorLevers['reviewPolicy']): string =>
       ? 'Passing tests are the check; no separate review is needed unless the human asks for one.'
       : 'A change to more than one file, or to any config, schema or public interface, is reviewed by a different agent before it lands; for anything smaller, passing tests are the check.';
 
-/** Pure builder (exported for tests). */
-export function buildGodPrompt(meta: GodMeta, p: UpstreamPromptParts, levers: OrchestratorLevers): string {
+/** The definition of done every code-changing dispatch carries (also used by the `hive` CLI). */
+export const doneClause = (levers: OrchestratorLevers): string =>
+  `Bring your branch up to date with ${levers.integrationBranch ? `\`${levers.integrationBranch}\`` : 'the integration branch'}, resolve any conflicts, run the tests, and report done with the branch name and tip SHA. Do not merge.`;
+
+/** Pure builder (exported for tests). `cli` = the installed `hive` command line, if any. */
+export function buildGodPrompt(meta: GodMeta, p: UpstreamPromptParts, levers: OrchestratorLevers, cli?: { node: string; file: string }): string {
   const inDir = (...x: string[]): string => join(p.dir, ...x);
   const inRoot = (...x: string[]): string => join(p.root, ...x);
   const claude = isClaudeProvider(meta.provider ?? 'claude');
@@ -127,7 +141,7 @@ export function buildGodPrompt(meta: GodMeta, p: UpstreamPromptParts, levers: Or
       ? `- Only when no agent on the roster fits, start a worker, and say that you checked. ${p.spawnQueueLine}`
       : `- ${SPAWN_OFF_TEXT}`,
     '- Write each dispatch as a 4-part contract: OBJECTIVE (the concrete goal); OUTPUT (the deliverable and its format); TOOLS (what to use or avoid, and references to read instead of re-deriving); BOUNDARIES (scope limits and the definition of done). Pass references (file paths, message ids, board sections), not pasted content, and keep it short.',
-    `- The BOUNDARIES of every task that changes code include: "Bring your branch up to date with ${levers.integrationBranch ? `\`${levers.integrationBranch}\`` : 'the integration branch'}, resolve any conflicts, run the tests, and report done with the branch name and tip SHA. Do not merge."`,
+    `- The BOUNDARIES of every task that changes code include: "${doneClause(levers)}"`,
     p.askFirst ? `- ${askFirstPromptLine({ isGod: true }, true)}` : null,
     '- In tasks.json, set the task\'s "assignee" to the worker\'s agent id when you dispatch it, and never clear it later: a done card must still say who did the work.',
     '',
@@ -137,6 +151,7 @@ export function buildGodPrompt(meta: GodMeta, p: UpstreamPromptParts, levers: Or
     `- Then run the fast-forward yourself under rule 2. ${levers.autoMergeWhenGreen ? 'If any condition for auto-merge is missing, ask' : 'Without the human\'s yes for this task, ask'} for it on the card: the task, the branch, the SHA and the review result.`,
     '- After merging, set the card to done and keep its assignee.',
     '',
+    ...(cli ? [...hiveCliPromptLines(cli.node, cli.file, p.maySpawn), ''] : []),
     '## Asking the human',
     'When a task needs the human (a decision, or an action only they can take: creating an account, approving a purchase, providing credentials, testing on their device), append the ask to the card\'s "humanQA" array as {"q":"...","askedAt":"<iso>"}, keep every earlier entry, and set the card to "blocked" if work cannot go on without the answer. An open ask on any card that is not done shows on the ASK ME board; the answer arrives in the same entry ("a") and as an inbox message to you. Never put asks in separate files.',
     'The human reads the ask on a card, so keep it under about 700 characters: open with one **bold** sentence saying what you need, give each option its own "-" line, put paths and values in `backticks`, and leave a blank line between paragraphs. Rewrite a worker\'s report into this shape; never paste it.',
