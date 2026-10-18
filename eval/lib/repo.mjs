@@ -30,12 +30,37 @@ export function makeRepo(dir, spec = {}) {
   git(dir, 'config', 'commit.gpgsign', 'false');
   git(dir, 'add', '-A');
   git(dir, 'commit', '-q', '-m', 'initial');
+  // T-050: commits on named branches (in order), so god fixtures can start from a
+  // worker branch that is ready, conflicting or moved since its done report.
+  // `{ branch, from?, files, message }`: `from` defaults to `stable`; a branch that
+  // already exists gets the commit on top. Ends back on `stable`.
+  for (const c of spec.commits ?? []) {
+    const exists = (() => { try { git(dir, 'rev-parse', '--verify', '-q', c.branch); return true; } catch { return false; } })();
+    git(dir, 'checkout', '-q', ...(exists ? [c.branch] : ['-b', c.branch, c.from ?? 'stable']));
+    for (const [p, body] of Object.entries(c.files)) {
+      mkdirSync(dirname(join(dir, p)), { recursive: true });
+      writeFileSync(join(dir, p), body);
+    }
+    git(dir, 'add', '-A');
+    git(dir, 'commit', '-q', '-m', c.message ?? `${c.branch}: change`);
+  }
+  if (spec.commits?.length) git(dir, 'checkout', '-q', 'stable');
   if (spec.branch) git(dir, 'checkout', '-q', '-b', spec.branch);
   for (const [p, body] of Object.entries(spec.wip ?? {})) {
     mkdirSync(dirname(join(dir, p)), { recursive: true });
     writeFileSync(join(dir, p), body);
   }
   return { head: git(dir, 'rev-parse', 'HEAD'), stable: git(dir, 'rev-parse', 'stable') };
+}
+
+/** T-050: replace `{{SHA:<rev>}}` in every string of `x` with that rev's short SHA in
+ *  `dir` (e.g. `{{SHA:feature}}`, `{{SHA:feature~1}}`), for done reports that cite a
+ *  commit made by makeRepo. */
+export function fillShas(x, dir) {
+  if (typeof x === 'string') return x.replace(/\{\{SHA:([^}]+)\}\}/g, (_, rev) => git(dir, 'rev-parse', '--short', rev));
+  if (Array.isArray(x)) return x.map((v) => fillShas(v, dir));
+  if (x && typeof x === 'object') return Object.fromEntries(Object.entries(x).map(([k, v]) => [k, fillShas(v, dir)]));
+  return x;
 }
 
 export { git };

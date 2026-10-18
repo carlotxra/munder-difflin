@@ -52,6 +52,7 @@ git diff --stat main..stable       # files touched
 | Cost lever J2: fresh start instead of costly resume | On restart, a Claude agent whose last context is over 100k tokens, or whose `--model` (full id) differs from the transcript's, starts FRESH instead of `--resume` and gets a harness `inform` in its inbox with the old session id, the reason and its last prompt/reply. Explicit resumes (typed session id, `requireResume`) always resume. Resume re-wrote the whole context into the cache (T-033: up to 252k tokens, ≈$2 per god restart) | `costLevers.freshStartOnResume` (default on) | logic `src/main/custom/sessionLevers.ts` (`keepResume`), `src/shared/custom/resumePolicy.ts`; **upstream seam:** `src/main/index.ts:37` (import) + `:2888` (`&& keepResume({...})` on the resume `if`); key in `src/shared/custom/costLevers.ts`; test `test/cost-session-levers.test.cjs` | branch `prompt-cost-session` (T-035) | pending merge |
 | Hive protocol eval | Opt-in only (spends money; never in build/test/CI/release): 8 headless fixtures (S1–S8) run against a throwaway hive with the prompt/hooks built from a given ref or checkout; file-system/git checks plus tokens, $ and tool denials per fixture, for A/B testing prompt and hook changes. Installs the ref's cost-lever source, `trimPrefixArgs` and lever-aware nudge like `index.ts`, and aborts if a ref with levers would run them OFF. Prints the estimated $ first and enforces `--max-usd`. `--perm safe` (default: acceptEdits + tool allowlist + env allowlist) or `--perm live` (bypassPermissions, human only) | `npm run eval -- --build <dir\|ref> --runs N --max-usd <$> [--perm safe\|live] [--levers on\|off\|<json>]`; `npm run build:eval` | `eval/` (`run.mjs`, `lib/`, `fixtures/S*.json`, `estimates.json`, `README.md`, `checks.selftest.mjs`); test `test/eval-opt-in.test.cjs` | branch `eval-harness` (T-036) | pending merge |
 | Clean-line automated typing | Every automated submission (boot `/remote-control`, god's orientation prompt, inbox nudges, queue drains and, since T-047, the main-process worker-wake nudge) first clears the input line with Ctrl+U, types the text, waits for the TUI to echo it (any pty output, capped at 1s), then sends Enter exactly once. A lost Enter no longer glues the next submission onto the same line (the boot bug: "Args from unknown skill: MichaelYou're online…"). Enter is never re-sent, because a second Enter could answer a permission prompt. T-047: Ctrl+U goes only to providers verified to treat it as "kill to line start" (claude, kimi, crush); every other provider gets no clear, only the echo wait, because an Ink-style input (copilot, grok, cursor, pi, opencode) may type a literal `u`. codex, gemini and qwen are not verified yet (check: type `ab`, Ctrl+U, `c`, Enter → submits `c`). Side effect: a half-typed human draft in that agent's terminal gets wiped by the next automated submission (it used to be glued onto it) | none | logic `src/shared/custom/ptySubmit.ts` (`typeAndSubmit`, `clearInputSequence`); `src/main/custom/ptySubmit.ts` (`submitLine`, echo wait polls `PtyManager.lastOutputAt`); **upstream seams:** `src/renderer/src/hooks/useHive.ts:23` (import), `:140` (`submitToPty` body calls `typeAndSubmit`); `src/main/index.ts:73` (import), `nudgeWorker` body (`submitLine(...)`) and its call in `runWorkerWakeBeat` (passes the registry provider); test `test/pty-submit.test.cjs` | `fb086c40` (T-043), branch `t047-ctrlu-allowlist` (T-047) | T-043 merged, T-047 pending merge |
+| Eval: engines + god fixtures | Extends the opt-in hive eval to other engines and to Michael's orchestrator behaviour, as the baseline for the orchestrator alignment work (T-050 to T-056). Runners for `claude`, `copilot` and `opencode` deliver the hive prompt the way the app does (Claude: `--append-system-prompt`; others: first user message from the launch argv `ensureAgent` built). `--matrix` runs several engine/model arms into one table. 11 god fixtures (G1–G7, G9–G12) for delegation, reuse-before-spawn, the spawn toggle, humanQA shape, heartbeat re-engagement and landing work on `stable` (conflicts back to the author, independent review, human OK, fast-forward only). An engine without a $ figure needs `--accept-uncapped`; OpenCode runs only with `--perm live`. No `src/` change | `npm run eval -- --provider <claude\|copilot\|opencode> [--model <id>]`, `--matrix <file.json>`, `--accept-uncapped` | `eval/lib/runner.mjs` (new), `eval/run.mjs`, `eval/lib/{build,checks,repo}.mjs`, `eval/fixtures/G*.json`, `eval/matrix.example.json`, `eval/README.md`, `eval/checks.selftest.mjs` | branch `t050-eval-matrix` (T-050) | pending merge |
 
 ## Copilot CLI harness (T-002, T-003)
 
@@ -241,6 +242,45 @@ The T-032 audit and the T-033 cost numbers led to fork-only levers that cut inst
 
 Not done, and why: F16 (dead `WORKER_WAKE_NUDGE` and `drainForStop`). Deleting upstream code only adds merge surface and saves no tokens. F19 (a JSON fragment stored as Jim's standing goal) is data, not code: clear it in Edit Agent.
 
+## Eval: engines and god fixtures (T-050)
+
+First task of the orchestrator alignment plan (`docs/plans/orchestrator-alignment.md`, T-050 to
+T-056): measure Michael's instruction-following on several engines before changing his prompt.
+Everything is under `eval/`, so it adds **no upstream seam**; it only reads upstream code through
+the eval's esbuild bundle.
+
+- **Runners** (`eval/lib/runner.mjs`): one entry per engine, each with its own safe-mode allowlist,
+  env allowlist and output parser. Only engines whose flags were checked against their own
+  `--help` on this machine are listed: `claude`, `copilot` (CLI 1.0.98), `opencode` (1.19.3).
+  `codex` waits on a working local install (its vendor binary is missing); `pi` on this machine
+  is a different tool.
+- **Prompt delivery mirrors the app.** A non-Claude engine gets the hive prompt as its first user
+  message, read back from the launch argv `ensureAgent` builds for that provider (the preset's
+  `initialPromptFlag` or trailing positional), with the inbox nudge appended (two turns in the
+  app, one message headless). Copilot also gets its per-agent `COPILOT_HOME` with
+  `copilot-instructions.md`, as in the app.
+- **Spend safety.** `--max-usd` only caps engines that report $ (Claude). A real run on any other
+  engine refuses without `--accept-uncapped`. OpenCode's permissions live in its config, so it
+  refuses `--perm safe` and runs only with `--perm live`.
+- **Safe-mode change for Claude too:** `git merge`, `git merge-base` and `git fetch` join the
+  allowlist (the god landing fixtures need them; the repo is a throwaway temp repo). S1–S8 are
+  otherwise unchanged.
+- **God fixtures** G1–G7 and G9–G12 (G8, post-compaction drift, needs a resume-based runner and is
+  not built). Standing rules a fixture tests (merges need the human's OK, review by a different
+  agent, fast-forward of the reported SHA only) are written into god's `memory.md`, so today's
+  prompt is judged on following stated rules, not on rules it was never given.
+- **New checks:** `spawnRequests`, `noHireManifest`, `humanQA` (new asks only, with
+  `maxChars`/`boldFirst`/`listed`/`status`), `refUnchanged`, `refEquals`, `anyOf` (more than one
+  correct outcome, e.g. G12).
+- **Copilot usage:** `parseCopilotUsage` reads the last `session.usage_checkpoint` once (its JSON
+  repeats the running total under several keys).
+- **Baseline:** `eval/baselines/2026-10-18-smoke.md` (G fixtures, 1 run, Claude 10/11, Copilot 9/11;
+  both fail G4, the spawn-toggle contradiction). Fixtures can set
+  `repo.commits` (branches to start from), `hive.maySpawn` and `{{SHA:<rev>}}`.
+- **Tests:** `node --test eval/checks.selftest.mjs` (a pass and a fail case per G fixture, plus
+  runner helpers); `test/eval-opt-in.test.cjs` still keeps the eval out of build, test, CI and
+  release.
+
 ## User-editable files (macOS)
 
 `<userData>` is Electron's `app.getPath('userData')`, the folder that holds `config.json`.
@@ -281,3 +321,4 @@ item.
 | `src/renderer/src/hooks/useHive.ts` (`submitToPty`) | T-043 seam (`// fork: T-043`): the body after `waitForTerminalReady` is one `typeAndSubmit(...)` call | An upstream change to `submitToPty` (paste markers, Enter timing, write checks) is ported into `src/shared/custom/ptySubmit.ts`, not re-added inline; `test/pty-submit.test.cjs` passes |
 | `src/main/index.ts` (`nudgeWorker`) | T-047 seam (`// fork: T-047`): the nudge is one `submitLine(...)` call; the caller passes the agent's provider | An upstream change to the watchdog nudge's write/Enter timing is ported into `src/shared/custom/ptySubmit.ts`; `test/pty-submit.test.cjs` passes |
 | `src/main/closingTime.ts` (`cancel`), `src/main/control.ts` | T-048 seam (`// fork: T-048`): cancel calls `withdrawClosingSteers(...)` instead of `clearSteers` per agent, so only queued notes starting `CLOSING TIME` are dropped and an operator/voice steer survives; `ControlRegistry.withdrawSteers(id, match)` is fork-added. The harness closing-time convert uses it too | An upstream rewrite of `cancel` still withdraws through the seam; `test/cost-levers.test.cjs` T-048 tests pass |
+| `src/shared/agentProvider.ts` (`providerPreset`, `initialPromptFlag`, `positionalInitialPrompt`), `src/main/hive.ts` (`ensureAgent` argv, `setOrchestratorMaySpawn`, `spawn-requests/`), `tasks.json` `humanQA`, `fleet.json` shape | Read by the T-050 eval (no seam) | `node eval/run.mjs --dry-run --provider copilot --only G1` prints no "no hive prompt found" warning; `node --test eval/checks.selftest.mjs` passes |
